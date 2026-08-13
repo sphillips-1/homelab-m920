@@ -24,15 +24,11 @@ echo "Creating Homelab directories..."
 
 # Application state
 mkdir -p \
-    "${APPDATA_ROOT}/audiobookshelf" \
-    "${APPDATA_ROOT}/calibre-web" \
-    "${APPDATA_ROOT}/homepage" \
-    "${APPDATA_ROOT}/monitoring"
+    "${APPDATA_ROOT}/audiobookshelf"
 
 # Media
 mkdir -p \
     "${MEDIA_ROOT}/audiobooks" \
-    "${MEDIA_ROOT}/ebooks"
 
 # Backups
 mkdir -p \
