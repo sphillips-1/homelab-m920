@@ -22,12 +22,12 @@ echo "Creating Homelab directories..."
 
 # Application state
 mkdir -p \
-    "${APPDATA_ROOT}/audiobookshelf"
+    "${APPDATA_ROOT}/audiobookshelf" \
+    "${APPDATA_ROOT}/audiobookshelf/metadata"
 
 # Media
 mkdir -p \
-    "${APPDATA_ROOT}/audiobookshelf" \
-    "${APPDATA_ROOT}/audiobookshelf/metadata"
+    "${MEDIA_ROOT}/audiobooks"
 
 # Backups
 mkdir -p \
