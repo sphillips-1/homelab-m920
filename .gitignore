@@ -1,0 +1,20 @@
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+
+# Runtime/application state
+appdata/
+data/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
