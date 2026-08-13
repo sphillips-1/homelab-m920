@@ -10,3 +10,4 @@ services:
     volumes:
       - /srv/homelab/appdata/audiobookshelf:/config
       - /srv/homelab/media/audiobooks:/audiobooks
+      - /srv/homelab/appdata/audiobookshelf/metadata:/metadata
