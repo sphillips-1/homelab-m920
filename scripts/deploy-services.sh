@@ -73,4 +73,4 @@ log "Service deployment complete"
 echo
 echo "Running containers:"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-```
+

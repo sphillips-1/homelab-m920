@@ -61,4 +61,4 @@ echo "    ├── appdata/"
 echo "    └── database/"
 echo
 echo "Done."
-```
+
