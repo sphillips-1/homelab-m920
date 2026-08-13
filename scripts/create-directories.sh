@@ -26,7 +26,8 @@ mkdir -p \
 
 # Media
 mkdir -p \
-    "${MEDIA_ROOT}/audiobooks" \
+    "${APPDATA_ROOT}/audiobookshelf" \
+    "${APPDATA_ROOT}/audiobookshelf/metadata"
 
 # Backups
 mkdir -p \
