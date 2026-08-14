@@ -1,63 +1,47 @@
-# `create-directories.sh`
 #!/usr/bin/env bash
 set -euo pipefail
-
-# Create the persistent Homelab directory structure.
-#
-# Intended location:
-#   /opt/homelab/scripts/create-directories.sh
-#
-# Persistent data lives outside the Git repository:
-#   /srv/homelab
-#
-# Safe to run multiple times.
 
 HOMELAB_ROOT="/srv/homelab"
 
 APPDATA_ROOT="${HOMELAB_ROOT}/appdata"
 MEDIA_ROOT="${HOMELAB_ROOT}/media"
+AUDIOBOOK_ROOT="${MEDIA_ROOT}/audiobooks"
+BOOKS_ROOT="${AUDIOBOOK_ROOT}/Books"
 BACKUP_ROOT="${HOMELAB_ROOT}/backups"
 
-echo "Creating Homelab directories..."
+echo "==> Creating persistent Homelab directories"
 
-# Application state
-mkdir -p \
-    "${APPDATA_ROOT}/audiobookshelf" \
-    "${APPDATA_ROOT}/audiobookshelf/metadata"
+mkdir -p
+"${APPDATA_ROOT}/audiobookshelf"
+"${APPDATA_ROOT}/audiobookshelf/metadata"
+"${APPDATA_ROOT}/calibre-web"
+"${APPDATA_ROOT}/homepage"
+"${APPDATA_ROOT}/monitoring"
 
-# Media
-mkdir -p \
-    "${MEDIA_ROOT}/audiobooks"
+mkdir -p
+"${AUDIOBOOK_ROOT}"
+"${BOOKS_ROOT}"
+"${AUDIOBOOK_ROOT}/ebooks"
 
-# Backups
-mkdir -p \
-    "${BACKUP_ROOT}/appdata" \
-    "${BACKUP_ROOT}/database"
-
-# Set ownership to root by default.
-# Individual services can be given more specific ownership later
-# when their container UID/GID requirements are known.
-chown -R root:root "${HOMELAB_ROOT}"
-
-# Directories should be accessible to root and readable/traversable
-# by other users, without making application data world-writable.
-find "${HOMELAB_ROOT}" -type d -exec chmod 755 {} \;
+mkdir -p
+"${BACKUP_ROOT}/appdata"
+"${BACKUP_ROOT}/database"
 
 echo
-echo "Homelab directory structure created:"
+echo "Persistent directory structure:"
 echo
-echo "${HOMELAB_ROOT}/"
-echo "├── appdata/"
-echo "│   ├── audiobookshelf/"
-echo "│   ├── calibre-web/"
-echo "│   ├── homepage/"
-echo "│   └── monitoring/"
-echo "├── media/"
-echo "│   ├── audiobooks/"
-echo "│   └── ebooks/"
-echo "└── backups/"
-echo "    ├── appdata/"
-echo "    └── database/"
-echo
-echo "Done."
 
+find "${HOMELAB_ROOT}"
+-maxdepth 3
+-type d
+| sort
+
+echo
+echo "NOTE:"
+echo " Audiobooks belong under:"
+echo " ${BOOKS_ROOT}"
+echo
+echo " Compatibility links are created separately by:"
+echo " /opt/homelab/scripts/create-audiobook-links.sh"
+echo
+echo "Directory creation complete."
