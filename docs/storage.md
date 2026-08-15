@@ -22,22 +22,17 @@ Directory layout
 /srv/homelab/
 ├── appdata/
 │   ├── audiobookshelf/
-│   │   ├── absdatabase.sqlite
 │   │   └── metadata/
 │   ├── calibre-web/
 │   ├── homepage/
 │   └── monitoring/
 │
 ├── media/
-│   └── audiobooks/
-│       ├── Backups/
-│       ├── Books/
-│       │   ├── Casualfarmer/
-│       │   ├── Terry Pratchett/
-│       │   └── ...
-│       ├── Dan Carlin/
-│       ├── ebooks/
-│       └── <compatibility symlinks>
+│   ├── audiobooks/
+│   │   ├── Books/
+│   │   │   └── ...
+│   │   └── <compatibility symlinks>
+│   └── ebooks/
 │
 └── backups/
     ├── appdata/
@@ -106,6 +101,7 @@ Do not store secrets in Git.
 Do not store backups in Git.
 Audiobook files belong under /srv/homelab/media/audiobooks/Books.
 Compatibility symlinks must point into Books/.
+Ebooks belong under /srv/homelab/media/ebooks, with the Calibre library metadata.db at that directory's root.
 Application containers should mount persistent state from /srv/homelab.
 Storage setup should be automated by repository scripts where practical.
 The M920 should be recoverable by cloning the repository and rerunning the bootstrap/deployment scripts.

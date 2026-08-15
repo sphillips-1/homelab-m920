@@ -72,8 +72,6 @@ echo "Service '${service}' deployed."
 }
 
 deploy_service "audiobookshelf"
-
-Enable these as their deployment definitions are completed.
 deploy_service "calibre-web"
 deploy_service "homepage"
 deploy_service "monitoring"

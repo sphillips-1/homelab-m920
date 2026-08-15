@@ -57,12 +57,11 @@ echo "LINK: ${name} -> ${source}"
 ((created+=1))
 
 done < <(
-find "${BOOKS_ROOT}"
--mindepth 1
--maxdepth 1
-( -type d -o -type l )
--print0
-| sort -z
+    find "${BOOKS_ROOT}" \
+        -mindepth 1 \
+        -maxdepth 1 \
+        \( -type d -o -type l \) \
+        -print0 | sort -z
 )
 
 echo
