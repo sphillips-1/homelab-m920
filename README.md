@@ -29,3 +29,6 @@ The M920Q runs Debian 13 with Docker and Tailscale.
 - Tailscale
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
+
+Cloudflare Tunnel's pre-SSO, safe-by-default setup is documented in
+`docs/cloudflare-tunnel.md`.

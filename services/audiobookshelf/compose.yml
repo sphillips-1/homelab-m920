@@ -5,9 +5,17 @@ services:
     restart: unless-stopped
 
     ports:
-      - "13378:80"
+      # Local host access only. Tailscale users can use SSH port forwarding.
+      - "127.0.0.1:13378:80"
+
+    networks:
+      - homelab
 
     volumes:
       - /srv/homelab/appdata/audiobookshelf:/config
       - /srv/homelab/media/audiobooks:/audiobooks
       - /srv/homelab/appdata/audiobookshelf/metadata:/metadata
+
+networks:
+  homelab:
+    external: true

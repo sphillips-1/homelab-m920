@@ -1,0 +1,15 @@
+# Rendered by scripts/configure-cloudflared.sh. Do not commit the rendered file.
+# TEMPORARY TEST ACCESS ONLY. Protect the two application hostnames in
+# Cloudflare Access before applying this configuration.
+tunnel: __TUNNEL_ID__
+credentials-file: __CREDENTIALS_FILE__
+
+ingress:
+  - hostname: audiobooks.__DOMAIN__
+    service: http://audiobookshelf:80
+  - hostname: books.__DOMAIN__
+    service: http://calibre-web:8083
+  # Reserved for future Authentik; never route it to an application yet.
+  - hostname: auth.__DOMAIN__
+    service: http_status:404
+  - service: http_status:404

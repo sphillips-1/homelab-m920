@@ -1,0 +1,13 @@
+# Rendered by scripts/configure-cloudflared.sh. Do not commit the rendered file.
+tunnel: __TUNNEL_ID__
+credentials-file: __CREDENTIALS_FILE__
+
+# PRE-SSO SAFE STATE: Tunnel remains connected but no application is served.
+ingress:
+  - hostname: audiobooks.__DOMAIN__
+    service: http_status:404
+  - hostname: books.__DOMAIN__
+    service: http_status:404
+  - hostname: auth.__DOMAIN__
+    service: http_status:404
+  - service: http_status:404

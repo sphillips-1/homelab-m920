@@ -71,10 +71,32 @@ echo "Service '${service}' deployed."
 
 }
 
+deploy_cloudflared() {
+local service_dir="${SERVICES_DIR}/cloudflared"
+local runtime_config="/srv/homelab/appdata/cloudflared/config.yml"
+
+if [[ ! -f "${service_dir}/compose.yml" ]]; then
+    echo "Skipping cloudflared: no Compose file found."
+    return
+fi
+
+if [[ ! -f "${runtime_config}" ]]; then
+    echo "Skipping cloudflared: ${runtime_config} has not been created."
+    echo "Run sudo bash ${REPO_DIR}/scripts/configure-cloudflared.sh --mode safe first."
+    return
+fi
+
+log "Deploying cloudflared"
+cd "${service_dir}"
+docker compose up -d --remove-orphans
+echo "Service 'cloudflared' deployed."
+}
+
 deploy_service "audiobookshelf"
 deploy_service "calibre-web"
 deploy_service "homepage"
 deploy_service "monitoring"
+deploy_cloudflared
 
 log "Service deployment complete"
 

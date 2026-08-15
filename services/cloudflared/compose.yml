@@ -1,0 +1,15 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      # Contains the locally generated tunnel credential and rendered ingress config.
+      - /srv/homelab/appdata/cloudflared:/etc/cloudflared:ro
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    external: true

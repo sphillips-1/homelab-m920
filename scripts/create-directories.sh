@@ -16,6 +16,7 @@ mkdir -p \
     "${APPDATA_ROOT}/audiobookshelf" \
     "${APPDATA_ROOT}/audiobookshelf/metadata" \
     "${APPDATA_ROOT}/calibre-web" \
+    "${APPDATA_ROOT}/cloudflared" \
     "${APPDATA_ROOT}/homepage" \
     "${APPDATA_ROOT}/monitoring" \
     "${BOOKS_ROOT}" \

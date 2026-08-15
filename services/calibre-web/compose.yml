@@ -10,8 +10,16 @@ services:
       TZ: America/New_York
 
     ports:
-      - "8083:8083"
+      # Local host access only. Tailscale users can use SSH port forwarding.
+      - "127.0.0.1:8083:8083"
+
+    networks:
+      - homelab
 
     volumes:
       - /srv/homelab/appdata/calibre-web:/config
       - /srv/homelab/media/ebooks:/books
+
+networks:
+  homelab:
+    external: true
