@@ -34,8 +34,10 @@ target="${AUDIOBOOK_ROOT}/${name}"
 if [[ -e "${target}" || -L "${target}" ]]; then
     if [[ -L "${target}" ]]; then
         current_target="$(readlink "${target}")"
+        resolved_target="$(readlink -f "${target}")"
+        resolved_source="$(readlink -f "${source}")"
 
-        if [[ "${current_target}" == "${source}" ]]; then
+        if [[ "${resolved_target}" == "${resolved_source}" ]]; then
             echo "EXISTS: ${name} -> ${current_target}"
             ((existing+=1))
             continue
