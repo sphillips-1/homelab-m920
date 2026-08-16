@@ -32,3 +32,17 @@ See `docs/architecture.md` and `docs/storage.md` for the current design.
 
 Cloudflare Tunnel's pre-SSO, safe-by-default setup is documented in
 `docs/cloudflare-tunnel.md`.
+
+## Application access
+
+- LAN: Audiobookshelf is available at `http://<m920q-lan-ip>:13378` and
+  Calibre-Web at `http://<m920q-lan-ip>:8083`.
+- Tailscale: use the same ports with the M920Q's Tailscale name or IP; SSH port
+  forwarding is not required for normal private browser access.
+- Internet: only the Cloudflare Tunnel may route the two application hostnames.
+  It connects to the containers over Docker's `homelab` network; no router port
+  forwarding is configured or required.
+
+Public application routes must not remain unauthenticated. They stay in the
+safe 404 state until deliberately protected by Cloudflare Access, with
+Authentik/Google SSO planned as the permanent application-authentication layer.

@@ -43,11 +43,17 @@ The exact Compose organization will be established as services are migrated.
 
 ## Internet ingress
 
-Cloudflare Tunnel is the only planned Internet ingress.  It makes an outbound
+Cloudflare Tunnel is the only planned Internet ingress. It makes an outbound
 connection from the `cloudflared` container to Cloudflare; the router does not
-forward ports 80 or 443. Audiobookshelf and Calibre-Web bind only to loopback
-on the host and are reachable by the tunnel over the internal Docker `homelab`
-network. Tailscale remains the private administration path.
+forward ports 80 or 443. Audiobookshelf and Calibre-Web publish their web ports
+on the M920Q host so they are directly reachable on the LAN and through
+Tailscale. The `cloudflared` container reaches those same applications directly
+over the internal Docker `homelab` network; it does not use their host ports.
+
+Only Audiobookshelf and Calibre-Web are candidates for public routing. SSH,
+Docker, databases, Tailscale, and other host services are never exposed through
+Cloudflare. Permanent unauthenticated Internet access is not intended; future
+public application access will be protected by Authentik/Google SSO.
 
 Before Authentik is deployed, the tunnel configuration must remain in **safe**
 mode, where all configured hostnames return 404. Test mode is deliberately

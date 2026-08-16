@@ -32,10 +32,10 @@ echo "==> Expected container status"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' \
   --filter name='^(audiobookshelf|calibre-web|cloudflared)$'
 
-echo "==> Host publication check (must be loopback only)"
+echo "==> Host publication check (must allow LAN and Tailscale access)"
 for port in 13378 8083; do
-    if ss -ltnH "( sport = :${port} )" | awk '{print $4}' | grep -Eq '(^|\[::\]:|0\.0\.0\.0:)'; then
-        echo "ERROR: Port ${port} is published beyond loopback." >&2
+    if ! ss -ltnH "( sport = :${port} )" | awk '{print $4}' | grep -Eq '^(0\.0\.0\.0:|\[::\]:|\*:)'; then
+        echo "ERROR: Port ${port} is not published on a non-loopback host interface." >&2
         exit 1
     fi
 done

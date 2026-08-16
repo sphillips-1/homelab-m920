@@ -8,13 +8,13 @@ applications on Docker's private `homelab` network. Do **not** forward router
 ports 80 or 443. Do not expose SSH, Tailscale, Docker, databases, or any other
 host service through this tunnel.
 
-Audiobookshelf and Calibre-Web bind to `127.0.0.1` on the host, not
-`0.0.0.0`. Tailscale remains the administration path; use SSH port forwarding
-from a Tailnet device when direct private browser access is needed, for example:
-
-```bash
-ssh -N -L 13378:127.0.0.1:13378 -L 8083:127.0.0.1:8083 user@<tailscale-host>
-```
+Audiobookshelf publishes `13378:80` and Calibre-Web publishes `8083:8083` on
+the M920Q. They are reachable directly at
+`http://<m920q-lan-ip>:13378` and `http://<m920q-lan-ip>:8083` on the LAN, and
+at the same ports using the M920Q's Tailscale name or IP. SSH port forwarding
+is not required for normal Tailscale browser access. These host publications do
+not affect the tunnel: `cloudflared` continues to connect directly to
+`audiobookshelf:80` and `calibre-web:8083` over the Docker `homelab` network.
 
 The normal pre-SSO state is **safe mode**. It keeps the tunnel connected and
 DNS records in place but returns HTTP 404 for `audiobooks.<DOMAIN>`,
@@ -124,7 +124,7 @@ normal ready state.
 ## Validation and troubleshooting
 
 `verify-cloudflare-tunnel.sh` validates Compose syntax, container status,
-loopback-only application publication, container-to-container connectivity,
+LAN/Tailscale-capable application publication, container-to-container connectivity,
 tunnel connection logs, DNS resolution, and HTTPS behavior. It must be run on
 the M920Q after deployment; this repository checkout cannot validate the live
 Cloudflare account, DNS, or router.

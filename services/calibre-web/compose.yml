@@ -10,8 +10,8 @@ services:
       TZ: America/New_York
 
     ports:
-      # Local host access only. Tailscale users can use SSH port forwarding.
-      - "127.0.0.1:8083:8083"
+      # Publish to the host LAN and Tailscale interfaces for normal private access.
+      - "8083:8083"
 
     networks:
       - homelab
