@@ -18,8 +18,9 @@ not affect the tunnel: `cloudflared` continues to connect directly to
 
 The normal pre-SSO state is **safe mode**. It keeps the tunnel connected and
 DNS records in place but returns HTTP 404 for `audiobooks.<DOMAIN>`,
-`books.<DOMAIN>`, and `auth.<DOMAIN>`. It does not rely only on an Access
-policy, so an accidental policy deletion cannot expose an application.
+`books.<DOMAIN>`. The identity hostname routes to Authentik. Safe mode does not
+rely only on an Access policy, so an accidental policy deletion cannot expose
+either content application.
 
 ## Prerequisites
 
@@ -74,8 +75,8 @@ sudo bash ./scripts/verify-cloudflare-tunnel.sh safe
 ```
 
 The expected external response from both application hostnames is HTTPS 404.
-The `auth` hostname is intentionally reserved and also returns 404. The
-router needs no port-forwarding rule.
+The `auth` hostname routes to Authentik. The router needs no port-forwarding
+rule.
 
 ## TEMPORARY TEST ACCESS
 
@@ -96,7 +97,7 @@ sudo bash ./scripts/verify-cloudflare-tunnel.sh test
 ```
 
 Test mode routes `audiobooks.<DOMAIN>` to Audiobookshelf and
-`books.<DOMAIN>` to Calibre-Web. `auth.<DOMAIN>` still returns 404. This is
+`books.<DOMAIN>` to Calibre-Web. `auth.<DOMAIN>` continues to route to Authentik. This is
 **TEMPORARY TEST ACCESS** and would be unauthenticated if the Access policies
 are missing, disabled, or incorrectly scoped.
 
@@ -138,11 +139,10 @@ Cloudflare account, DNS, or router.
 - If cloudflared cannot resolve an app name, confirm all three containers are
   attached to the external `homelab` Docker network.
 
-## Future Authentik integration
+## Authentik identity route
 
-The future Authentik service will join `homelab` and replace the reserved
-`auth.<DOMAIN>` 404 route. Authentik/Google SSO will then become the
-application authentication layer; Cloudflare Access can remain an edge gate
-or be revised deliberately. Do not turn the current temporary Access policy
-into an unauthenticated permanent route. Keep safe mode until that design is
-implemented and tested.
+The Authentik server joins `homelab`, and both tunnel modes route
+`auth.<DOMAIN>` to `http://authentik-server:9000`. Safe mode still returns 404
+for Audiobookshelf and Calibre-Web. Authentik/Google establishes the identity
+layer only; it does not protect either application yet. Do not turn temporary
+application test routes into unauthenticated permanent routes.

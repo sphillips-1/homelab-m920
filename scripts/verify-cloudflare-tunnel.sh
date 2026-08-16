@@ -17,6 +17,7 @@ source "${ENV_FILE}"
 echo "==> Compose validation"
 docker compose -f "${REPO_DIR}/services/audiobookshelf/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/calibre-web/compose.yml" config -q
+docker compose -f "${REPO_DIR}/services/authentik/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/cloudflared/compose.yml" config -q
 
 if ! docker inspect --format '{{.State.Running}}' cloudflared 2>/dev/null | grep -qx true; then
@@ -43,6 +44,7 @@ done
 echo "==> Local tunnel-to-container connectivity"
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://audiobookshelf:80
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://calibre-web:8083
+docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://authentik-server:9000/-/health/ready/
 
 echo "==> Tunnel connection log"
 docker logs --tail 100 cloudflared | grep -Ei 'registered tunnel connection|connection.*registered|connected' || {
@@ -69,5 +71,11 @@ for hostname in "audiobooks.${CLOUDFLARE_DOMAIN}" "books.${CLOUDFLARE_DOMAIN}"; 
         curl --fail --silent --show-error --output /dev/null "https://${hostname}"
     fi
 done
+
+auth_hostname="auth.${CLOUDFLARE_DOMAIN}"
+echo "==> DNS and HTTPS: ${auth_hostname}"
+getent ahosts "${auth_hostname}" >/dev/null || { echo "ERROR: DNS does not resolve: ${auth_hostname}" >&2; exit 1; }
+auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "https://${auth_hostname}/-/health/ready/")"
+[[ "${auth_status}" == "200" ]] || { echo "ERROR: Authentik readiness through Cloudflare returned HTTP ${auth_status}." >&2; exit 1; }
 
 echo "Verification passed. No router port forwarding is required by Cloudflare Tunnel."

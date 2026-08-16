@@ -9,7 +9,6 @@ ingress:
     service: http://audiobookshelf:80
   - hostname: books.__DOMAIN__
     service: http://calibre-web:8083
-  # Reserved for future Authentik; never route it to an application yet.
   - hostname: auth.__DOMAIN__
-    service: http_status:404
+    service: http://authentik-server:9000
   - service: http_status:404

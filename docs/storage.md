@@ -24,6 +24,11 @@ Directory layout
 │   ├── audiobookshelf/
 │   │   └── metadata/
 │   ├── calibre-web/
+│   ├── authentik/
+│   │   ├── postgresql/
+│   │   ├── data/
+│   │   ├── certs/
+│   │   └── custom-templates/
 │   ├── homepage/
 │   └── monitoring/
 │

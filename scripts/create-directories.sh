@@ -17,12 +17,25 @@ mkdir -p \
     "${APPDATA_ROOT}/audiobookshelf/metadata" \
     "${APPDATA_ROOT}/calibre-web" \
     "${APPDATA_ROOT}/cloudflared" \
+    "${APPDATA_ROOT}/authentik/postgresql" \
+    "${APPDATA_ROOT}/authentik/data" \
+    "${APPDATA_ROOT}/authentik/certs" \
+    "${APPDATA_ROOT}/authentik/custom-templates" \
     "${APPDATA_ROOT}/homepage" \
     "${APPDATA_ROOT}/monitoring" \
     "${BOOKS_ROOT}" \
     "${EBOOKS_ROOT}" \
     "${BACKUP_ROOT}/appdata" \
-    "${BACKUP_ROOT}/database"
+    "${BACKUP_ROOT}/database" \
+    "${BACKUP_ROOT}/authentik"
+
+# Authentik uses UID/GID 1000 for application files. PostgreSQL manages its own
+# data-directory ownership, so never recursively chown the parent on reruns.
+chown -R 1000:1000 \
+    "${APPDATA_ROOT}/authentik/data" \
+    "${APPDATA_ROOT}/authentik/certs" \
+    "${APPDATA_ROOT}/authentik/custom-templates"
+chmod 700 "${BACKUP_ROOT}/authentik"
 
 echo
 echo "Persistent directory structure:"

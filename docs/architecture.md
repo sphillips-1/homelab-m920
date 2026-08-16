@@ -50,11 +50,12 @@ on the M920Q host so they are directly reachable on the LAN and through
 Tailscale. The `cloudflared` container reaches those same applications directly
 over the internal Docker `homelab` network; it does not use their host ports.
 
-Only Audiobookshelf and Calibre-Web are candidates for public routing. SSH,
+Only Audiobookshelf, Calibre-Web, and Authentik are candidates for public routing. SSH,
 Docker, databases, Tailscale, and other host services are never exposed through
-Cloudflare. Permanent unauthenticated Internet access is not intended; future
-public application access will be protected by Authentik/Google SSO.
+Cloudflare. Permanent unauthenticated Internet access is not intended.
+Authentik is the identity layer; future public application access will be
+protected by Authentik/Google SSO.
 
-Before Authentik is deployed, the tunnel configuration must remain in **safe**
-mode, where all configured hostnames return 404. Test mode is deliberately
-temporary and must be protected by a Cloudflare Access application.
+In **safe** mode, the two application hostnames return 404 while Authentik is
+routed. Test mode is deliberately temporary and must be protected by a
+Cloudflare Access application.

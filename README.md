@@ -26,6 +26,7 @@ The M920Q runs Debian 13 with Docker and Tailscale.
 - Calibre-Web
 - Homepage
 - Monitoring
+- Authentik
 - Tailscale
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
@@ -44,5 +45,6 @@ Cloudflare Tunnel's pre-SSO, safe-by-default setup is documented in
   forwarding is configured or required.
 
 Public application routes must not remain unauthenticated. They stay in the
-safe 404 state until deliberately protected by Cloudflare Access, with
-Authentik/Google SSO planned as the permanent application-authentication layer.
+safe 404 state until deliberately integrated with Authentik. Authentik itself
+is routed at `https://auth.shelfgoblin.dev`; application SSO is intentionally
+not part of the identity-layer deployment.

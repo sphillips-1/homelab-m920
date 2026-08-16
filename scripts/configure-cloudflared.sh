@@ -50,5 +50,5 @@ echo "Rendered ${MODE} tunnel configuration at ${RUNTIME_DIR}/config.yml."
 if [[ "${MODE}" == "test" ]]; then
     echo "WARNING: TEST MODE is unauthenticated unless Cloudflare Access is already enforced."
 else
-    echo "SAFE MODE active: all configured hostnames return 404 through the tunnel."
+    echo "SAFE MODE active: application hostnames return 404; Authentik remains routed."
 fi
