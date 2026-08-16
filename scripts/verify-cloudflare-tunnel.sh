@@ -31,7 +31,7 @@ docker exec cloudflared cloudflared tunnel --config /etc/cloudflared/config.yml 
 
 echo "==> Expected container status"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' \
-  --filter name='^(audiobookshelf|calibre-web|cloudflared)$'
+  --filter name='^(audiobookshelf|calibre-web|authentik-server|authentik-worker|authentik-postgresql|cloudflared)$'
 
 echo "==> Host publication check (must allow LAN and Tailscale access)"
 for port in 13378 8083; do
@@ -47,7 +47,7 @@ docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http:
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://authentik-server:9000/-/health/ready/
 
 echo "==> Tunnel connection log"
-docker logs --tail 100 cloudflared | grep -Ei 'registered tunnel connection|connection.*registered|connected' || {
+docker logs --tail 100 cloudflared 2>&1 | grep -Ei 'registered tunnel connection|connection.*registered|connected' || {
     echo "ERROR: No successful tunnel connection was found in the recent cloudflared log." >&2
     exit 1
 }
