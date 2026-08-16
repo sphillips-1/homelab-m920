@@ -18,6 +18,14 @@ echo "==> Compose validation"
 docker compose -f "${REPO_DIR}/services/audiobookshelf/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/calibre-web/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/cloudflared/compose.yml" config -q
+
+if ! docker inspect --format '{{.State.Running}}' cloudflared 2>/dev/null | grep -qx true; then
+    echo "ERROR: The cloudflared container is not running." >&2
+    echo "Deploy it with: sudo docker compose -f ${REPO_DIR}/services/cloudflared/compose.yml up -d" >&2
+    echo "Then inspect: docker logs --tail 100 cloudflared" >&2
+    exit 1
+fi
+
 docker exec cloudflared cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate
 
 echo "==> Expected container status"

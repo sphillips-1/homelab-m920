@@ -31,35 +31,27 @@ policy, so an accidental policy deletion cannot expose an application.
 
 ## Create the named tunnel
 
-Run these commands on the M920Q. They use a temporary Cloudflare login
-certificate in the persistent, untracked tunnel directory; neither it nor the
-JSON credentials may enter Git.
+Run the repository-managed setup helper on the M920Q. It reuses an existing
+local tunnel JSON credential when possible; otherwise it opens the interactive
+Cloudflare login flow, creates a named tunnel, writes the ignored local `.env`,
+renders safe mode, and deploys the connector.
 
 ```bash
-sudo ./scripts/create-directories.sh
-sudo docker run --rm -it -v /srv/homelab/appdata/cloudflared:/home/nonroot/.cloudflared cloudflare/cloudflared:latest tunnel login
-sudo docker run --rm -it -v /srv/homelab/appdata/cloudflared:/home/nonroot/.cloudflared cloudflare/cloudflared:latest tunnel create homelab-m920
-sudo chmod 700 /srv/homelab/appdata/cloudflared
-sudo chmod 600 /srv/homelab/appdata/cloudflared/*.json /srv/homelab/appdata/cloudflared/cert.pem
+sudo bash ./scripts/setup-cloudflared-tunnel.sh --domain example.com
 ```
 
-The create command prints a UUID and writes `<UUID>.json`. Copy the local
-environment template and set the actual domain, UUID, and JSON path:
+Pass the real Cloudflare zone (without a protocol) instead of `example.com`.
+The helper prints the tunnel UUID and writes the local environment file. To
+select a local credential explicitly, use `--tunnel-id <UUID>`.
 
 ```bash
-sudo cp services/cloudflared/.env.example services/cloudflared/.env
-sudoedit services/cloudflared/.env
+sudo cat services/cloudflared/.env
 ```
 
 `services/cloudflared/.env` is ignored by Git. The required values are
 `CLOUDFLARE_DOMAIN`, `CLOUDFLARE_TUNNEL_ID`, and
-`CLOUDFLARE_TUNNEL_CREDENTIALS_FILE`. The credential JSON and `cert.pem` are
-secrets. After DNS records are created, remove `cert.pem` if it is no longer
-needed; the JSON credential is still required by the container:
-
-```bash
-sudo rm -f /srv/homelab/appdata/cloudflared/cert.pem
-```
+`CLOUDFLARE_TUNNEL_CREDENTIALS_FILE`. The credential JSON is secret. The
+temporary `cert.pem` is removed by the helper after successful deployment.
 
 In the Cloudflare DNS dashboard, create proxied CNAME records:
 

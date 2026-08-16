@@ -3,6 +3,14 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
     restart: unless-stopped
+    # The host credential directory is root-owned and mode 0700/0600.
+    # Run as root only to read that read-only mount; remove Linux capabilities.
+    user: "0:0"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
     volumes:
       # Contains the locally generated tunnel credential and rendered ingress config.
