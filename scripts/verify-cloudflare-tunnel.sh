@@ -54,7 +54,17 @@ for hostname in "audiobooks.${CLOUDFLARE_DOMAIN}" "books.${CLOUDFLARE_DOMAIN}"; 
     echo "==> DNS and HTTPS: ${hostname}"
     getent ahosts "${hostname}" >/dev/null || { echo "ERROR: DNS does not resolve: ${hostname}" >&2; exit 1; }
     if [[ "${MODE}" == "safe" ]]; then
-        curl --silent --show-error --output /dev/null --write-out '%{http_code}\n' "https://${hostname}" | grep -qx '404'
+        headers="$(curl --silent --show-error --dump-header - --output /dev/null "https://${hostname}")"
+        status="$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' <<<"${headers}")"
+        if [[ "${status}" == "404" ]]; then
+            continue
+        fi
+        if [[ "${status}" == "302" ]] && grep -Eqi '^location: .*([.]cloudflareaccess[.]com|/cdn-cgi/access/)' <<<"${headers}"; then
+            echo "Cloudflare Access redirect confirmed for ${hostname}."
+            continue
+        fi
+        echo "ERROR: Expected a 404 or Cloudflare Access redirect for ${hostname}; got HTTP ${status:-unknown}." >&2
+        exit 1
     else
         curl --fail --silent --show-error --output /dev/null "https://${hostname}"
     fi
