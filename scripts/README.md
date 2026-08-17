@@ -23,5 +23,7 @@ Access policies are in place.
 - `backup-applications.sh` creates consistent Audiobookshelf and Calibre-Web
   appdata/library archives under `/srv/homelab/backups/applications`.
 - `backup-authentik.sh` creates an Authentik PostgreSQL dump and file archive.
-- `configure-cloudflared.sh --mode sso` enables final native-OIDC/proxy
+- `configure-cloudflared.sh --mode access` routes Cloudflare Access-protected
+  Calibre-Web directly while retaining Audiobookshelf native OIDC.
+- `configure-cloudflared.sh --mode sso` restores the Authentik proxy rollback
   application routing after providers and policies have been configured.

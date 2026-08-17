@@ -26,7 +26,8 @@ Deployed and managed by this repository:
 
 - Audiobookshelf
 - Calibre-Web
-- Authentik with Google OAuth identity
+- Cloudflare Access Terraform
+- Authentik with Google OAuth identity (temporarily retained for migration safety)
 - Cloudflare Tunnel
 - Tailscale-based private access
 
@@ -44,6 +45,9 @@ Application authorization, client compatibility, deployment, and rollback are
 documented in `docs/application-sso.md`.
 New-user onboarding, existing-user migration, client setup, troubleshooting,
 and offboarding are documented in `docs/user-onboarding.md`.
+The Cloudflare-first Terraform migration, CI controls, validation, and rollback
+procedure is documented in `docs/terraform-zero-trust.md`. Entra External ID is
+pending decommission and is not being expanded.
 
 ## Application access
 
@@ -55,7 +59,8 @@ and offboarding are documented in `docs/user-onboarding.md`.
   It connects to the containers over Docker's `homelab` network; no router port
   forwarding is configured or required.
 
-Public application routes must not remain unauthenticated. They stay in the
-safe 404 state until deliberately integrated with Authentik. Authentik itself
-is routed at `https://auth.shelfgoblin.dev`; application SSO is intentionally
-not part of the identity-layer deployment.
+Public application routes must not remain unauthenticated. Cloudflare Access
+with OTP and an exact email allow-list is the target external boundary, with
+Calibre-Web migrated first. Authentik and `auth.shelfgoblin.dev` remain during
+validation. Audiobookshelf is unchanged until native-client compatibility is
+proven; Tailscale remains the preferred private path.

@@ -1,0 +1,59 @@
+name: Terraform PR
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-*.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  plan:
+    needs: validate
+    if: github.event.pull_request.head.repo.full_name == github.repository && vars.TF_ADOPTION_READY == 'true'
+    runs-on: ubuntu-latest
+    environment: infrastructure
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+      - name: Configure remote state
+        run: |
+          printf '%s\n' \
+            'hostname = "app.terraform.io"' \
+            'organization = "${{ vars.TF_CLOUD_ORGANIZATION }}"' \
+            'workspaces { name = "${{ vars.TF_WORKSPACE }}" }' \
+            > backend.ci.hcl
+      - run: terraform init
+        env:
+          TF_CLI_ARGS_init: -backend-config=backend.ci.hcl
+      - run: terraform plan -detailed-exitcode -out=tfplan

@@ -50,12 +50,15 @@ on the M920Q host so they are directly reachable on the LAN and through
 Tailscale. The `cloudflared` container reaches those same applications directly
 over the internal Docker `homelab` network; it does not use their host ports.
 
-Only Audiobookshelf, Calibre-Web, and Authentik are candidates for public routing. SSH,
-Docker, databases, Tailscale, and other host services are never exposed through
-Cloudflare. Permanent unauthenticated Internet access is not intended.
-Authentik is the identity layer; future public application access will be
-protected by Authentik/Google SSO.
+Only Audiobookshelf, Calibre-Web, and Authentik are candidates for public
+routing. SSH, Docker, databases, Tailscale, and other host services are never
+exposed through Cloudflare. Permanent unauthenticated Internet access is not
+intended. Cloudflare Access is the target external identity and authorization
+boundary. Calibre-Web migrates first using OTP plus exact email authorization.
+Authentik is retained temporarily for rollback, and Entra External ID is
+pending decommission.
 
 In **safe** mode, the two application hostnames return 404 while Authentik is
-routed. Test mode is deliberately temporary and must be protected by a
-Cloudflare Access application.
+routed. Calibre-Web may leave safe mode only after its Cloudflare Access policy
+is applied and validated. Audiobookshelf remains unchanged until browser, API,
+WebSocket, and native-client compatibility is proven separately.

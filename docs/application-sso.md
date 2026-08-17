@@ -1,17 +1,18 @@
 # Application SSO
 
-## Final architecture
+## Migration architecture
 
 Public traffic uses Cloudflare Tunnel only; router ports 80/443 remain closed.
 `audiobooks.shelfgoblin.dev` routes to Audiobookshelf, which enforces native
-OIDC with Authentik. `books.shelfgoblin.dev` routes to the Authentik embedded
-proxy outpost, which enforces the Books application policy before proxying to
-Calibre-Web. `auth.shelfgoblin.dev` routes to Authentik.
+OIDC with Authentik. In `access` mode, `books.shelfgoblin.dev` is protected by
+Cloudflare Access and routes directly to Calibre-Web. The previous Authentik
+embedded-proxy route remains available as the `sso` rollback mode.
+`auth.shelfgoblin.dev` continues to route to Authentik.
 
 LAN and Tailscale continue to use host ports 13378 and 8083. Audiobookshelf
 uses OpenID exclusively on every network path; its persisted password hashes
 remain in the database for rollback but password authentication is disabled.
-Calibre-Web retains its own authentication behind the Authentik proxy.
+Calibre-Web retains its own authentication behind Cloudflare Access.
 
 ## Authorization
 
@@ -57,8 +58,8 @@ session does not authenticate the app's later API requests.
 
 ## Calibre-Web and OPDS
 
-Calibre-Web 0.6.27 does not support generic Authentik OIDC. Browser access uses
-an Authentik proxy provider and retains Calibre-Web's own users/permissions.
+Calibre-Web 0.6.27 does not support generic Authentik OIDC. Browser access now
+uses Cloudflare Access OTP and retains Calibre-Web's own users/permissions.
 The live instance was not initialized when this integration was prepared:
 `/srv/homelab/media/ebooks` had no `metadata.db`, and the application redirected
 to `/admin/dbconfig`. Do not expose OPDS until a real Calibre library and strong
@@ -71,19 +72,19 @@ bypass authentication for the whole Books application.
 
 ## Deployment and validation
 
-Before enabling public routes, run `sudo scripts/backup-applications.sh` and
-`sudo scripts/backup-authentik.sh`, then copy backups off-host. Render final
-routing only after both providers and group bindings are verified:
+Before changing public routes, run `sudo scripts/backup-applications.sh` and
+copy backups off-host. Render Cloudflare-first routing only after the Access
+application, OTP, and exact-email policy are verified:
 
 ```bash
-sudo bash scripts/configure-cloudflared.sh --mode sso
+sudo bash scripts/configure-cloudflared.sh --mode access
 sudo docker compose -f services/cloudflared/compose.yml up -d
+sudo bash scripts/verify-cloudflare-tunnel.sh access
 ```
 
-Remove the temporary Cloudflare Access applications only after the origin SSO
-checks pass. Validate anonymous, authorized, unauthorized, logout/login, mobile,
-LAN, and Tailscale paths. Check `docker logs --tail 100 cloudflared` for ongoing
-origin errors.
+Validate anonymous, authorized, unauthorized, logout/login, LAN, and Tailscale
+paths. Confirm Books no longer redirects to `auth.shelfgoblin.dev`. Check
+`docker logs --tail 100 cloudflared` for ongoing origin errors.
 
 ## Recovery and rollback
 
@@ -101,3 +102,7 @@ This closes public application origins without affecting LAN/Tailscale. To
 restore application state, stop the affected container, replace its appdata
 from the matching pre-SSO archive, and restart it. Restore Authentik using its
 SQL dump, file archive, and the separately protected stable `.env` secret key.
+
+To roll back only the Calibre-Web origin cutover while keeping it online,
+render `--mode sso` and redeploy cloudflared. This restores the Authentik proxy
+without changing Cloudflare DNS, Access, or Terraform state.

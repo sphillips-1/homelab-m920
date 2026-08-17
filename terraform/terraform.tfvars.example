@@ -1,0 +1,13 @@
+# Non-secret identifiers must be discovered; none of these placeholders are real.
+cloudflare_account_id         = "00000000000000000000000000000000"
+cloudflare_zone_id            = "00000000000000000000000000000000"
+zone_name                    = "example.com"
+tunnel_id                    = "00000000-0000-0000-0000-000000000000"
+tunnel_name                  = "homelab-m920-local"
+enable_calibre_access        = false
+access_session_duration      = "168h"
+
+# Store real addresses in HCP Terraform sensitive variables, not in Git.
+access_users = [
+  "authorized-user@example.com",
+]

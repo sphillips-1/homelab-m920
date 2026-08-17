@@ -25,7 +25,7 @@ docker compose -f services/calibre-web/compose.yml ps
 docker logs --tail 100 calibre-web
 ```
 
-The web UI is available at `http://<m920q-lan-ip>:8083` on the LAN or `http://<m920q-tailscale-name-or-ip>:8083` over Tailscale; SSH port forwarding is not required. Cloudflare Tunnel can reach this container directly on the Docker `homelab` network when an intentionally protected public route is enabled. This service does not require router port forwarding and must not be left permanently exposed to the Internet without Cloudflare Access and the planned Authentik/Google SSO protection.
+The web UI is available at `http://<m920q-lan-ip>:8083` on the LAN or `http://<m920q-tailscale-name-or-ip>:8083` over Tailscale; SSH port forwarding is not required. Cloudflare Tunnel can reach this container directly on the Docker `homelab` network when an intentionally protected public route is enabled. This service does not require router port forwarding. Its public hostname is the first Cloudflare Access migration target and must use OTP plus the exact email allow-list documented in `../../docs/terraform-zero-trust.md`.
 
 ## Initial library setup
 

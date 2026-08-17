@@ -5,8 +5,8 @@ REPO_DIR="/opt/homelab"
 ENV_FILE="${REPO_DIR}/services/cloudflared/.env"
 MODE="${1:-safe}"
 
-[[ "${MODE}" == "safe" || "${MODE}" == "test" || "${MODE}" == "sso" ]] || {
-    echo "Usage: $0 [safe|test|sso]" >&2
+[[ "${MODE}" == "safe" || "${MODE}" == "test" || "${MODE}" == "sso" || "${MODE}" == "access" ]] || {
+    echo "Usage: $0 [safe|test|sso|access]" >&2
     exit 2
 }
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: ${ENV_FILE} is missing." >&2; exit 1; }

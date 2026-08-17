@@ -19,3 +19,18 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+
+# Terraform working directories, local inputs, state, and saved plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+.terraformrc
+terraform.rc
+terraform/backend.hcl
+terraform/backend-entra.hcl
+terraform/cloudflare-inventory.json
+crash.log
+crash.*.log

@@ -1,0 +1,5 @@
+hostname     = "app.terraform.io"
+organization = "replace-with-hcp-terraform-organization"
+workspaces {
+  name = "homelab-m920"
+}
