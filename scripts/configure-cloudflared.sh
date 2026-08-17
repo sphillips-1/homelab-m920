@@ -6,14 +6,14 @@ SERVICE_DIR="${REPO_DIR}/services/cloudflared"
 RUNTIME_DIR="/srv/homelab/appdata/cloudflared"
 
 usage() {
-    echo "Usage: sudo $0 --mode safe|test" >&2
+    echo "Usage: sudo $0 --mode safe|test|sso" >&2
     exit 2
 }
 
 [[ "${EUID}" -eq 0 ]] || { echo "ERROR: Run this script as root." >&2; exit 1; }
 [[ "${1:-}" == "--mode" ]] || usage
 MODE="${2:-}"
-[[ "${MODE}" == "safe" || "${MODE}" == "test" ]] || usage
+[[ "${MODE}" == "safe" || "${MODE}" == "test" || "${MODE}" == "sso" ]] || usage
 [[ -z "${3:-}" ]] || usage
 
 ENV_FILE="${SERVICE_DIR}/.env"
@@ -49,6 +49,8 @@ chmod 0600 "${RUNTIME_DIR}/config.yml"
 echo "Rendered ${MODE} tunnel configuration at ${RUNTIME_DIR}/config.yml."
 if [[ "${MODE}" == "test" ]]; then
     echo "WARNING: TEST MODE is unauthenticated unless Cloudflare Access is already enforced."
+elif [[ "${MODE}" == "sso" ]]; then
+    echo "SSO mode active: Audiobookshelf uses native OIDC and Books uses the Authentik proxy."
 else
     echo "SAFE MODE active: application hostnames return 404; Authentik remains routed."
 fi

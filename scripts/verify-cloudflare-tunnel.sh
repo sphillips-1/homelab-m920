@@ -5,8 +5,8 @@ REPO_DIR="/opt/homelab"
 ENV_FILE="${REPO_DIR}/services/cloudflared/.env"
 MODE="${1:-safe}"
 
-[[ "${MODE}" == "safe" || "${MODE}" == "test" ]] || {
-    echo "Usage: $0 [safe|test]" >&2
+[[ "${MODE}" == "safe" || "${MODE}" == "test" || "${MODE}" == "sso" ]] || {
+    echo "Usage: $0 [safe|test|sso]" >&2
     exit 2
 }
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: ${ENV_FILE} is missing." >&2; exit 1; }
@@ -67,8 +67,15 @@ for hostname in "audiobooks.${CLOUDFLARE_DOMAIN}" "books.${CLOUDFLARE_DOMAIN}"; 
         fi
         echo "ERROR: Expected a 404 or Cloudflare Access redirect for ${hostname}; got HTTP ${status:-unknown}." >&2
         exit 1
-    else
+    elif [[ "${MODE}" == "test" ]]; then
         curl --fail --silent --show-error --output /dev/null "https://${hostname}"
+    else
+        headers="$(curl --silent --show-error --dump-header - --output /dev/null "https://${hostname}")"
+        status="$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' <<<"${headers}")"
+        [[ "${status}" =~ ^(200|302|303|307)$ ]] || {
+            echo "ERROR: Expected an application login page or redirect for ${hostname}; got HTTP ${status:-unknown}." >&2
+            exit 1
+        }
     fi
 done
 

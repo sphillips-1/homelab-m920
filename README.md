@@ -40,6 +40,10 @@ See `docs/architecture.md` and `docs/storage.md` for the current design.
 Cloudflare Tunnel's safe-by-default setup is documented in
 `docs/cloudflare-tunnel.md`. Authentik deployment, Google OAuth enrollment,
 recovery, backup, and validation are documented in `docs/authentik.md`.
+Application authorization, client compatibility, deployment, and rollback are
+documented in `docs/application-sso.md`.
+New-user onboarding, existing-user migration, client setup, troubleshooting,
+and offboarding are documented in `docs/user-onboarding.md`.
 
 ## Application access
 

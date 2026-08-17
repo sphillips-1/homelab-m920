@@ -1,0 +1,14 @@
+# Rendered by scripts/configure-cloudflared.sh. Do not commit the rendered file.
+# Audiobookshelf enforces native OIDC. The Books hostname is served by the
+# Authentik embedded proxy outpost, which then reaches calibre-web privately.
+tunnel: __TUNNEL_ID__
+credentials-file: __CREDENTIALS_FILE__
+
+ingress:
+  - hostname: audiobooks.__DOMAIN__
+    service: http://audiobookshelf:80
+  - hostname: books.__DOMAIN__
+    service: http://authentik-server:9000
+  - hostname: auth.__DOMAIN__
+    service: http://authentik-server:9000
+  - service: http_status:404

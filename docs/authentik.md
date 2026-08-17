@@ -76,7 +76,7 @@ successful boot because Authentik only consumes them during initial setup.
 
 5. Save the Client ID and Client Secret in a password manager.
 
-## Authentik Google source and exact-email restriction
+## Authentik Google source and enrollment
 
 In Admin, open **Directory -> Federation and Social login -> New Source**,
 select **Google OAuth Source**, and configure:
@@ -86,48 +86,21 @@ select **Google OAuth Source**, and configure:
 - Consumer key/secret: the Google Client ID and Client Secret
 - Scopes: the source defaults (`openid email profile`)
 - Authentication flow: `default-source-authentication`
-- Enrollment flow: `default-source-enrollment`
+- Enrollment flow: `google-source-enrollment`
 
-Before displaying the source, restrict enrollment. Under **Customization ->
-Policies**, create an expression policy named `google-email-allowlist`:
-
-```python
-allowed_emails = {"YOUR_GOOGLE_EMAIL@example.com"}
-email = request.context.get("prompt_data", {}).get("email", "").casefold()
-if email in {item.casefold() for item in allowed_emails}:
-    request.context["prompt_data"]["username"] = email
-    return ak_is_sso_flow
-ak_message("Enrollment denied for this account")
-return False
-```
-
-Bind `google-email-allowlist` to the `default-source-enrollment` flow under
-**Policy / Group / User Bindings** with these settings:
-
-- Enabled: yes
-- Negate result: no
-- Order: `1` (after `default-source-enrollment-if-sso` at order `0`)
-- Timeout: `30`
-- Failure result: **Don't Pass**
-
-Edit the flow's **Behavior settings** and set **Policy engine mode** to
-**ALL**. Leaving it at **ANY** would allow the built-in SSO policy to bypass
-the exact-email restriction.
-
-Under **Flows and Stages -> Stages**, edit
-`default-source-enrollment-write` and set **User type** to **Internal**. This
-allows enrolled users to access the Authentik user interface; External users
-receive an "Interface can only be accessed by internal users" denial. Leave
-the user creation mode unchanged. If a user was enrolled before this setting
-was applied, edit that user under **Directory -> Users** and change its type
-to **Internal** without granting superuser privileges.
+The dedicated enrollment flow uses the standard username prompt, user-write,
+and login stages. It intentionally omits the shared
+`default-source-enrollment-if-sso` binding so browser and mobile OIDC enrollment
+both work. Google verifies identity, but this flow must not add
+`audiobooks-users` or `books-users`. Application access remains an explicit
+administrator decision.
 
 Finally, edit the `default-authentication-identification` stage and add Google
 under **Source settings -> Sources**. Enable **Show sources' labels** so the
-login option is clearly identified. To add another account later,
-deliberately add its exact address to `allowed_emails`, then let it sign in
-once. A successful login creates only an Authentik identity; it grants no
-Audiobookshelf or Calibre-Web authorization.
+login option is clearly identified. A successful first login creates only an
+Authentik identity; it grants no Audiobookshelf or Calibre-Web authorization.
+Follow `docs/user-onboarding.md` for approval and application-account
+procedures.
 
 ## Validation
 
@@ -149,9 +122,10 @@ Confirm `authentik-server` and cloudflared both belong to `homelab`; recent
 cloudflared logs must show registered connections without repeated origin
 errors. Repeat the two application checks through the M920Q's Tailscale name or
 IP. In an incognito browser, open Authentik, choose Google, complete login,
-and confirm the user reaches `/if/user/` without a redirect loop or permission
-denial. Log out and log in again. Also test a non-allowlisted Google account
-and confirm enrollment is denied. Browser Google SSO and Tailscale checks
+and confirm the user reaches `/if/user/` without a redirect loop. Log out and
+log in again. Confirm a newly enrolled identity receives no application groups
+and cannot enter either application before administrator approval. Browser
+Google SSO and Tailscale checks
 require the operator's sessions and cannot be completed from a repository-only
 checkout.
 
@@ -182,9 +156,7 @@ start the stack and validate. Never commit backups or secrets.
 
 ## Application-integration prerequisites
 
-Google login/logout must pass twice, the exact-email allowlist and recovery
-path must be tested, an off-host backup must exist, and LAN/Tailscale plus safe
-404 checks must pass. A later change can then create separate applications,
-providers, and access policies for Audiobookshelf and Calibre-Web. Do not
-treat authentication to Authentik as blanket authorization to either
-application.
+Google login/logout must pass twice, enrollment must create no application
+group memberships, and the recovery path must be tested. An off-host backup
+must exist, and LAN/Tailscale plus tunnel checks must pass. Do not treat
+authentication to Authentik as blanket authorization to either application.
