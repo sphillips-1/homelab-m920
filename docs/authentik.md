@@ -89,8 +89,7 @@ select **Google OAuth Source**, and configure:
 - Enrollment flow: `default-source-enrollment`
 
 Before displaying the source, restrict enrollment. Under **Customization ->
-Policies**, edit `default-source-enrollment-if-sso`, or create an expression
-policy bound to the default enrollment prompt before the username policy:
+Policies**, create an expression policy named `google-email-allowlist`:
 
 ```python
 allowed_emails = {"YOUR_GOOGLE_EMAIL@example.com"}
@@ -102,10 +101,32 @@ ak_message("Enrollment denied for this account")
 return False
 ```
 
-Then edit the `default-authentication-identification` stage under **Flows and
-Stages -> Stages** and add Google under **Sources**. To add another account
-later, deliberately add its exact address to `allowed_emails`, then let it sign
-in once. A successful login creates only an Authentik identity; it grants no
+Bind `google-email-allowlist` to the `default-source-enrollment` flow under
+**Policy / Group / User Bindings** with these settings:
+
+- Enabled: yes
+- Negate result: no
+- Order: `1` (after `default-source-enrollment-if-sso` at order `0`)
+- Timeout: `30`
+- Failure result: **Don't Pass**
+
+Edit the flow's **Behavior settings** and set **Policy engine mode** to
+**ALL**. Leaving it at **ANY** would allow the built-in SSO policy to bypass
+the exact-email restriction.
+
+Under **Flows and Stages -> Stages**, edit
+`default-source-enrollment-write` and set **User type** to **Internal**. This
+allows enrolled users to access the Authentik user interface; External users
+receive an "Interface can only be accessed by internal users" denial. Leave
+the user creation mode unchanged. If a user was enrolled before this setting
+was applied, edit that user under **Directory -> Users** and change its type
+to **Internal** without granting superuser privileges.
+
+Finally, edit the `default-authentication-identification` stage and add Google
+under **Source settings -> Sources**. Enable **Show sources' labels** so the
+login option is clearly identified. To add another account later,
+deliberately add its exact address to `allowed_emails`, then let it sign in
+once. A successful login creates only an Authentik identity; it grants no
 Audiobookshelf or Calibre-Web authorization.
 
 ## Validation
@@ -128,9 +149,11 @@ Confirm `authentik-server` and cloudflared both belong to `homelab`; recent
 cloudflared logs must show registered connections without repeated origin
 errors. Repeat the two application checks through the M920Q's Tailscale name or
 IP. In an incognito browser, open Authentik, choose Google, complete login,
-confirm an authenticated session without a redirect loop, log out, and log in
-again. Browser Google SSO and Tailscale checks require the operator's sessions
-and cannot be completed from a repository-only checkout.
+and confirm the user reaches `/if/user/` without a redirect loop or permission
+denial. Log out and log in again. Also test a non-allowlisted Google account
+and confirm enrollment is denied. Browser Google SSO and Tailscale checks
+require the operator's sessions and cannot be completed from a repository-only
+checkout.
 
 ## Recovery
 
@@ -157,10 +180,11 @@ Restore into matching Authentik/PostgreSQL versions: stop server and worker,
 restore the file archive, start PostgreSQL, pipe the SQL dump into `psql`, then
 start the stack and validate. Never commit backups or secrets.
 
-## Prompt #3 prerequisites
+## Application-integration prerequisites
 
-Google login/logout must pass twice, the exact-email allow-list and recovery
+Google login/logout must pass twice, the exact-email allowlist and recovery
 path must be tested, an off-host backup must exist, and LAN/Tailscale plus safe
-404 checks must pass. Prompt #3 can then create separate applications,
-providers, and access policies for Audiobookshelf and Calibre-Web. Do not treat
-authentication to Authentik as blanket authorization to either application.
+404 checks must pass. A later change can then create separate applications,
+providers, and access policies for Audiobookshelf and Calibre-Web. Do not
+treat authentication to Authentik as blanket authorization to either
+application.

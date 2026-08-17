@@ -20,19 +20,26 @@ The M920Q runs Debian 13 with Docker and Tailscale.
 5. Secrets should never be committed.
 6. The server should be recoverable from a clean Debian installation.
 
-## Planned services
+## Service status
+
+Deployed and managed by this repository:
 
 - Audiobookshelf
 - Calibre-Web
+- Authentik with Google OAuth identity
+- Cloudflare Tunnel
+- Tailscale-based private access
+
+Planned:
+
 - Homepage
 - Monitoring
-- Authentik
-- Tailscale
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
 
-Cloudflare Tunnel's pre-SSO, safe-by-default setup is documented in
-`docs/cloudflare-tunnel.md`.
+Cloudflare Tunnel's safe-by-default setup is documented in
+`docs/cloudflare-tunnel.md`. Authentik deployment, Google OAuth enrollment,
+recovery, backup, and validation are documented in `docs/authentik.md`.
 
 ## Application access
 

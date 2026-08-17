@@ -86,7 +86,8 @@ Use self-hosted application type, exact hostname paths (`/*`), and an Allow
 policy restricted to your own identity/email domain. Verify in an incognito
 browser that Cloudflare Access requests authentication and that anonymous
 requests cannot reach either application. This is a Cloudflare Access gate,
-not Authentik; Authentik is not configured by this repository yet.
+not Authentik. Authentik and Google OAuth are deployed as the identity layer,
+but neither application is integrated with Authentik yet.
 
 Only after those policies are enabled, run:
 
