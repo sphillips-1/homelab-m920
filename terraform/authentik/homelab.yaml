@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+version: 1
+metadata:
+  name: Homelab Terraform configuration
+  labels:
+    blueprints.goauthentik.io/description: >-
+      Review and replace this no-op seed with a sanitized export before enabling
+      Authentik adoption.
+entries: []

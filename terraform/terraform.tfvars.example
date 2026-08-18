@@ -4,3 +4,5 @@ cloudflare_zone_id            = "00000000000000000000000000000000"
 zone_name                    = "example.com"
 tunnel_id                    = "00000000-0000-0000-0000-000000000000"
 tunnel_name                  = "homelab-m920-local"
+enable_authentik_blueprint   = false
+authentik_blueprint_name     = "homelab-terraform"

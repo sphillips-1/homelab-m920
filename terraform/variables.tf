@@ -23,3 +23,15 @@ variable "tunnel_name" {
   type        = string
   default     = "homelab-m920-local"
 }
+
+variable "enable_authentik_blueprint" {
+  description = "Manage the reviewed Authentik export as an internal blueprint. Enable only after adoption/import."
+  type        = bool
+  default     = false
+}
+
+variable "authentik_blueprint_name" {
+  description = "Stable name of the Terraform-managed Authentik blueprint instance."
+  type        = string
+  default     = "homelab-terraform"
+}

@@ -31,3 +31,18 @@ Access policies are in place.
 - `configure-cloudflared.sh --mode access` is deprecated migration history.
 - `configure-cloudflared.sh --mode sso` restores the Authentik proxy rollback
   application routing after providers and policies have been configured.
+## Terraform adoption helpers
+
+- `inventory-cloudflare.ps1`, `import-cloudflare-adoption.ps1`, and
+  `plan-cloudflare-adoption.ps1` capture and reconcile the existing Cloudflare
+  tunnel and application DNS state.
+- `export-authentik-blueprint.sh` creates a private global Authentik export on
+  the M920Q. The raw file is ignored and must be sanitized before use.
+- `inventory-authentik.ps1` records only non-user configuration identifiers for
+  adoption review; its output is ignored.
+- `import-authentik-blueprint.ps1` reconciles the reviewed internal blueprint
+  instance with the shared HCP Terraform state and produces a plan. It never
+  applies.
+
+See `docs/terraform-adoption.md` for the required review, secret handling, and
+rollback gates.

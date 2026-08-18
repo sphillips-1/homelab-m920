@@ -9,8 +9,8 @@ remains the single application identity provider. Cloudflare remains responsible
 for DNS and Tunnel ingress only.
 
 The `audiobooks-access-test` DNS/Application, Calibre-Web Access application,
-and Terraform-managed OTP provider are pending narrowly scoped removal. The
-production tunnel, DNS records, and hostnames are not part of that cleanup.
+and Terraform-managed OTP provider were removed with an exact-address cleanup.
+The production tunnel, DNS records, and hostnames were unchanged.
 
 ## Historical rollout record
 
@@ -154,9 +154,9 @@ GitHub environment variables:
 - `CLOUDFLARE_TUNNEL_ID`
 - `CLOUDFLARE_TUNNEL_NAME=homelab-m920-local`
 
-The normal workflow rejects deletes and replacements. The one-time Access
-decommission input accepts only the four exact reviewed Terraform addresses;
-any different delete set or any replacement fails closed.
+The normal workflow rejects all deletes and replacements. The temporary
+exact-address decommission input was removed immediately after the reviewed
+cleanup completed.
 
 Azure OIDC variables are no longer required by the Cloudflare workflow. Entra
 remains separate and dormant; see `../terraform/entra/README.md`.

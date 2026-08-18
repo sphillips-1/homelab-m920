@@ -32,5 +32,7 @@ terraform.rc
 terraform/backend.hcl
 terraform/backend-entra.hcl
 terraform/cloudflare-inventory.json
+terraform/authentik/raw-export.yaml
+terraform/authentik/inventory.json
 crash.log
 crash.*.log
