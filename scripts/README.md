@@ -28,5 +28,7 @@ Access policies are in place.
   refuses to remove tracked files or paths with an unexpected Git status.
 - `configure-cloudflared.sh --mode access` routes Cloudflare Access-protected
   Calibre-Web directly while retaining Audiobookshelf native OIDC.
+- `verify-audiobookshelf-access-test.sh <domain>` confirms the isolated test
+  hostname is Access-protected and production Audiobookshelf remains unchanged.
 - `configure-cloudflared.sh --mode sso` restores the Authentik proxy rollback
   application routing after providers and policies have been configured.

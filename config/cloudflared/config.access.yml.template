@@ -7,6 +7,8 @@ credentials-file: __CREDENTIALS_FILE__
 ingress:
   - hostname: audiobooks.__DOMAIN__
     service: http://audiobookshelf:80
+  - hostname: audiobooks-access-test.__DOMAIN__
+    service: http://audiobookshelf:80
   - hostname: books.__DOMAIN__
     service: http://calibre-web:8083
   - hostname: auth.__DOMAIN__

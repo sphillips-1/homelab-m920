@@ -31,13 +31,19 @@ variable "access_users" {
   default     = []
 
   validation {
-    condition     = !var.enable_calibre_access || (length(var.access_users) > 0 && alltrue([for email in var.access_users : can(regex("^[^@[:space:]]+@[^@[:space:]]+$", email))]))
-    error_message = "When enable_calibre_access is true, access_users must contain at least one syntactically valid email address."
+    condition     = !(var.enable_calibre_access || var.enable_audiobookshelf_access_test) || (length(var.access_users) > 0 && alltrue([for email in var.access_users : can(regex("^[^@[:space:]]+@[^@[:space:]]+$", email))]))
+    error_message = "When an Access application is enabled, access_users must contain at least one syntactically valid email address."
   }
 }
 
 variable "enable_calibre_access" {
   description = "Create Cloudflare Access protection for Calibre-Web after the tunnel and DNS adoption plan is clean."
+  type        = bool
+  default     = false
+}
+
+variable "enable_audiobookshelf_access_test" {
+  description = "Create an isolated OTP-protected Audiobookshelf compatibility hostname. This never changes the production Audiobookshelf hostname."
   type        = bool
   default     = false
 }

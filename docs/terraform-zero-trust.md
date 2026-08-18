@@ -116,6 +116,10 @@ machine credentials and are not a practical per-person mobile login until the
 client can securely inject headers. Prefer Tailscale meanwhile; consider a
 browser-only hostname only after an explicit routing and threat-model review.
 
+The opt-in test hostname and client matrix are documented in
+[`audiobookshelf-access-test.md`](audiobookshelf-access-test.md). The production
+Audiobookshelf hostname remains outside Cloudflare Access during this test.
+
 ## CI and protected variables
 
 PRs always format, initialize without a backend, and validate. Plans run only
@@ -138,6 +142,8 @@ GitHub environment variables:
 - `CLOUDFLARE_TUNNEL_ID`
 - `CLOUDFLARE_TUNNEL_NAME=homelab-m920-local`
 - `ACCESS_SESSION_DURATION=168h`
+- `ENABLE_AUDIOBOOKSHELF_ACCESS_TEST=false` until the isolated compatibility
+  test is intentionally enabled
 
 `TF_VAR_ACCESS_USERS` is a GitHub environment secret containing a JSON array
 of exact approved addresses, for example `["approved@example.com"]`. The

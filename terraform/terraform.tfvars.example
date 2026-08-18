@@ -5,6 +5,7 @@ zone_name                    = "example.com"
 tunnel_id                    = "00000000-0000-0000-0000-000000000000"
 tunnel_name                  = "homelab-m920-local"
 enable_calibre_access        = false
+enable_audiobookshelf_access_test = false
 access_session_duration      = "168h"
 
 # Store real addresses in HCP Terraform sensitive variables, not in Git.
