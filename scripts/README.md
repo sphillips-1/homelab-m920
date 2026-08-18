@@ -23,6 +23,9 @@ Access policies are in place.
 - `backup-applications.sh` creates consistent Audiobookshelf and Calibre-Web
   appdata/library archives under `/srv/homelab/backups/applications`.
 - `backup-authentik.sh` creates an Authentik PostgreSQL dump and file archive.
+- `remove-legacy-untracked-pull-blockers.sh` removes only the four known legacy
+  untracked files that block adoption of their Git-managed replacements. It
+  refuses to remove tracked files or paths with an unexpected Git status.
 - `configure-cloudflared.sh --mode access` routes Cloudflare Access-protected
   Calibre-Web directly while retaining Audiobookshelf native OIDC.
 - `configure-cloudflared.sh --mode sso` restores the Authentik proxy rollback

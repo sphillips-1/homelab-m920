@@ -38,10 +38,18 @@ The staged rollout completed successfully:
 - The final live plan returned no changes.
 - An anonymous request received a Cloudflare Access `302`, not origin content.
 - The approved user completed OTP, then the deliberately retained Authentik
-  login, and reached Calibre-Web successfully.
+  login, and reached Calibre-Web successfully before the origin cutover.
+- The M920Q was then switched to `cloudflared` access mode. An authenticated
+  browser reached the native Calibre-Web login directly without an Authentik
+  redirect, while an anonymous request still received the Access `302`.
+- A separately controlled email address absent from `access_users` was submitted
+  to the OTP flow. Cloudflare displayed its generic verification screen but sent
+  no code, and the user could not reach the origin. This verifies authentication
+  and exact-email authorization remain separate.
 
-The current verified chain is therefore Cloudflare Access -> Authentik ->
-Calibre-Web. Authentik removal remains a later, separately reviewed change.
+The current verified Calibre-Web chain is therefore Cloudflare Access ->
+Calibre-Web. Authentik remains deployed for Audiobookshelf and rollback; it was
+not destroyed or removed from `auth.shelfgoblin.dev`.
 
 A Zero Trust organization exists because the account returns its built-in IdP.
 Re-run `scripts/inventory-cloudflare.ps1` to capture its redacted settings. It
@@ -119,13 +127,27 @@ GitHub environment secrets:
 - `CLOUDFLARE_API_TOKEN`
 - `TF_API_TOKEN`
 
-GitHub/HCP variables:
+GitHub environment variables:
 
 - `TF_CLOUD_ORGANIZATION=homelab-sean`
 - `TF_WORKSPACE=homelab-m920`
 - `TF_ADOPTION_READY=true` only after imports and a safe local plan
-- HCP inputs: account ID, zone ID/name, tunnel ID/name, `access_users`
-  (sensitive), duration, and enable flag
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_ZONE_ID`
+- `CLOUDFLARE_ZONE_NAME=shelfgoblin.dev`
+- `CLOUDFLARE_TUNNEL_ID`
+- `CLOUDFLARE_TUNNEL_NAME=homelab-m920-local`
+- `ACCESS_SESSION_DURATION=168h`
+
+`TF_VAR_ACCESS_USERS` is a GitHub environment secret containing a JSON array
+of exact approved addresses, for example `["approved@example.com"]`. The
+workflow maps these protected settings to Terraform's `TF_VAR_*` environment
+variables because an HCP workspace in Local execution mode stores state but
+does not inject workspace variables into the GitHub runner.
+
+Both PR and manual-apply jobs reject any plan whose JSON contains a `delete`
+action, which also rejects replacements. A destructive migration requires a
+separately reviewed workflow change; it cannot pass this normal pipeline.
 
 Azure OIDC variables are no longer required by the Cloudflare workflow. Entra
 remains separate and dormant; see `../terraform/entra/README.md`.
