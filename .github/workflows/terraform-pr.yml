@@ -50,9 +50,9 @@ jobs:
       TF_VAR_access_session_duration: ${{ vars.ACCESS_SESSION_DURATION }}
       TF_VAR_access_users: ${{ secrets.TF_VAR_ACCESS_USERS }}
     steps:
+      - uses: actions/checkout@v4
       - name: Verify adoption is enabled
         run: test "${{ vars.TF_ADOPTION_READY }}" = "true"
-      - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.15.8"
