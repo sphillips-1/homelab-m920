@@ -26,9 +26,8 @@ Access policies are in place.
 - `remove-legacy-untracked-pull-blockers.sh` removes only the four known legacy
   untracked files that block adoption of their Git-managed replacements. It
   refuses to remove tracked files or paths with an unexpected Git status.
-- `configure-cloudflared.sh --mode access` routes Cloudflare Access-protected
-  Calibre-Web directly while retaining Audiobookshelf native OIDC.
-- `verify-audiobookshelf-access-test.sh <domain>` confirms the isolated test
-  hostname is Access-protected and production Audiobookshelf remains unchanged.
+- `configure-cloudflared.sh --mode sso` is the normal single-provider route:
+  Authentik OIDC for Audiobookshelf and the Authentik proxy for Calibre-Web.
+- `configure-cloudflared.sh --mode access` is deprecated migration history.
 - `configure-cloudflared.sh --mode sso` restores the Authentik proxy rollback
   application routing after providers and policies have been configured.

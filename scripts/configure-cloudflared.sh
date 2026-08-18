@@ -52,7 +52,7 @@ if [[ "${MODE}" == "test" ]]; then
 elif [[ "${MODE}" == "sso" ]]; then
     echo "SSO mode active: Audiobookshelf uses native OIDC and Books uses the Authentik proxy."
 elif [[ "${MODE}" == "access" ]]; then
-    echo "ACCESS mode active: Books uses Cloudflare Access and Audiobookshelf retains native OIDC."
+    echo "WARNING: ACCESS mode is deprecated after native-client compatibility testing. Use SSO mode."
 else
     echo "SAFE MODE active: application hostnames return 404; Authentik remains routed."
 fi

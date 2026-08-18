@@ -2,6 +2,12 @@ name: Terraform Apply
 
 on:
   workflow_dispatch:
+    inputs:
+      allow_access_decommission:
+        description: Allow only the reviewed Cloudflare Access test/Calibre cleanup
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -27,10 +33,6 @@ jobs:
       TF_VAR_zone_name: ${{ vars.CLOUDFLARE_ZONE_NAME }}
       TF_VAR_tunnel_id: ${{ vars.CLOUDFLARE_TUNNEL_ID }}
       TF_VAR_tunnel_name: ${{ vars.CLOUDFLARE_TUNNEL_NAME }}
-      TF_VAR_enable_calibre_access: "true"
-      TF_VAR_enable_audiobookshelf_access_test: ${{ vars.ENABLE_AUDIOBOOKSHELF_ACCESS_TEST || 'false' }}
-      TF_VAR_access_session_duration: ${{ vars.ACCESS_SESSION_DURATION }}
-      TF_VAR_access_users: ${{ secrets.TF_VAR_ACCESS_USERS }}
     steps:
       - uses: actions/checkout@v5
       - name: Verify adoption is enabled
@@ -52,10 +54,30 @@ jobs:
       - run: terraform validate
       - run: terraform plan -out=tfplan
       - name: Reject destructive plans
+        env:
+          ALLOW_ACCESS_DECOMMISSION: ${{ inputs.allow_access_decommission }}
         run: |
           terraform show -json tfplan > tfplan.json
-          if jq -e '[.resource_changes[]? | .change.actions[]?] | any(. == "delete")' tfplan.json; then
-            echo "ERROR: Plan contains a delete or replacement action." >&2
+          if jq -e '.resource_changes[]? | select((.change.actions | index("delete")) and (.change.actions | index("create")))' tfplan.json >/dev/null; then
+            echo "ERROR: Plan contains a replacement action." >&2
+            exit 1
+          fi
+
+          mapfile -t deletes < <(jq -r '.resource_changes[]? | select(.change.actions == ["delete"]) | .address' tfplan.json | sort)
+          if (( ${#deletes[@]} == 0 )); then
+            exit 0
+          fi
+
+          expected=(
+            'cloudflare_dns_record.audiobookshelf_access_test[0]'
+            'cloudflare_zero_trust_access_application.audiobookshelf_test[0]'
+            'cloudflare_zero_trust_access_application.calibre_web[0]'
+            'cloudflare_zero_trust_access_identity_provider.otp'
+          )
+          mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
+
+          if [[ "${ALLOW_ACCESS_DECOMMISSION}" != "true" ]] || [[ "${deletes[*]}" != "${expected[*]}" ]]; then
+            printf 'ERROR: Unapproved delete set:\n%s\n' "${deletes[*]}" >&2
             exit 1
           fi
       - run: terraform apply tfplan

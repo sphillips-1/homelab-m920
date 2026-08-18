@@ -53,12 +53,11 @@ over the internal Docker `homelab` network; it does not use their host ports.
 Only Audiobookshelf, Calibre-Web, and Authentik are candidates for public
 routing. SSH, Docker, databases, Tailscale, and other host services are never
 exposed through Cloudflare. Permanent unauthenticated Internet access is not
-intended. Cloudflare Access is the target external identity and authorization
-boundary. Calibre-Web migrates first using OTP plus exact email authorization.
-Authentik is retained temporarily for rollback, and Entra External ID is
-pending decommission.
+intended. Authentik is the single application identity and authorization
+provider: its embedded proxy protects Calibre-Web and its OIDC provider serves
+Audiobookshelf browser/mobile clients. Cloudflare remains the DNS and Tunnel
+edge. Entra External ID is pending decommission.
 
 In **safe** mode, the two application hostnames return 404 while Authentik is
-routed. Calibre-Web may leave safe mode only after its Cloudflare Access policy
-is applied and validated. Audiobookshelf remains unchanged until browser, API,
-WebSocket, and native-client compatibility is proven separately.
+routed. In normal **sso** mode, both application hostnames use Authentik without
+changing their LAN or Tailscale routes.

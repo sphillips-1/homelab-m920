@@ -1,6 +1,18 @@
 # Cloudflare-first Zero Trust migration
 
-## Status and architecture
+## Final status
+
+The Cloudflare Access experiment is concluded. Browser access worked for both
+applications, but the Audiobookshelf native app rejected the Cloudflare Access
+login-host redirect before Audiobookshelf OIDC could begin. Authentik therefore
+remains the single application identity provider. Cloudflare remains responsible
+for DNS and Tunnel ingress only.
+
+The `audiobooks-access-test` DNS/Application, Calibre-Web Access application,
+and Terraform-managed OTP provider are pending narrowly scoped removal. The
+production tunnel, DNS records, and hostnames are not part of that cleanup.
+
+## Historical rollout record
 
 Cloudflare is the active ingress platform and is becoming the primary external
 access boundary. Entra External ID is **pending decommission**, and Authentik is
@@ -141,19 +153,10 @@ GitHub environment variables:
 - `CLOUDFLARE_ZONE_NAME=shelfgoblin.dev`
 - `CLOUDFLARE_TUNNEL_ID`
 - `CLOUDFLARE_TUNNEL_NAME=homelab-m920-local`
-- `ACCESS_SESSION_DURATION=168h`
-- `ENABLE_AUDIOBOOKSHELF_ACCESS_TEST=false` until the isolated compatibility
-  test is intentionally enabled
 
-`TF_VAR_ACCESS_USERS` is a GitHub environment secret containing a JSON array
-of exact approved addresses, for example `["approved@example.com"]`. The
-workflow maps these protected settings to Terraform's `TF_VAR_*` environment
-variables because an HCP workspace in Local execution mode stores state but
-does not inject workspace variables into the GitHub runner.
-
-Both PR and manual-apply jobs reject any plan whose JSON contains a `delete`
-action, which also rejects replacements. A destructive migration requires a
-separately reviewed workflow change; it cannot pass this normal pipeline.
+The normal workflow rejects deletes and replacements. The one-time Access
+decommission input accepts only the four exact reviewed Terraform addresses;
+any different delete set or any replacement fails closed.
 
 Azure OIDC variables are no longer required by the Cloudflare workflow. Entra
 remains separate and dormant; see `../terraform/entra/README.md`.

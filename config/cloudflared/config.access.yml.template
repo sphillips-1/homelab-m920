@@ -1,13 +1,11 @@
 # Rendered by scripts/configure-cloudflared.sh. Do not commit the rendered file.
-# Calibre-Web is protected at the edge by Cloudflare Access. Audiobookshelf
-# continues to enforce native Authentik OIDC for mobile/client compatibility.
+# Deprecated migration mode. Normal operation uses config.sso.yml.template so
+# Authentik is the single identity provider for both applications.
 tunnel: __TUNNEL_ID__
 credentials-file: __CREDENTIALS_FILE__
 
 ingress:
   - hostname: audiobooks.__DOMAIN__
-    service: http://audiobookshelf:80
-  - hostname: audiobooks-access-test.__DOMAIN__
     service: http://audiobookshelf:80
   - hostname: books.__DOMAIN__
     service: http://calibre-web:8083
