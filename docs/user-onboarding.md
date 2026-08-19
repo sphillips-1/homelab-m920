@@ -61,7 +61,7 @@ access to all libraries and tags. Adjust those defaults in
 Provisioning is idempotent. If an active Audiobookshelf account already has the
 email, it is reused. Duplicate or inactive matches fail closed, and Authentik
 does not grant the group. The invitation remains reusable until its configured
-expiry. Opening it creates a signed, HttpOnly handoff cookie valid for 15
+expiry. Opening it creates a signed, HttpOnly handoff cookie valid for 60
 minutes, allowing Authentik to prove that Google login began from the link
 despite the external redirect. Each Google identity receives a separate
 Audiobookshelf account.
@@ -146,7 +146,7 @@ creates the identity but assigns no application groups. Do not switch it back
 to `default-source-enrollment`.
 
 For an invitation, confirm that the link has not expired, the user opened it no
-more than 15 minutes before completing Google login, and
+more than 60 minutes before completing Google login, and
 `authentik-invitation-provisioner` is healthy.
 
 ### Access denied

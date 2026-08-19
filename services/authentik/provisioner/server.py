@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ABS_URL = os.environ.get("AUDIOBOOKSHELF_URL", "http://audiobookshelf:80").rstrip("/")
 ABS_TOKEN = os.environ["AUDIOBOOKSHELF_API_TOKEN"]
 PROVISIONER_TOKEN = os.environ["AUTHENTIK_INVITATION_PROVISIONER_TOKEN"]
+HANDOFF_TTL_SECONDS = 60 * 60
 INVITE_PATH = re.compile(
     r"^/invite/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$"
 )
@@ -93,13 +94,13 @@ class Handler(BaseHTTPRequestHandler):
 
         # The cookie is deliberately short-lived. The Authentik policy still
         # verifies the underlying invitation's configured expiry after Google.
-        expires = int(time.time()) + 900
+        expires = int(time.time()) + HANDOFF_TTL_SECONDS
         cookie = sign_invitation(match.group(1), expires)
         self.send_response(302)
         self.send_header(
             "Set-Cookie",
             "ak_service_invite=" + cookie
-            + "; Max-Age=900; Path=/; Secure; HttpOnly; SameSite=Lax",
+            + f"; Max-Age={HANDOFF_TTL_SECONDS}; Path=/; Secure; HttpOnly; SameSite=Lax",
         )
         self.send_header("Cache-Control", "no-store")
         self.send_header("Location", "/source/oauth/login/google/")
