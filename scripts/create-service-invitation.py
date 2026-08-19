@@ -6,6 +6,7 @@ import os
 from datetime import timedelta
 
 from django.utils import timezone
+from authentik.core.models import User
 from authentik.flows.models import Flow
 from authentik.stages.invitation.models import Invitation
 
@@ -13,6 +14,7 @@ from authentik.stages.invitation.models import Invitation
 label = os.environ.get("SERVICE_INVITE_LABEL", "shared").strip().lower()
 hours = int(os.environ.get("SERVICE_INVITE_HOURS", "24"))
 flow = Flow.objects.get(slug="google-source-enrollment")
+creator = User.objects.get(username="akadmin")
 invitation = Invitation.objects.create(
     name=(
         "audiobooks-"
@@ -21,6 +23,7 @@ invitation = Invitation.objects.create(
     ),
     expires=timezone.now() + timedelta(hours=hours),
     flow=flow,
+    created_by=creator,
     fixed_data={"services": ["audiobookshelf"], "reusable_link": True},
     # Social-source redirects do not retain Invitation-stage context. The
     # signed handoff cookie binds the browser to this reusable approval record;
