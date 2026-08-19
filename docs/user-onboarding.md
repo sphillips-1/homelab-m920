@@ -28,6 +28,13 @@ first, and only then adds `audiobooks-users`.
    project and rerender the
    tunnel's SSO configuration so `/invite/*` reaches the landing endpoint:
 
+   On the M920Q, the repository helper can securely create that file from the
+   existing Audiobookshelf root account without displaying either secret:
+
+   ```bash
+   bash /opt/homelab/scripts/install-invitation-env.sh
+   ```
+
    ```bash
    sudo bash /opt/homelab/scripts/configure-cloudflared.sh --mode sso
    ```
