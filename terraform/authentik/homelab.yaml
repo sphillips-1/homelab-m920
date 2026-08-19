@@ -10,8 +10,6 @@ entries:
     is_superuser: false
     name: audiobooks-users
     parents: []
-    roles: []
-    users: []
   conditions: []
   identifiers:
     pk: 4b74f640-f784-40c8-a420-e8ec8aeaf35e
@@ -23,8 +21,6 @@ entries:
     is_superuser: false
     name: books-users
     parents: []
-    roles: []
-    users: []
   conditions: []
   identifiers:
     pk: a20e1bea-7226-4c2c-a62a-82d14931f450

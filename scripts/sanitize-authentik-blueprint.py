@@ -65,10 +65,11 @@ def sanitize_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
     if model == "authentik_core.group":
         if attrs.get("name") not in CUSTOM_GROUPS:
             return None
-        # Authorization grants remain explicit operator actions. Rebuilding the
-        # groups must never silently grant access to exported user primary keys.
-        attrs["users"] = []
-        attrs["roles"] = []
+        # Omit authorization grants rather than emitting empty collections.
+        # Empty users would revoke every existing membership on reconciliation;
+        # omission preserves live grants while keeping identities out of Git.
+        attrs.pop("users", None)
+        attrs.pop("roles", None)
 
     if model == "authentik_providers_oauth2.oauth2provider":
         attrs.pop("client_secret", None)
