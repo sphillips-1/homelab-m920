@@ -45,14 +45,18 @@ def abs_request(method, path, payload=None):
         return json.load(response)
 
 
-def provision(email, name):
-    normalized_email = email.strip().lower()
-    users = abs_request("GET", "/api/users").get("users", [])
-    matches = [
+def users_matching_email(users, normalized_email):
+    return [
         u
         for u in users
         if (u.get("email") or "").strip().lower() == normalized_email
     ]
+
+
+def provision(email, name):
+    normalized_email = email.strip().lower()
+    users = abs_request("GET", "/api/users").get("users", [])
+    matches = users_matching_email(users, normalized_email)
     if len(matches) > 1:
         raise ValueError("multiple Audiobookshelf users have the invited email")
     if matches:
@@ -62,7 +66,7 @@ def provision(email, name):
 
     # OIDC is the login method. A random password preserves a non-empty local
     # credential without creating a password known to either the invitee or admin.
-    user = abs_request(
+    abs_request(
         "POST",
         "/api/users",
         {
@@ -85,7 +89,13 @@ def provision(email, name):
             "itemTagsAccessible": [],
         },
     )
-    return {"created": True, "user_id": user["id"]}
+    # Audiobookshelf versions have returned different create-response shapes.
+    # Verify the durable result through the stable user-list endpoint instead.
+    users = abs_request("GET", "/api/users").get("users", [])
+    matches = users_matching_email(users, normalized_email)
+    if len(matches) != 1 or not matches[0].get("isActive", True):
+        raise ValueError("Audiobookshelf user creation could not be verified")
+    return {"created": True, "user_id": matches[0]["id"]}
 
 
 class Handler(BaseHTTPRequestHandler):
