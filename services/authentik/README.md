@@ -15,3 +15,7 @@ landing endpoint; its account-provisioning endpoint requires an internal shared
 secret. Authentik calls that endpoint after verified Google login and before
 granting the `audiobooks-users` group. See `../../docs/user-onboarding.md` for
 setup and use.
+
+Invitation-only secrets are stored in the ignored, mode-0600
+`.env.invitation`, separate from the root-owned primary `.env`. Start from
+`.env.invitation.example`.

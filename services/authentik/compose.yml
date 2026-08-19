@@ -27,6 +27,7 @@ services:
     command: server
     env_file:
       - .env
+      - .env.invitation
     environment: &authentik-environment
       AUTHENTIK_POSTGRESQL__HOST: postgresql
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
@@ -53,6 +54,7 @@ services:
     command: worker
     env_file:
       - .env
+      - .env.invitation
     environment:
       <<: *authentik-environment
     depends_on:
@@ -72,10 +74,9 @@ services:
     command: python /app/server.py
     env_file:
       - .env
+      - .env.invitation
     environment:
       AUDIOBOOKSHELF_URL: http://audiobookshelf:80
-      AUDIOBOOKSHELF_API_TOKEN: ${AUDIOBOOKSHELF_API_TOKEN:?Audiobookshelf API token required}
-      AUTHENTIK_INVITATION_PROVISIONER_TOKEN: ${AUTHENTIK_INVITATION_PROVISIONER_TOKEN:?provisioner token required}
     volumes:
       - ./provisioner:/app:ro
     healthcheck:

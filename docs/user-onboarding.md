@@ -21,10 +21,11 @@ first, and only then adds `audiobooks-users`.
 ## Invite a new Audiobookshelf user
 
 1. In Audiobookshelf Admin, copy the root/admin API token from the root user's
-   settings into `AUDIOBOOKSHELF_API_TOKEN` in the protected
-   `services/authentik/.env`. Generate and add the internal
-   `AUTHENTIK_INVITATION_PROVISIONER_TOKEN` as shown in `.env.example`. This is
-   a one-time setup. Redeploy the Authentik Compose project and rerender the
+   settings into `AUDIOBOOKSHELF_API_TOKEN` in a mode-0600 copy of
+   `services/authentik/.env.invitation.example` named `.env.invitation`.
+   Generate its internal `AUTHENTIK_INVITATION_PROVISIONER_TOKEN` as shown in
+   that example. This is a one-time setup. Redeploy the Authentik Compose
+   project and rerender the
    tunnel's SSO configuration so `/invite/*` reaches the landing endpoint:
 
    ```bash
