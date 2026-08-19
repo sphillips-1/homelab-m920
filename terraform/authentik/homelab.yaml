@@ -922,7 +922,7 @@ entries:
     name: provision-audiobookshelf-invitation
   conditions: []
   identifiers:
-    pk: 41f405d0-b21e-4ae3-a5ee-cc6d5f010c12
+    pk: c8b7fb0c-3d06-4ba3-b7a2-a346a601b083
   model: authentik_policies_expression.expressionpolicy
   permissions: []
   state: present
@@ -1018,7 +1018,7 @@ entries:
     group: null
     negate: false
     order: 0
-    policy: 41f405d0-b21e-4ae3-a5ee-cc6d5f010c12
+    policy: c8b7fb0c-3d06-4ba3-b7a2-a346a601b083
     target: c55dc6ec-f532-4d27-9d2c-fb325554559e
     timeout: 30
     user: null
@@ -1034,7 +1034,7 @@ entries:
     group: null
     negate: false
     order: 0
-    policy: 41f405d0-b21e-4ae3-a5ee-cc6d5f010c12
+    policy: c8b7fb0c-3d06-4ba3-b7a2-a346a601b083
     target: 02bb871a-7c35-49d2-ae91-1a38e3a97c77
     timeout: 30
     user: null
