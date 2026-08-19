@@ -48,7 +48,11 @@ def abs_request(method, path, payload=None):
 def provision(email, name):
     normalized_email = email.strip().lower()
     users = abs_request("GET", "/api/users").get("users", [])
-    matches = [u for u in users if u.get("email", "").strip().lower() == normalized_email]
+    matches = [
+        u
+        for u in users
+        if (u.get("email") or "").strip().lower() == normalized_email
+    ]
     if len(matches) > 1:
         raise ValueError("multiple Audiobookshelf users have the invited email")
     if matches:
