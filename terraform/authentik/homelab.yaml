@@ -32,7 +32,7 @@ entries:
     group: Audiobookshelf clients
     meta_description: Install the Audiobookshelf mobile client for Android.
     meta_hide: false
-    meta_icon: ''
+    meta_icon: https://developer.android.com/static/images/brand/android-head_flat.svg
     meta_launch_url: https://play.google.com/store/apps/details?id=com.audiobookshelf.app&hl=en_US
     meta_publisher: Google Play
     name: Audiobookshelf for Android
@@ -51,7 +51,7 @@ entries:
     group: Audiobookshelf clients
     meta_description: Install Audiobooth, an Audiobookshelf mobile client for iPhone and iPad.
     meta_hide: false
-    meta_icon: ''
+    meta_icon: https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ios.svg
     meta_launch_url: https://apps.apple.com/us/app/audiobooth-audiobooks-player/id6753017503?platform=iphone
     meta_publisher: App Store
     name: Audiobookshelf for iOS
@@ -70,7 +70,7 @@ entries:
     group: ''
     meta_description: ''
     meta_hide: false
-    meta_icon: ''
+    meta_icon: https://raw.githubusercontent.com/advplyr/audiobookshelf/master/client/static/icon.svg
     meta_launch_url: https://audiobooks.shelfgoblin.dev
     meta_publisher: ''
     name: Audiobookshelf
