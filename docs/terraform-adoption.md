@@ -106,6 +106,12 @@ then immediately run `revoke-authentik-adoption-token.py`. This temporary token
 is not the GitHub Actions secret; CI should use a separately managed scoped token
 with the rotation policy appropriate for the protected environment.
 
+`create-authentik-ci-token.py` provisions that CI credential as a dedicated
+service account with only add/change/view permissions on blueprint instances.
+Its token expires after 90 days and must be rotated before expiry. Redirect the
+single token value to an ignored mode-0600 file and store it as the protected
+GitHub environment secret `AUTHENTIK_TOKEN`.
+
 Before the first apply, require all of the following:
 
 1. A current off-host Authentik backup and separately protected `.env`.
