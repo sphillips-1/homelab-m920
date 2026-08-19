@@ -35,3 +35,9 @@ variable "authentik_blueprint_name" {
   type        = string
   default     = "homelab-terraform"
 }
+
+variable "authentik_blueprint_enabled" {
+  description = "Allow Authentik to reconcile the adopted blueprint. Keep false for the first state-only creation."
+  type        = bool
+  default     = false
+}

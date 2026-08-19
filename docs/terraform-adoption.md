@@ -18,6 +18,9 @@ Actions plans and applies both providers from `terraform/`:
 The checked-in `terraform/authentik/homelab.yaml` is intentionally a no-op seed.
 `AUTHENTIK_ADOPTION_READY` must remain false until it has been replaced by a
 reviewed live export and the one-time state reconciliation is complete.
+`AUTHENTIK_BLUEPRINT_ENABLED` is a separate fail-safe: first create the resource
+with adoption ready but the blueprint disabled, inspect its server-side status,
+then enable reconciliation through a second reviewed plan.
 
 ## One-time Authentik capture
 
@@ -44,6 +47,44 @@ environment variables to the server and worker from the ignored Authentik
 GitHub variables. Save the curated result as
 `terraform/authentik/homelab.yaml`.
 
+The repository sanitizer performs the initial deny-list and secret-reference
+conversion. It requires Python 3 and PyYAML:
+
+```bash
+python3 scripts/sanitize-authentik-blueprint.py \
+  terraform/authentik/raw-export.yaml \
+  terraform/authentik/homelab.yaml
+```
+
+It removes users and exported group memberships, tokens, invitations, schedules,
+notifications, certificates, OAuth user connections, RBAC defaults, and nested
+blueprint instances. It also moves the personal Google enrollment allow-list
+expression behind `AUTHENTIK_GOOGLE_EMAIL_ALLOWLIST_EXPRESSION`. Review the
+result manually; a successful sanitizer run is not approval to apply it.
+The sanitizer also sets `re_evaluate_policies: true` where the global exporter
+emits both that field and `evaluate_on_plan` as false; Authentik 2026.5 can
+persist that combination but rejects it during blueprint validation.
+
+Recover those existing values without displaying them by running the dedicated
+script through `ak shell` and redirecting stdout to an ignored mode-0600 file:
+
+```bash
+umask 077
+docker exec -i authentik-worker ak shell \
+  < scripts/export-authentik-adoption-env.py \
+  > terraform/authentik/adoption.env
+```
+
+Review the variable names only, merge the four assignments into the protected
+`services/authentik/.env`, restart the server and worker, and verify each name is
+present with `printenv` without printing its value. Remove the temporary
+`adoption.env` after the protected `.env` and off-host secret store are updated.
+The fail-closed helper performs that merge and retains one protected backup:
+
+```bash
+sudo scripts/install-authentik-adoption-env.sh
+```
+
 From a trusted workstation, create a short-lived Authentik API token for an
 administrator and run:
 
@@ -57,6 +98,13 @@ it describes the private deployment. The import script securely prompts for a
 token and imports an existing `homelab-terraform` blueprint instance when
 present. Otherwise, it leaves creation for a reviewed plan. It always plans
 with adoption enabled and never applies.
+
+For a one-time local plan, `create-authentik-adoption-token.py` creates a fixed,
+four-hour `terraform-adoption` token and refuses to replace an existing token.
+Redirect its output to the ignored `terraform/authentik/api-token.env`, use it,
+then immediately run `revoke-authentik-adoption-token.py`. This temporary token
+is not the GitHub Actions secret; CI should use a separately managed scoped token
+with the rotation policy appropriate for the protected environment.
 
 Before the first apply, require all of the following:
 
@@ -98,6 +146,8 @@ GitHub environment variables:
 - `AUTHENTIK_URL=https://auth.shelfgoblin.dev`;
 - `AUTHENTIK_ADOPTION_READY=false` until reconciliation is complete, then
   `true`;
+- `AUTHENTIK_BLUEPRINT_ENABLED=false` for the state-only creation, then `true`
+  only after the disabled blueprint validates successfully;
 - the existing HCP and Cloudflare identifiers documented in
   `terraform-zero-trust.md`.
 

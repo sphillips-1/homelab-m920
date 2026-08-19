@@ -34,5 +34,7 @@ terraform/backend-entra.hcl
 terraform/cloudflare-inventory.json
 terraform/authentik/raw-export.yaml
 terraform/authentik/inventory.json
+terraform/authentik/adoption.env
+terraform/authentik/api-token.env
 crash.log
 crash.*.log

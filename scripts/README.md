@@ -38,6 +38,15 @@ Access policies are in place.
   tunnel and application DNS state.
 - `export-authentik-blueprint.sh` creates a private global Authentik export on
   the M920Q. The raw file is ignored and must be sanitized before use.
+- `sanitize-authentik-blueprint.py` removes identity/state objects and replaces
+  the stable OAuth/OIDC secrets with `!Env` references. Review its output before
+  committing or planning.
+- `export-authentik-adoption-env.py` runs only through `ak shell` and emits the
+  four referenced live values as Docker Compose dotenv assignments. Redirect it
+  to a mode-0600 ignored file; never print or commit its output.
+- `install-authentik-adoption-env.sh` performs the one-time, fail-closed merge
+  into the protected Authentik `.env`, keeps a mode-0600 pre-adoption backup,
+  recreates server/worker, and verifies only variable presence.
 - `inventory-authentik.ps1` records only non-user configuration identifiers for
   adoption review; its output is ignored.
 - `import-authentik-blueprint.ps1` reconciles the reviewed internal blueprint

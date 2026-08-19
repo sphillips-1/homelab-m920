@@ -49,6 +49,7 @@ jobs:
       TF_VAR_tunnel_id: ${{ vars.CLOUDFLARE_TUNNEL_ID }}
       TF_VAR_tunnel_name: ${{ vars.CLOUDFLARE_TUNNEL_NAME }}
       TF_VAR_enable_authentik_blueprint: ${{ vars.AUTHENTIK_ADOPTION_READY == 'true' && 'true' || 'false' }}
+      TF_VAR_authentik_blueprint_enabled: ${{ vars.AUTHENTIK_BLUEPRINT_ENABLED == 'true' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v5
       - name: Verify adoption is enabled

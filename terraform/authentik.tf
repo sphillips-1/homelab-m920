@@ -11,7 +11,7 @@ resource "authentik_blueprint" "homelab" {
 
   name    = var.authentik_blueprint_name
   content = file("${path.module}/authentik/homelab.yaml")
-  enabled = true
+  enabled = var.authentik_blueprint_enabled
 
   lifecycle {
     prevent_destroy = true

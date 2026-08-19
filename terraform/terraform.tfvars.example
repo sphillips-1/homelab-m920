@@ -6,3 +6,4 @@ tunnel_id                    = "00000000-0000-0000-0000-000000000000"
 tunnel_name                  = "homelab-m920-local"
 enable_authentik_blueprint   = false
 authentik_blueprint_name     = "homelab-terraform"
+authentik_blueprint_enabled  = false
