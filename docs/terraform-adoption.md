@@ -166,12 +166,21 @@ GitHub environment variables:
   `true`;
 - `AUTHENTIK_BLUEPRINT_ENABLED=false` for the state-only creation, then `true`
   only after the disabled blueprint validates successfully;
+- `AUTHENTIK_BLUEPRINT_NAME=homelab-terraform` unless the Terraform variable is
+  deliberately changed;
 - the existing HCP and Cloudflare identifiers documented in
   `terraform-zero-trust.md`.
 
-PR validation does not contact Authentik. Same-repository PR plans and manual
-applies use protected credentials. Both workflows reject every delete and
-replacement. Apply remains manual through `workflow_dispatch`.
+PR validation does not contact Authentik. Same-repository PR plans and
+production applies use protected credentials. Both workflows reject every
+delete and replacement. Production apply runs automatically after every push
+to `main` and can also be started manually through `workflow_dispatch`.
+
+After Terraform updates the managed Authentik blueprint, the production
+workflow explicitly invokes Authentik's blueprint apply API. It polls the
+blueprint until a new successful `last_applied` timestamp is observed and fails
+the deployment on an Authentik error or timeout. A successful Terraform `PUT`
+alone does not prove that Authentik reconciled the blueprint entries.
 
 After deployment, verify Authentik login twice, Google enrollment, both
 application authorization groups, Audiobookshelf browser/mobile OIDC,

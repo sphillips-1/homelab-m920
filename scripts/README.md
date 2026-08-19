@@ -52,6 +52,9 @@ Access policies are in place.
 - `import-authentik-blueprint.ps1` reconciles the reviewed internal blueprint
   instance with the shared HCP Terraform state and produces a plan. It never
   applies.
+- `apply-authentik-blueprint.sh` is the production CI post-apply gate. It
+  explicitly applies the Terraform-managed Authentik blueprint and waits for a
+  fresh successful reconciliation result.
 
 See `docs/terraform-adoption.md` for the required review, secret handling, and
 rollback gates.

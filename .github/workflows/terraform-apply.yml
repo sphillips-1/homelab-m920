@@ -1,6 +1,9 @@
 name: Terraform Apply
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -31,6 +34,7 @@ jobs:
       TF_VAR_tunnel_name: ${{ vars.CLOUDFLARE_TUNNEL_NAME }}
       TF_VAR_enable_authentik_blueprint: ${{ vars.AUTHENTIK_ADOPTION_READY == 'true' && 'true' || 'false' }}
       TF_VAR_authentik_blueprint_enabled: ${{ vars.AUTHENTIK_BLUEPRINT_ENABLED == 'true' && 'true' || 'false' }}
+      AUTHENTIK_BLUEPRINT_NAME: ${{ vars.AUTHENTIK_BLUEPRINT_NAME || 'homelab-terraform' }}
     steps:
       - uses: actions/checkout@v5
       - name: Verify adoption is enabled
@@ -59,3 +63,6 @@ jobs:
             exit 1
           fi
       - run: terraform apply tfplan
+      - name: Apply and verify Authentik blueprint
+        if: env.TF_VAR_enable_authentik_blueprint == 'true' && env.TF_VAR_authentik_blueprint_enabled == 'true'
+        run: ../scripts/apply-authentik-blueprint.sh
