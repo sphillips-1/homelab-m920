@@ -1,0 +1,30 @@
+name: Cloudflare Inventory
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    environment: infrastructure
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Capture redacted Cloudflare inventory
+        shell: pwsh
+        run: ./scripts/inventory-cloudflare.ps1 -OutputPath "$env:RUNNER_TEMP/cloudflare-inventory.json"
+      - name: Upload private inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-inventory
+          path: ${{ runner.temp }}/cloudflare-inventory.json
+          if-no-files-found: error
+          retention-days: 1

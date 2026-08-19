@@ -10,11 +10,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $apiBase = 'https://api.cloudflare.com/client/v4'
-$secureToken = Read-Host 'Cloudflare read-only inventory token' -AsSecureString
-$tokenPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
+$tokenPointer = [IntPtr]::Zero
 
 try {
-    $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPointer)
+    if ($env:CLOUDFLARE_API_TOKEN) {
+        $token = $env:CLOUDFLARE_API_TOKEN
+    }
+    else {
+        $secureToken = Read-Host 'Cloudflare read-only inventory token' -AsSecureString
+        $tokenPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
+        $token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPointer)
+    }
     $headers = @{ Authorization = "Bearer $token" }
 
     function Invoke-CloudflareGet {
@@ -133,4 +139,5 @@ finally {
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPointer)
     }
     Remove-Variable token -ErrorAction SilentlyContinue
+    Remove-Variable secureToken -ErrorAction SilentlyContinue
 }

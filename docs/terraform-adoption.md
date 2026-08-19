@@ -131,6 +131,10 @@ The existing safe adoption scripts remain authoritative:
 .\scripts\plan-cloudflare-adoption.ps1
 ```
 
+When the Cloudflare token is available only as the protected GitHub environment
+secret, run the `Cloudflare Inventory` workflow instead. It uploads the same
+redacted, Git-ignored inventory as a private artifact with one-day retention.
+
 They inventory and import the locally configured tunnel and the three production
 CNAMEs. Do not import an entire zone or account blindly: zone rulesets and some
 account-wide settings are authoritative collections, and incomplete HCL can
