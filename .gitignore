@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!services/authentik/.env.invitation.example
 *.secret
 secrets/
 services/authentik/.env
