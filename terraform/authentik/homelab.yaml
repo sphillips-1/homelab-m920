@@ -856,11 +856,20 @@ entries:
 
       user = context.get("pending_user")
       userinfo = context.get("oauth_userinfo", {})
-      if not user or not user.email or not userinfo.get("email_verified", False):
+      prompt_data = context.get("prompt_data", {})
+      email = (
+          userinfo.get("email")
+          or prompt_data.get("email")
+          or getattr(user, "email", "")
+      ).strip().lower()
+      email_verified = (
+          userinfo.get("email_verified") is True
+          or userinfo.get("verified_email") is True
+      )
+      if not email or not email_verified:
           ak_message("Google did not return a verified email address.")
           return False
 
-      email = user.email.strip().lower()
       cookie = request.http_request.COOKIES.get("ak_service_invite", "")
       try:
           token, handoff_expiry, supplied_signature = cookie.split(".", 2)
@@ -895,7 +904,15 @@ entries:
       try:
           response = requests.post(
               "http://invitation-provisioner:8080/provision",
-              json={"email": email, "name": user.name or email},
+              json={
+                  "email": email,
+                  "name": (
+                      getattr(user, "name", "")
+                      or userinfo.get("name")
+                      or prompt_data.get("name")
+                      or email
+                  ),
+              },
               headers={
                   "Authorization": "Bearer " + os.environ[
                       "AUTHENTIK_INVITATION_PROVISIONER_TOKEN"
@@ -910,7 +927,7 @@ entries:
           return False
 
       group = Group.objects.get(name="audiobooks-users")
-      if not user._state.adding:
+      if user and not user._state.adding:
           # Existing Google identities use the source-authentication flow and
           # can be approved by the same reusable link.
           user.groups.add(group)
