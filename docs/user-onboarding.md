@@ -2,7 +2,7 @@
 
 This runbook covers public Audiobookshelf and Books access through Authentik.
 Google authentication creates an identity; it does not grant application
-access. Authorization remains an explicit administrator action.
+access unless it follows an active reusable service-invitation link.
 
 ## Access model
 
@@ -13,9 +13,52 @@ access. Authorization remains an explicit administrator action.
 - Calibre-Web retains its own users and permissions behind the Authentik proxy.
 - Tailscale is not required for public access.
 
-Never add users to either group automatically during Google enrollment.
+Ordinary Google enrollment never adds an application group automatically. The
+Audiobookshelf invitation path is the narrow exception: it requires a valid
+signed link handoff and a verified Google email, provisions the local account
+first, and only then adds `audiobooks-users`.
 
-## New Audiobookshelf user
+## Invite a new Audiobookshelf user
+
+1. In Audiobookshelf Admin, copy the root/admin API token from the root user's
+   settings into `AUDIOBOOKSHELF_API_TOKEN` in the protected
+   `services/authentik/.env`. Generate and add the internal
+   `AUTHENTIK_INVITATION_PROVISIONER_TOKEN` as shown in `.env.example`. This is
+   a one-time setup. Redeploy the Authentik Compose project and rerender the
+   tunnel's SSO configuration so `/invite/*` reaches the landing endpoint:
+
+   ```bash
+   sudo bash /opt/homelab/scripts/configure-cloudflared.sh --mode sso
+   ```
+2. On the server, create a reusable invitation (24 hours by default). The first
+   argument is an administrative label, not an email address:
+
+   ```bash
+   sudo bash /opt/homelab/scripts/create-service-invitation.sh friends-and-family
+   ```
+
+   To choose another lifetime, pass hours as the second argument.
+3. Send the printed URL to the people being invited. Each recipient opens it
+   and signs in with Google. Anyone possessing the link can enroll while it is
+   valid, so treat it as a temporary credential and do not post it publicly.
+4. Confirm that Authentik added the user to `audiobooks-users`, Audiobookshelf
+   created an active non-admin user with the same email, and the user can log in.
+
+The local Audiobookshelf password is random and is not shown to the invitee or
+administrator; OIDC is the credential they use. New invited accounts can play
+and download, cannot modify/upload/delete library content, and initially have
+access to all libraries and tags. Adjust those defaults in
+`services/authentik/provisioner/server.py` before deploying if needed.
+
+Provisioning is idempotent. If an active Audiobookshelf account already has the
+email, it is reused. Duplicate or inactive matches fail closed, and Authentik
+does not grant the group. The invitation remains reusable until its configured
+expiry. Opening it creates a signed, HttpOnly handoff cookie valid for 15
+minutes, allowing Authentik to prove that Google login began from the link
+despite the external redirect. Each Google identity receives a separate
+Audiobookshelf account.
+
+## Manual Audiobookshelf approval
 
 1. Ask the user to open
    `https://audiobooks.shelfgoblin.dev/audiobookshelf/` and choose the
@@ -93,6 +136,10 @@ parameter mismatch.
 Confirm the Google source uses `google-source-enrollment`. The dedicated flow
 creates the identity but assigns no application groups. Do not switch it back
 to `default-source-enrollment`.
+
+For an invitation, confirm that the link has not expired, the user opened it no
+more than 15 minutes before completing Google login, and
+`authentik-invitation-provisioner` is healthy.
 
 ### Access denied
 

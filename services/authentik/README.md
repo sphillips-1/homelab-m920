@@ -8,3 +8,10 @@ private Compose network. Only `authentik-server` also joins the external
 
 Persistent state lives at `/srv/homelab/appdata/authentik`; see
 `../../docs/authentik.md` for setup, Google OAuth, recovery, and backup steps.
+
+The Compose project also runs an internal invitation provisioner. It is not
+published on a host port. Cloudflare routes only `/invite/*` to its bearer-link
+landing endpoint; its account-provisioning endpoint requires an internal shared
+secret. Authentik calls that endpoint after verified Google login and before
+granting the `audiobooks-users` group. See `../../docs/user-onboarding.md` for
+setup and use.

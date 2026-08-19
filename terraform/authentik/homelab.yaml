@@ -844,6 +844,89 @@ entries:
   permissions: []
   state: present
 - attrs:
+    execution_logging: true
+    expression: |-
+      import hashlib
+      import hmac
+      import os
+      import time
+      from django.utils import timezone
+      from authentik.core.models import Group
+      from authentik.stages.invitation.models import Invitation
+
+      user = context.get("pending_user")
+      userinfo = context.get("oauth_userinfo", {})
+      if not user or not user.email or not userinfo.get("email_verified", False):
+          ak_message("Google did not return a verified email address.")
+          return False
+
+      email = user.email.strip().lower()
+      cookie = request.http_request.COOKIES.get("ak_service_invite", "")
+      try:
+          token, handoff_expiry, supplied_signature = cookie.split(".", 2)
+          payload = f"{token}.{handoff_expiry}"
+          expected_signature = hmac.new(
+              os.environ["AUTHENTIK_INVITATION_PROVISIONER_TOKEN"].encode(),
+              payload.encode(),
+              hashlib.sha256,
+          ).hexdigest()
+          valid_handoff = (
+              int(handoff_expiry) >= int(time.time())
+              and hmac.compare_digest(supplied_signature, expected_signature)
+          )
+      except (ValueError, KeyError):
+          valid_handoff = False
+
+      invitation = None
+      if valid_handoff:
+          invitation = Invitation.objects.filter(
+              pk=token,
+              expires__gt=timezone.now(),
+              flow__slug="google-source-enrollment",
+              fixed_data__services__contains=["audiobookshelf"],
+              fixed_data__reusable_link=True,
+          ).first()
+
+      # Ordinary Google enrollment remains pending for manual approval. Only an
+      # active bearer-link handoff takes this automatic path.
+      if invitation is None:
+          return True
+
+      try:
+          response = requests.post(
+              "http://invitation-provisioner:8080/provision",
+              json={"email": email, "name": user.name or email},
+              headers={
+                  "Authorization": "Bearer " + os.environ[
+                      "AUTHENTIK_INVITATION_PROVISIONER_TOKEN"
+                  ]
+              },
+              timeout=15,
+          )
+          response.raise_for_status()
+      except Exception as exc:
+          ak_logger.warning("Audiobookshelf invitation provisioning failed", error=str(exc))
+          ak_message("Audiobookshelf account creation failed. Please retry this invitation.")
+          return False
+
+      group = Group.objects.get(name="audiobooks-users")
+      if not user._state.adding:
+          # Existing Google identities use the source-authentication flow and
+          # can be approved by the same reusable link.
+          user.groups.add(group)
+      else:
+          # New identities are persisted by the User Write stage after this
+          # policy; flow context makes creation and approval one operation.
+          context["flow_plan"].context["groups"] = [group]
+      return True
+    name: provision-audiobookshelf-invitation
+  conditions: []
+  identifiers:
+    pk: 41f405d0-b21e-4ae3-a5ee-cc6d5f010c12
+  model: authentik_policies_expression.expressionpolicy
+  permissions: []
+  state: present
+- attrs:
     amount_digits: 0
     amount_lowercase: 0
     amount_symbols: 0
@@ -926,6 +1009,38 @@ entries:
   conditions: []
   identifiers:
     pk: 2d980432-6bd4-4aec-8da3-75d98216e2fd
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
+    enabled: true
+    failure_result: false
+    group: null
+    negate: false
+    order: 0
+    policy: 41f405d0-b21e-4ae3-a5ee-cc6d5f010c12
+    target: c55dc6ec-f532-4d27-9d2c-fb325554559e
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    pk: 9fd44f44-b97f-43d4-a44b-864db76fb8b8
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
+    enabled: true
+    failure_result: false
+    group: null
+    negate: false
+    order: 0
+    policy: 41f405d0-b21e-4ae3-a5ee-cc6d5f010c12
+    target: 02bb871a-7c35-49d2-ae91-1a38e3a97c77
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    pk: 07d16779-bc30-4f36-a480-579e217d94c6
   model: authentik_policies.policybinding
   permissions: []
   state: present

@@ -62,7 +62,11 @@ In the Cloudflare DNS dashboard, create proxied CNAME records:
 | `books` | `<TUNNEL_UUID>.cfargotunnel.com` |
 | `auth` | `<TUNNEL_UUID>.cfargotunnel.com` |
 
-Do not create public hostnames or routes for any other internal service.
+Do not create public hostnames or routes for any other internal service. The
+one narrow path exception is `auth.<DOMAIN>/invite/*`, which routes to the
+invitation landing endpoint. That endpoint only issues a short-lived signed
+handoff cookie and redirects to Authentik's Google source; the provisioning API
+on the same container remains protected by an internal bearer secret.
 
 ## Deploy in PRE-SSO SAFE STATE
 

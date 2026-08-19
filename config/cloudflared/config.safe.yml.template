@@ -4,6 +4,9 @@ credentials-file: __CREDENTIALS_FILE__
 
 # Identity-layer state: applications remain closed while Authentik is public.
 ingress:
+  - hostname: auth.__DOMAIN__
+    path: ^/invite/.*$
+    service: http://invitation-provisioner:8080
   - hostname: audiobooks.__DOMAIN__
     service: http_status:404
   - hostname: books.__DOMAIN__
