@@ -29,6 +29,44 @@ entries:
   state: present
 - attrs:
     backchannel_providers: []
+    group: Audiobookshelf clients
+    meta_description: Install the Audiobookshelf mobile client for Android.
+    meta_hide: false
+    meta_icon: ''
+    meta_launch_url: https://play.google.com/store/apps/details?id=com.audiobookshelf.app&hl=en_US
+    meta_publisher: Google Play
+    name: Audiobookshelf for Android
+    open_in_new_tab: true
+    policy_engine_mode: all
+    provider: null
+    slug: audiobookshelf-android
+  conditions: []
+  identifiers:
+    pk: 36ef29f4-c919-4d9c-a83d-f3d49e80e7b6
+  model: authentik_core.application
+  permissions: []
+  state: present
+- attrs:
+    backchannel_providers: []
+    group: Audiobookshelf clients
+    meta_description: Install Audiobooth, an Audiobookshelf mobile client for iPhone and iPad.
+    meta_hide: false
+    meta_icon: ''
+    meta_launch_url: https://apps.apple.com/us/app/audiobooth-audiobooks-player/id6753017503?platform=iphone
+    meta_publisher: App Store
+    name: Audiobookshelf for iOS
+    open_in_new_tab: true
+    policy_engine_mode: all
+    provider: null
+    slug: audiobookshelf-ios
+  conditions: []
+  identifiers:
+    pk: 9cf55090-bc54-47cd-b955-e55109b109a5
+  model: authentik_core.application
+  permissions: []
+  state: present
+- attrs:
+    backchannel_providers: []
     group: ''
     meta_description: ''
     meta_hide: false
@@ -994,6 +1032,38 @@ entries:
   conditions: []
   identifiers:
     pk: ad54c193-49cb-4fac-bead-da0eafc91bd8
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
+    enabled: true
+    failure_result: false
+    group: 4b74f640-f784-40c8-a420-e8ec8aeaf35e
+    negate: false
+    order: 0
+    policy: null
+    target: 36ef29f4-c919-4d9c-a83d-f3d49e80e7b6
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    pk: cba1c2f1-7f9b-4684-a40e-7c7338a669ef
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
+    enabled: true
+    failure_result: false
+    group: 4b74f640-f784-40c8-a420-e8ec8aeaf35e
+    negate: false
+    order: 0
+    policy: null
+    target: 9cf55090-bc54-47cd-b955-e55109b109a5
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    pk: a891bf03-1a14-480d-a3fa-ca2153db8a08
   model: authentik_policies.policybinding
   permissions: []
   state: present
