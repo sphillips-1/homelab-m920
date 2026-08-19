@@ -117,10 +117,10 @@ try {
         generated_at       = (Get-Date).ToUniversalTime().ToString('o')
         account_id         = $accountId
         zone               = [ordered]@{ id = $zoneId; name = $zone.name; status = $zone.status }
-        tunnels            = $tunnels
-        dns_records        = $dnsRecords
-        access_applications = $applications
-        identity_providers = $identityProviders
+        tunnels            = @($tunnels)
+        dns_records        = @($dnsRecords)
+        access_applications = @($applications)
+        identity_providers = @($identityProviders)
         zero_trust_organization = [ordered]@{
             name                    = $organization.name
             auth_domain             = $organization.auth_domain

@@ -142,6 +142,14 @@ remove rules on the next apply. Add further Cloudflare resources one product at
 a time, capture the complete remote object, import its ID into the same HCP
 workspace, and require a zero-change plan before enabling management.
 
+The reviewed 2026-08-19 inventory contains no Access applications or custom
+identity providers. Cloudflare's built-in identity provider is read-only and is
+intentionally not managed. The Zero Trust organization is also inventory-only:
+the Cloudflare provider 5.23 resource does not support Terraform import, so
+declaring it would attempt to create or replace account-wide configuration.
+Until the provider supports adoption, the managed Cloudflare boundary is the
+existing local-configured tunnel and its three production CNAME records.
+
 ## GitHub environment
 
 Keep the existing protected `infrastructure` environment and add:
