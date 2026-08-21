@@ -31,8 +31,10 @@ sudo python3 /opt/homelab/scripts/configure-calibre-sso.py
 sudo docker start calibre-web
 ```
 
-Keep the native admin credential for recovery through private port 8083. Never
-publish that recovery port through Cloudflare.
+The helper trusts only Authentik's direct connection from Docker's private
+`172.16.0.0/12` range. LAN clients cannot spoof the identity header. Keep the
+native admin credential for recovery through private port 8083. Never publish
+that recovery port through Cloudflare.
 
 ## Invite a new user
 

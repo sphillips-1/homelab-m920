@@ -19,6 +19,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--database", default="/srv/homelab/appdata/calibre-web/app.db", type=Path)
 parser.add_argument("--map-user", help="existing Calibre-Web username to preserve")
 parser.add_argument("--email", type=normalized_email, help="verified Authentik email")
+parser.add_argument(
+    "--trusted-proxies",
+    default="172.16.0.0/12",
+    help="comma-separated proxy networks (default: Docker private 172.16.0.0/12)",
+)
 args = parser.parse_args()
 if bool(args.map_user) != bool(args.email):
     parser.error("--map-user and --email must be supplied together")
@@ -33,12 +38,18 @@ try:
     with sqlite3.connect(args.database, timeout=15) as db:
         db.execute("PRAGMA busy_timeout = 15000")
         columns = {row[1] for row in db.execute("PRAGMA table_info(settings)")}
-        required = {"config_allow_reverse_proxy_header_login", "config_reverse_proxy_login_header_name"}
+        required = {
+            "config_allow_reverse_proxy_header_login",
+            "config_reverse_proxy_login_header_name",
+            "config_reverse_proxy_trusted_ips",
+        }
         if not required <= columns:
             raise RuntimeError("this Calibre-Web database lacks proxy-login settings")
         db.execute(
             "UPDATE settings SET config_allow_reverse_proxy_header_login = 1, "
-            "config_reverse_proxy_login_header_name = 'X-authentik-email'"
+            "config_reverse_proxy_login_header_name = 'X-authentik-email', "
+            "config_reverse_proxy_trusted_ips = ?",
+            (args.trusted_proxies,),
         )
         if args.map_user:
             user = db.execute(
