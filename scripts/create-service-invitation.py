@@ -17,14 +17,17 @@ flow = Flow.objects.get(slug="google-source-enrollment")
 creator = User.objects.get(username="akadmin")
 invitation = Invitation.objects.create(
     name=(
-        "audiobooks-"
+        "media-"
         f"{hashlib.sha256(label.encode()).hexdigest()[:12]}-"
         f"{timezone.now().strftime('%Y%m%d%H%M%S')}"
     ),
     expires=timezone.now() + timedelta(hours=hours),
     flow=flow,
     created_by=creator,
-    fixed_data={"services": ["audiobookshelf"], "reusable_link": True},
+    fixed_data={
+        "services": ["audiobookshelf", "calibre-web"],
+        "reusable_link": True,
+    },
     # Social-source redirects do not retain Invitation-stage context. The
     # signed handoff cookie binds the browser to this reusable approval record;
     # repeat evaluation is safe because downstream provisioning is idempotent.

@@ -77,8 +77,10 @@ services:
       - .env.invitation
     environment:
       AUDIOBOOKSHELF_URL: http://audiobookshelf:80
+      CALIBRE_WEB_DB: /calibre-web/app.db
     volumes:
       - ./provisioner:/app:ro
+      - /srv/homelab/appdata/calibre-web:/calibre-web
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
       interval: 30s

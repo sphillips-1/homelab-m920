@@ -10,15 +10,31 @@ access unless it follows an active reusable service-invitation link.
 - `books-users` grants access to the Authentik-protected Books application.
 - Audiobookshelf auto-registration is disabled. Every authorized identity must
   match an active Audiobookshelf user by email.
-- Calibre-Web retains its own users and permissions behind the Authentik proxy.
+- Authentik's verified email signs the user into a matching native Calibre-Web
+  account; Calibre-Web retains its own permissions.
 - Tailscale is not required for public access.
 
 Ordinary Google enrollment never adds an application group automatically. The
-Audiobookshelf invitation path is the narrow exception: it requires a valid
-signed link handoff and a verified Google email, provisions the local account
-first, and only then adds `audiobooks-users`.
+service-invitation path is the narrow exception: it requires a valid signed
+link handoff and a verified Google email, provisions both local accounts first,
+and only then adds `audiobooks-users` and `books-users`.
 
-## Invite a new Audiobookshelf user
+## Enable Calibre-Web SSO once
+
+After initial library setup, enable reverse-proxy login using the verified
+`X-authentik-email` header. The helper creates a timestamped database backup
+and is idempotent:
+
+```bash
+sudo docker stop calibre-web
+sudo python3 /opt/homelab/scripts/configure-calibre-sso.py
+sudo docker start calibre-web
+```
+
+Keep the native admin credential for recovery through private port 8083. Never
+publish that recovery port through Cloudflare.
+
+## Invite a new user
 
 1. In Audiobookshelf Admin, copy the root/admin API token from the root user's
    settings into `AUDIOBOOKSHELF_API_TOKEN` in a mode-0600 copy of
@@ -49,8 +65,8 @@ first, and only then adds `audiobooks-users`.
 3. Send the printed URL to the people being invited. Each recipient opens it
    and signs in with Google. Anyone possessing the link can enroll while it is
    valid, so treat it as a temporary credential and do not post it publicly.
-4. Confirm that Authentik added the user to `audiobooks-users`, Audiobookshelf
-   created an active non-admin user with the same email, and the user can log in.
+4. Confirm Authentik added both application groups, both applications created
+   a non-admin account with the same email, and no second Books login appears.
 
 The local Audiobookshelf password is random and is not shown to the invitee or
 administrator; OIDC is the credential they use. New invited accounts can play
@@ -58,9 +74,9 @@ and download, cannot modify/upload/delete library content, and initially have
 access to all libraries and tags. Adjust those defaults in
 `services/authentik/provisioner/server.py` before deploying if needed.
 
-Provisioning is idempotent. If an active Audiobookshelf account already has the
-email, it is reused. Duplicate or inactive matches fail closed, and Authentik
-does not grant the group. The invitation remains reusable until its configured
+Provisioning is idempotent. Matching application accounts are reused. Duplicate,
+inactive, or unmigrated legacy matches fail closed, and Authentik grants neither
+group. The invitation remains reusable until its configured
 expiry. Opening it creates a signed, HttpOnly handoff cookie valid for 60
 minutes, allowing Authentik to prove that Google login began from the link
 despite the external redirect. Each Google identity receives a separate
@@ -107,16 +123,30 @@ matching key and must be identical.
 
 ## Books access
 
-1. Have the user authenticate with Google once to create their Authentik
-   identity.
-2. Add the identity to `books-users`.
-3. Create or map the corresponding native Calibre-Web user and permissions
-   after Calibre-Web's initial library setup is complete.
-4. Test `https://books.shelfgoblin.dev/` in a fresh session.
+The normal service invitation creates the native Calibre-Web account and grants
+`books-users` automatically. For a manual grant, create a Calibre-Web user whose
+username and email are both the identity's exact verified Google email, then add
+`books-users`. Test `https://books.shelfgoblin.dev/` in a fresh session.
 
 Authentik protects the browser route, but Calibre-Web still enforces its own
 account permissions. Ordinary OPDS clients cannot complete interactive
 Authentik login; do not expose an unauthenticated OPDS bypass.
+
+## Existing Calibre-Web user
+
+Map the existing record instead of recreating it, preserving its shelves,
+history, restrictions, and permissions:
+
+```bash
+sudo docker stop calibre-web
+sudo python3 /opt/homelab/scripts/configure-calibre-sso.py \
+  --map-user OLD_USERNAME --email exact-google-address@example.com
+sudo docker start calibre-web
+```
+
+Then have the user authenticate with Google once and add `books-users` to the
+resulting Authentik identity. The helper rejects collisions and restores its
+timestamped backup on failure.
 
 ## Browser and mobile setup
 

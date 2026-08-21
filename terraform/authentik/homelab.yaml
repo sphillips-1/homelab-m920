@@ -930,7 +930,7 @@ entries:
               pk=token,
               expires__gt=timezone.now(),
               flow__slug="google-source-enrollment",
-              fixed_data__services__contains=["audiobookshelf"],
+              fixed_data__services__contains=["audiobookshelf", "calibre-web"],
               fixed_data__reusable_link=True,
           ).first()
 
@@ -950,6 +950,7 @@ entries:
                       or prompt_data.get("name")
                       or email
                   ),
+                  "services": invitation.fixed_data.get("services", []),
               },
               headers={
                   "Authorization": "Bearer " + os.environ[
@@ -960,21 +961,24 @@ entries:
           )
           response.raise_for_status()
       except Exception as exc:
-          ak_logger.warning("Audiobookshelf invitation provisioning failed", error=str(exc))
-          ak_message("Audiobookshelf account creation failed. Please retry this invitation.")
+          ak_logger.warning("Application invitation provisioning failed", error=str(exc))
+          ak_message("Application account creation failed. Please retry this invitation.")
           return False
 
-      group = Group.objects.get(name="audiobooks-users")
+      groups = list(Group.objects.filter(name__in=["audiobooks-users", "books-users"]))
+      if len(groups) != 2:
+          ak_message("Application access groups are not configured.")
+          return False
       if user and not user._state.adding:
           # Existing Google identities use the source-authentication flow and
           # can be approved by the same reusable link.
-          user.groups.add(group)
+          user.groups.add(*groups)
       else:
           # New identities are persisted by the User Write stage after this
           # policy; flow context makes creation and approval one operation.
-          context["flow_plan"].context["groups"] = [group]
+          context["flow_plan"].context["groups"] = groups
       return True
-    name: provision-audiobookshelf-invitation
+    name: provision-application-invitation
   conditions: []
   identifiers:
     pk: c8b7fb0c-3d06-4ba3-b7a2-a346a601b083

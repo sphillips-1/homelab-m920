@@ -11,7 +11,8 @@ through the Authentik embedded proxy before reaching Calibre-Web.
 LAN and Tailscale continue to use host ports 13378 and 8083. Audiobookshelf
 uses OpenID exclusively on every network path; its persisted password hashes
 remain in the database for rollback but password authentication is disabled.
-Calibre-Web retains its own permissions behind the Authentik proxy.
+Calibre-Web accepts Authentik's verified email header for single sign-on and
+retains its own permissions behind the proxy.
 
 ## Authorization
 
@@ -58,7 +59,8 @@ session does not authenticate the app's later API requests.
 ## Calibre-Web and OPDS
 
 Calibre-Web 0.6.27 does not support generic Authentik OIDC. Browser access uses
-the Authentik embedded proxy and retains Calibre-Web's own users/permissions.
+the embedded proxy and `X-authentik-email` reverse-proxy login. Invitations
+provision the required native account before access is granted.
 The live instance was not initialized when this integration was prepared:
 `/srv/homelab/media/ebooks` had no `metadata.db`, and the application redirected
 to `/admin/dbconfig`. Do not expose OPDS until a real Calibre library and strong

@@ -2,9 +2,9 @@
 
 ## Architecture and scope
 
-This deployment establishes Google -> Authentik -> an authenticated Authentik
-session at `https://auth.shelfgoblin.dev`. It does not change Audiobookshelf or
-Calibre-Web authentication.
+This deployment establishes Google -> Authentik identity and application SSO.
+Audiobookshelf uses native OIDC; Calibre-Web uses the Authentik proxy's verified
+email header with a pre-provisioned local account for application permissions.
 
 ```text
 Cloudflare Tunnel -> homelab -> authentik-server:9000

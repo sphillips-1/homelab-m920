@@ -37,7 +37,7 @@ Calibre-Web uses an existing Calibre library and requires its `metadata.db` data
 
 For a new empty library, use Calibre on another machine to create a library in that location through a network share or by copying the resulting library directory to `/srv/homelab/media/ebooks`. For an existing library, copy or restore the entire library directory there, preserving `metadata.db` and the book folders. Do not create an arbitrary SQLite database file.
 
-After the container starts, browse to port `8083`. On the first setup screen, set the Calibre library location to `/books`. The image's initial Calibre-Web credentials are `admin` / `admin123`; change the password immediately. Calibre-Web uses its own authentication; no SSO or Google login is configured.
+After the container starts, browse to port `8083`. On the first setup screen, set the Calibre library location to `/books`. The image's initial Calibre-Web credentials are `admin` / `admin123`; change the password immediately. Then run `scripts/configure-calibre-sso.py` as documented in `docs/user-onboarding.md`; public browser access uses Authentik SSO while native users retain application permissions.
 
 ## Backups
 
