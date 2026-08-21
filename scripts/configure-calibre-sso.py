@@ -57,7 +57,12 @@ try:
                 (args.map_user.strip().lower(),),
             ).fetchone()
             if user is None:
-                raise RuntimeError(f"Calibre-Web user not found: {args.map_user}")
+                user = db.execute(
+                    'SELECT id FROM "user" WHERE lower(name) = ? AND lower(email) = ?',
+                    (args.email, args.email),
+                ).fetchone()
+                if user is None:
+                    raise RuntimeError(f"Calibre-Web user not found: {args.map_user}")
             collision = db.execute(
                 'SELECT id FROM "user" WHERE id != ? AND (lower(name) = ? OR lower(email) = ?)',
                 (user[0], args.email, args.email),
