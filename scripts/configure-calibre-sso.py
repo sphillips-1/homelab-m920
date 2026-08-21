@@ -47,7 +47,7 @@ try:
             raise RuntimeError("this Calibre-Web database lacks proxy-login settings")
         db.execute(
             "UPDATE settings SET config_allow_reverse_proxy_header_login = 1, "
-            "config_reverse_proxy_login_header_name = 'X-authentik-email', "
+            "config_reverse_proxy_login_header_name = 'X-Calibre-Web-User', "
             "config_reverse_proxy_trusted_ips = ?",
             (args.trusted_proxies,),
         )

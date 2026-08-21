@@ -1406,6 +1406,27 @@ entries:
   permissions: []
   state: present
 - attrs:
+    description: Explicit verified identity header for Calibre-Web proxy login
+    expression: |-
+      return {
+          "ak_proxy": {
+              "user_attributes": {
+                  "additionalHeaders": {
+                      "X-Calibre-Web-User": request.user.email.strip().lower(),
+                  },
+              },
+          },
+      }
+    managed: null
+    name: Calibre-Web proxy identity header
+    scope_name: calibre_web_proxy
+  conditions: []
+  identifiers:
+    pk: 3cdfb3ea-ce80-4dad-9fab-d783d030933f
+  model: authentik_providers_oauth2.scopemapping
+  permissions: []
+  state: present
+- attrs:
     access_code_validity: minutes=1
     access_token_validity: hours=1
     authentication_flow: fce67418-21a3-4dc7-b853-e7157f752a81
@@ -1468,6 +1489,7 @@ entries:
     name: Books Proxy
     property_mappings:
     - 2fbe4c58-1876-4fc9-8f57-98940be3dca2
+    - 3cdfb3ea-ce80-4dad-9fab-d783d030933f
     - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
     - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
     - 62a9b3d1-5ce5-4996-87a8-626f6f3ee70d
@@ -1509,6 +1531,7 @@ entries:
     name: Books Proxy
     property_mappings:
     - 2fbe4c58-1876-4fc9-8f57-98940be3dca2
+    - 3cdfb3ea-ce80-4dad-9fab-d783d030933f
     - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
     - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
     - 62a9b3d1-5ce5-4996-87a8-626f6f3ee70d

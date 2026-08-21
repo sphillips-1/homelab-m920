@@ -59,7 +59,8 @@ session does not authenticate the app's later API requests.
 ## Calibre-Web and OPDS
 
 Calibre-Web 0.6.27 does not support generic Authentik OIDC. Browser access uses
-the embedded proxy and `X-authentik-email` reverse-proxy login. Invitations
+the embedded proxy and a dedicated `X-Calibre-Web-User` reverse-proxy login
+header derived from the Authentik identity's email. Invitations
 provision the required native account before access is granted.
 The live instance was not initialized when this integration was prepared:
 `/srv/homelab/media/ebooks` had no `metadata.db`, and the application redirected

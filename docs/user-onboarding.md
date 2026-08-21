@@ -21,8 +21,9 @@ and only then adds `audiobooks-users` and `books-users`.
 
 ## Enable Calibre-Web SSO once
 
-After initial library setup, enable reverse-proxy login using the verified
-`X-authentik-email` header. The helper creates a timestamped database backup
+After initial library setup, enable reverse-proxy login using the dedicated
+`X-Calibre-Web-User` header. Authentik derives it from the verified identity's
+email. The helper creates a timestamped database backup
 and is idempotent:
 
 ```bash
