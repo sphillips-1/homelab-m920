@@ -35,6 +35,8 @@ jobs:
       TF_VAR_enable_authentik_blueprint: ${{ vars.AUTHENTIK_ADOPTION_READY == 'true' && 'true' || 'false' }}
       TF_VAR_authentik_blueprint_enabled: ${{ vars.AUTHENTIK_BLUEPRINT_ENABLED == 'true' && 'true' || 'false' }}
       AUTHENTIK_BLUEPRINT_NAME: ${{ vars.AUTHENTIK_BLUEPRINT_NAME || 'homelab-terraform' }}
+      # Keep false while terraform/authentik.tf ignores blueprint content PUTs.
+      AUTHENTIK_BLUEPRINT_CONTENT_MANAGED: "false"
     steps:
       - uses: actions/checkout@v5
       - name: Verify adoption is enabled
@@ -64,5 +66,5 @@ jobs:
           fi
       - run: terraform apply tfplan
       - name: Apply and verify Authentik blueprint
-        if: env.TF_VAR_enable_authentik_blueprint == 'true' && env.TF_VAR_authentik_blueprint_enabled == 'true'
+        if: env.AUTHENTIK_BLUEPRINT_CONTENT_MANAGED == 'true' && env.TF_VAR_enable_authentik_blueprint == 'true' && env.TF_VAR_authentik_blueprint_enabled == 'true'
         run: ../scripts/apply-authentik-blueprint.sh

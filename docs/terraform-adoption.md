@@ -19,6 +19,9 @@ dynamic `GroupUpdateStage`. Terraform still owns the blueprint instance, its
 enabled state, and destroy protection; reviewed YAML changes must not be treated
 as deployed until this compatibility guard is deliberately removed and a
 protected apply plus blueprint reconciliation succeeds.
+The production workflow sets `AUTHENTIK_BLUEPRINT_CONTENT_MANAGED=false`, so it
+also skips the post-apply reconciliation call while this guard is active. Set it
+back to `true` in the same reviewed change that removes `ignore_changes`.
 - PostgreSQL, uploaded files, application users, passwords, sessions, tokens,
   event history, and write-only provider secrets remain backup/secret-store
   concerns. Terraform state is not a replacement for `backup-authentik.sh`.
