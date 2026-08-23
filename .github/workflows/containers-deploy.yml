@@ -1,0 +1,29 @@
+name: Container Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "services/**"
+      - "scripts/**"
+      - ".github/workflows/containers-*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-containers
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Add the `m920` label to the existing runner so this cannot land on another
+    # self-hosted machine if more runners are registered later.
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 45
+    steps:
+      - name: Deploy exact main commit
+        run: sudo --non-interactive /usr/local/sbin/homelab-deploy "${{ github.sha }}"

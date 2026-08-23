@@ -92,9 +92,9 @@ docker compose up -d --remove-orphans
 echo "Service 'cloudflared' deployed."
 }
 
+deploy_service "authentik"
 deploy_service "audiobookshelf"
 deploy_service "calibre-web"
-deploy_service "authentik"
 deploy_service "homepage"
 deploy_service "monitoring"
 deploy_cloudflared

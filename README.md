@@ -37,6 +37,8 @@ Planned:
 - Monitoring
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
+Automatic container deployment from `main`, runner setup, verification, and
+rollback behavior are documented in `docs/container-deployment.md`.
 
 Cloudflare Tunnel's safe-by-default setup is documented in
 `docs/cloudflare-tunnel.md`. Authentik deployment, Google OAuth enrollment,

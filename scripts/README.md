@@ -56,5 +56,18 @@ Access policies are in place.
   explicitly applies the Terraform-managed Authentik blueprint and waits for a
   fresh successful reconciliation result.
 
+## Container deployment
+
+- `deploy-release.sh` is installed as the root-owned CI entry point. It deploys
+  only an exact commit contained in `origin/main`, performs targeted backups,
+  validates and pulls images, and rolls Compose definitions back on failure.
+- `verify-services.sh` waits for expected containers and checks the local HTTP
+  readiness endpoints.
+- `install-container-deployment.sh RUNNER_USER` installs the entry point and a
+  narrowly scoped sudoers rule for the existing GitHub Actions runner.
+
+See `docs/container-deployment.md` for runner setup, deployment behavior, and
+rollback limitations.
+
 See `docs/terraform-adoption.md` for the required review, secret handling, and
 rollback gates.
