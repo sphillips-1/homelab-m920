@@ -93,7 +93,7 @@ if [[ -f "${desired_mode_file}" ]]; then
     case "${desired_mode}" in
         safe|sso)
             log "Rendering desired Cloudflare Tunnel mode: ${desired_mode}"
-            "${REPO_DIR}/scripts/configure-cloudflared.sh" --mode "${desired_mode}"
+            bash "${REPO_DIR}/scripts/configure-cloudflared.sh" --mode "${desired_mode}"
             ;;
         *)
             fail "Unsupported Cloudflare Tunnel desired mode: ${desired_mode}"
