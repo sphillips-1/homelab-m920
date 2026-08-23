@@ -35,6 +35,10 @@ The deployment script detects `.env`, enables the local agent, and Beszel then
 discovers all containers through the read-only Docker socket. No agent port is
 published: the hub and agent communicate over a local Unix socket.
 
+The hub and agent define Docker health checks. Audiobookshelf, Calibre-Web, and
+cloudflared also have service-specific checks, so Beszel can display their
+health as `healthy` or `unhealthy` instead of leaving the value blank.
+
 ## Operations
 
 ```bash

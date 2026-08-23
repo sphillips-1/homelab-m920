@@ -12,6 +12,14 @@ services:
     security_opt:
       - no-new-privileges:true
     command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    healthcheck:
+      # The distroless image has no shell or HTTP client. Validate the active
+      # ingress configuration with cloudflared's built-in command.
+      test: ["CMD", "cloudflared", "tunnel", "--config", "/etc/cloudflared/config.yml", "ingress", "validate"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     volumes:
       # Contains the locally generated tunnel credential and rendered ingress config.
       - /srv/homelab/appdata/cloudflared:/etc/cloudflared:ro
