@@ -76,6 +76,7 @@ local service_dir="${SERVICES_DIR}/cloudflared"
 local runtime_config="/srv/homelab/appdata/cloudflared/config.yml"
 local desired_mode_file="${REPO_DIR}/config/cloudflared/desired-mode"
 local desired_mode
+local rendered_config=false
 
 if [[ ! -f "${service_dir}/compose.yml" ]]; then
     echo "Skipping cloudflared: no Compose file found."
@@ -94,6 +95,7 @@ if [[ -f "${desired_mode_file}" ]]; then
         safe|sso)
             log "Rendering desired Cloudflare Tunnel mode: ${desired_mode}"
             bash "${REPO_DIR}/scripts/configure-cloudflared.sh" --mode "${desired_mode}"
+            rendered_config=true
             ;;
         *)
             fail "Unsupported Cloudflare Tunnel desired mode: ${desired_mode}"
@@ -104,6 +106,9 @@ fi
 log "Deploying cloudflared"
 cd "${service_dir}"
 docker compose up -d --remove-orphans
+if [[ "${rendered_config}" == true ]]; then
+    docker compose restart cloudflared
+fi
 echo "Service 'cloudflared' deployed."
 }
 
