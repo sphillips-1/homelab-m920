@@ -21,8 +21,11 @@ parser.add_argument("--map-user", help="existing Calibre-Web username to preserv
 parser.add_argument("--email", type=normalized_email, help="verified Authentik email")
 parser.add_argument(
     "--trusted-proxies",
-    default="172.16.0.0/12",
-    help="comma-separated proxy networks (default: Docker private 172.16.0.0/12)",
+    default="172.16.0.0/12,::ffff:172.16.0.0/108",
+    help=(
+        "comma-separated proxy networks (default: Docker private IPv4 range "
+        "and its IPv4-mapped IPv6 equivalent)"
+    ),
 )
 args = parser.parse_args()
 if bool(args.map_user) != bool(args.email):

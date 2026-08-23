@@ -33,7 +33,8 @@ sudo docker start calibre-web
 ```
 
 The helper trusts only Authentik's direct connection from Docker's private
-`172.16.0.0/12` range. LAN clients cannot spoof the identity header. Keep the
+`172.16.0.0/12` range and its IPv4-mapped IPv6 equivalent
+`::ffff:172.16.0.0/108`. LAN clients cannot spoof the identity header. Keep the
 native admin credential for recovery through private port 8083. Never publish
 that recovery port through Cloudflare.
 
