@@ -742,6 +742,29 @@ entries:
   permissions: []
   state: present
 - attrs:
+    captcha_stage: null
+    case_insensitive_matching: true
+    enable_remember_me: false
+    enrollment_flow: null
+    name: administrator-recovery-identification
+    password_stage: null
+    passwordless_flow: null
+    pretend_user_exists: true
+    recovery_flow: null
+    show_matched_user: true
+    show_source_labels: false
+    sources: []
+    user_fields:
+    - username
+    - email
+    webauthn_stage: null
+  conditions: []
+  identifiers:
+    pk: 3cc3fdad-ec4c-4918-843f-cecb50bed162
+  model: authentik_stages_identification.identificationstage
+  permissions: []
+  state: present
+- attrs:
     evaluate_on_plan: false
     invalid_response_action: retry
     order: 10
@@ -1853,29 +1876,6 @@ entries:
   conditions: []
   identifiers:
     pk: a2cfb738-efc3-470a-8c0e-8a86e9bcd260
-  model: authentik_stages_identification.identificationstage
-  permissions: []
-  state: present
-- attrs:
-    captcha_stage: null
-    case_insensitive_matching: true
-    enable_remember_me: false
-    enrollment_flow: null
-    name: administrator-recovery-identification
-    password_stage: null
-    passwordless_flow: null
-    pretend_user_exists: true
-    recovery_flow: null
-    show_matched_user: true
-    show_source_labels: false
-    sources: []
-    user_fields:
-    - username
-    - email
-    webauthn_stage: null
-  conditions: []
-  identifiers:
-    pk: 3cc3fdad-ec4c-4918-843f-cecb50bed162
   model: authentik_stages_identification.identificationstage
   permissions: []
   state: present
