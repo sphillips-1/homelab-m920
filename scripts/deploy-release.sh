@@ -77,15 +77,6 @@ log "Checking out ${TARGET_SHA}"
 git_repo checkout --detach --force "${TARGET_SHA}"
 CHECKED_OUT_TARGET=true
 
-repair_marker="${DEPLOY_STATE_DIR}/authentik-group-update-stage-repaired"
-if [[ ! -e "${repair_marker}" ]] && docker inspect authentik-worker >/dev/null 2>&1; then
-    log "Backing up Authentik before the guarded GroupUpdateStage repair"
-    bash "${REPO_DIR}/scripts/backup-authentik.sh"
-    docker exec -i authentik-worker ak shell \
-        <"${REPO_DIR}/scripts/repair-authentik-group-update-stage.py"
-    install -m 0600 /dev/null "${repair_marker}"
-fi
-
 if [[ "${PREVIOUS_SHA}" == "${TARGET_SHA}" ]]; then
     log "Commit ${TARGET_SHA} is already checked out; verifying the deployment"
     bash "${REPO_DIR}/scripts/verify-services.sh"

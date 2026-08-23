@@ -14,7 +14,7 @@ Cloudflare Tunnel -> homelab -> authentik-server:9000
                   authentik-worker  PostgreSQL 16
 ```
 
-The deployment pins Authentik `2026.5.6`. This version's supported Compose
+The deployment pins Authentik `2026.8.0`. This version's supported Compose
 architecture uses PostgreSQL, server, and worker; Redis is no longer required.
 PostgreSQL and the worker publish no ports. The server publishes port 9000 for
 LAN/Tailscale recovery only. Never forward it on the router.
