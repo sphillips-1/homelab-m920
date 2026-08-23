@@ -127,11 +127,11 @@ def provision_calibre_web(email):
                 raise ValueError(
                     "existing Calibre-Web user must be migrated to use email as username"
                 )
-            if not existing_email:
-                db.execute(
-                    'UPDATE "user" SET email = ? WHERE id = ?',
-                    (normalized_email, user_id),
-                )
+            db.execute(
+                'UPDATE "user" SET email = ?, '
+                "view_settings = COALESCE(view_settings, '{}') WHERE id = ?",
+                (existing_email or normalized_email, user_id),
+            )
             return {"created": False, "user_id": user_id}
 
         settings = db.execute(
@@ -145,7 +145,8 @@ def provision_calibre_web(email):
         cursor = db.execute(
             'INSERT INTO "user" '
             "(name, email, password, role, sidebar_view, denied_tags, allowed_tags, "
-            "denied_column_value, allowed_column_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "denied_column_value, allowed_column_value, view_settings) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 normalized_email,
                 normalized_email,
@@ -156,6 +157,7 @@ def provision_calibre_web(email):
                 settings[3] or "",
                 settings[4] or "",
                 settings[5] or "",
+                "{}",
             ),
         )
         return {"created": True, "user_id": cursor.lastrowid}
