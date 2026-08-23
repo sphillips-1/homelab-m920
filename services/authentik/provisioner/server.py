@@ -19,6 +19,9 @@ ABS_TOKEN = os.environ["AUDIOBOOKSHELF_API_TOKEN"]
 CALIBRE_DB = os.environ.get("CALIBRE_WEB_DB", "/calibre-web/app.db")
 PROVISIONER_TOKEN = os.environ["AUTHENTIK_INVITATION_PROVISIONER_TOKEN"]
 HANDOFF_TTL_SECONDS = 60 * 60
+# Calibre-Web permission bits: download (2) and viewer (256). SSO users need
+# both to browse and download books without receiving administrative access.
+CALIBRE_READER_ROLE = 258
 INVITE_PATH = re.compile(
     r"^/invite/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$"
 )
@@ -129,8 +132,12 @@ def provision_calibre_web(email):
                 )
             db.execute(
                 'UPDATE "user" SET email = ?, '
-                "view_settings = COALESCE(view_settings, '{}') WHERE id = ?",
-                (existing_email or normalized_email, user_id),
+                "view_settings = COALESCE(view_settings, '{}'), role = role | ? "
+                ", locale = COALESCE(locale, 'en') "
+                ", default_language = COALESCE(default_language, 'all') "
+                ", kobo_only_shelves_sync = COALESCE(kobo_only_shelves_sync, 0) "
+                "WHERE id = ?",
+                (existing_email or normalized_email, CALIBRE_READER_ROLE, user_id),
             )
             return {"created": False, "user_id": user_id}
 
@@ -145,19 +152,23 @@ def provision_calibre_web(email):
         cursor = db.execute(
             'INSERT INTO "user" '
             "(name, email, password, role, sidebar_view, denied_tags, allowed_tags, "
-            "denied_column_value, allowed_column_value, view_settings) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "denied_column_value, allowed_column_value, view_settings, locale, "
+            "default_language, kobo_only_shelves_sync) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 normalized_email,
                 normalized_email,
                 secrets.token_urlsafe(48),
-                settings[0],
+                settings[0] | CALIBRE_READER_ROLE,
                 settings[1],
                 settings[2] or "",
                 settings[3] or "",
                 settings[4] or "",
                 settings[5] or "",
                 "{}",
+                "en",
+                "all",
+                0,
             ),
         )
         return {"created": True, "user_id": cursor.lastrowid}
