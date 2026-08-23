@@ -74,6 +74,8 @@ echo "Service '${service}' deployed."
 deploy_cloudflared() {
 local service_dir="${SERVICES_DIR}/cloudflared"
 local runtime_config="/srv/homelab/appdata/cloudflared/config.yml"
+local desired_mode_file="${REPO_DIR}/config/cloudflared/desired-mode"
+local desired_mode
 
 if [[ ! -f "${service_dir}/compose.yml" ]]; then
     echo "Skipping cloudflared: no Compose file found."
@@ -86,17 +88,51 @@ if [[ ! -f "${runtime_config}" ]]; then
     return
 fi
 
+if [[ -f "${desired_mode_file}" ]]; then
+    desired_mode="$(tr -d '[:space:]' < "${desired_mode_file}")"
+    case "${desired_mode}" in
+        safe|sso)
+            log "Rendering desired Cloudflare Tunnel mode: ${desired_mode}"
+            "${REPO_DIR}/scripts/configure-cloudflared.sh" --mode "${desired_mode}"
+            ;;
+        *)
+            fail "Unsupported Cloudflare Tunnel desired mode: ${desired_mode}"
+            ;;
+    esac
+fi
+
 log "Deploying cloudflared"
 cd "${service_dir}"
 docker compose up -d --remove-orphans
 echo "Service 'cloudflared' deployed."
 }
 
+deploy_monitoring() {
+local service_dir="${SERVICES_DIR}/monitoring"
+
+if [[ ! -f "${service_dir}/compose.yml" ]]; then
+    echo "Skipping monitoring: no Compose file found."
+    return
+fi
+
+log "Deploying monitoring"
+cd "${service_dir}"
+
+if [[ -f "${service_dir}/.env" ]]; then
+    docker compose --profile agent up -d --remove-orphans
+    echo "Monitoring dashboard and container agent deployed."
+else
+    docker compose up -d --remove-orphans
+    echo "Monitoring dashboard deployed without the agent."
+    echo "Complete the one-time setup in ${service_dir}/README.md to enable container metrics."
+fi
+}
+
 deploy_service "authentik"
 deploy_service "audiobookshelf"
 deploy_service "calibre-web"
 deploy_service "homepage"
-deploy_service "monitoring"
+deploy_monitoring
 deploy_cloudflared
 
 log "Service deployment complete"

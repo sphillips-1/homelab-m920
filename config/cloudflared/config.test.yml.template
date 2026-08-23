@@ -1,5 +1,5 @@
 # Rendered by scripts/configure-cloudflared.sh. Do not commit the rendered file.
-# TEMPORARY TEST ACCESS ONLY. Protect the two application hostnames in
+# TEMPORARY TEST ACCESS ONLY. Protect the application hostnames in
 # Cloudflare Access before applying this configuration.
 tunnel: __TUNNEL_ID__
 credentials-file: __CREDENTIALS_FILE__
@@ -12,6 +12,8 @@ ingress:
     service: http://audiobookshelf:80
   - hostname: books.__DOMAIN__
     service: http://calibre-web:8083
+  - hostname: status.__DOMAIN__
+    service: http://beszel:8090
   - hostname: auth.__DOMAIN__
     service: http://authentik-server:9000
   - service: http_status:404

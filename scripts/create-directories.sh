@@ -23,6 +23,9 @@ mkdir -p \
     "${APPDATA_ROOT}/authentik/custom-templates" \
     "${APPDATA_ROOT}/homepage" \
     "${APPDATA_ROOT}/monitoring" \
+    "${APPDATA_ROOT}/monitoring/beszel-data" \
+    "${APPDATA_ROOT}/monitoring/beszel-agent-data" \
+    "${APPDATA_ROOT}/monitoring/beszel-socket" \
     "${BOOKS_ROOT}" \
     "${EBOOKS_ROOT}" \
     "${BACKUP_ROOT}/appdata" \

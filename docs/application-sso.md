@@ -6,6 +6,8 @@ Public traffic uses Cloudflare Tunnel only; router ports 80/443 remain closed.
 `audiobooks.shelfgoblin.dev` routes to Audiobookshelf, which enforces native
 OIDC with Authentik. In normal `sso` mode, `books.shelfgoblin.dev` routes
 through the Authentik embedded proxy before reaching Calibre-Web.
+`status.shelfgoblin.dev` also routes through the embedded proxy before reaching
+Beszel.
 `auth.shelfgoblin.dev` continues to route to Authentik.
 
 LAN and Tailscale continue to use host ports 13378 and 8083. Audiobookshelf
@@ -21,6 +23,7 @@ Authentik has separate applications and providers:
 - `Audiobookshelf` / `audiobookshelf`: confidential OIDC provider, restricted
   to `audiobooks-users`.
 - `Books` / `books`: proxy provider, restricted to `books-users`.
+- `Status` / `status`: proxy provider, restricted to `status-users`.
 
 Google login establishes identity only. To grant access, add the existing
 Authentik user to the relevant group. Add both groups for both applications;

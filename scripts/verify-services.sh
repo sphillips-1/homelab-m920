@@ -38,9 +38,14 @@ for container in \
     authentik-worker \
     authentik-invitation-provisioner \
     audiobookshelf \
-    calibre-web; do
+    calibre-web \
+    beszel; do
     wait_for_container "${container}"
 done
+
+if [[ -f /opt/homelab/services/monitoring/.env ]]; then
+    wait_for_container beszel-agent
+fi
 
 if [[ -f /srv/homelab/appdata/cloudflared/config.yml ]]; then
     wait_for_container cloudflared
@@ -51,5 +56,6 @@ echo "==> Verifying local application endpoints"
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:13378/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8083/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:9000/-/health/ready/
+curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8090/
 
 echo "Service verification passed."

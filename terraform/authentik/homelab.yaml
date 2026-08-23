@@ -28,6 +28,17 @@ entries:
   permissions: []
   state: present
 - attrs:
+    attributes: {}
+    is_superuser: false
+    name: status-users
+    parents: []
+  conditions: []
+  identifiers:
+    name: status-users
+  model: authentik_core.group
+  permissions: []
+  state: present
+- attrs:
     backchannel_providers: []
     group: Audiobookshelf clients
     meta_description: Install the Audiobookshelf mobile client for Android.
@@ -100,6 +111,25 @@ entries:
   conditions: []
   identifiers:
     pk: 4a86d5be-dcd7-48c7-8c81-7a5721384bbe
+  model: authentik_core.application
+  permissions: []
+  state: present
+- attrs:
+    backchannel_providers: []
+    group: ''
+    meta_description: Private M920Q container health and resource monitoring.
+    meta_hide: false
+    meta_icon: ''
+    meta_launch_url: https://status.shelfgoblin.dev
+    meta_publisher: ''
+    name: Status
+    open_in_new_tab: false
+    policy_engine_mode: all
+    provider: !Find [authentik_providers_proxy.proxyprovider, [name, Status Proxy]]
+    slug: status
+  conditions: []
+  identifiers:
+    slug: status
   model: authentik_core.application
   permissions: []
   state: present
@@ -692,6 +722,7 @@ entries:
     name: authentik Embedded Outpost
     providers:
     - 2
+    - !Find [authentik_providers_proxy.proxyprovider, [name, Status Proxy]]
     service_connection: null
     type: proxy
   conditions: []
@@ -1086,6 +1117,23 @@ entries:
   conditions: []
   identifiers:
     pk: a1fd900f-0c92-4dc0-8874-7f5e02884981
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
+    enabled: true
+    failure_result: false
+    group: !Find [authentik_core.group, [name, status-users]]
+    negate: false
+    order: 0
+    policy: null
+    target: !Find [authentik_core.application, [slug, status]]
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    order: 0
+    target: !Find [authentik_core.application, [slug, status]]
   model: authentik_policies.policybinding
   permissions: []
   state: present
@@ -1540,6 +1588,37 @@ entries:
   conditions: []
   identifiers:
     pk: 2
+  model: authentik_providers_proxy.proxyprovider
+  permissions: []
+  state: present
+- attrs:
+    access_token_validity: hours=1
+    authentication_flow: fce67418-21a3-4dc7-b853-e7157f752a81
+    authorization_flow: 52d347f4-4eb7-4781-acac-69e17ec47f57
+    basic_auth_enabled: false
+    basic_auth_password_attribute: ''
+    basic_auth_user_attribute: ''
+    certificate: null
+    cookie_domain: ''
+    external_host: https://status.shelfgoblin.dev
+    intercept_header_auth: true
+    internal_host: http://beszel:8090
+    internal_host_ssl_validation: true
+    invalidation_flow: aee838f1-0784-473e-b765-802ce49584c8
+    jwt_federation_providers: []
+    jwt_federation_sources: []
+    mode: proxy
+    name: Status Proxy
+    property_mappings:
+    - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
+    - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
+    - 62a9b3d1-5ce5-4996-87a8-626f6f3ee70d
+    - 8c0c72e1-0662-4295-80e5-b7c9076d626d
+    refresh_token_validity: days=30
+    skip_path_regex: ''
+  conditions: []
+  identifiers:
+    name: Status Proxy
   model: authentik_providers_proxy.proxyprovider
   permissions: []
   state: present

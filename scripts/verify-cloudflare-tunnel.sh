@@ -17,6 +17,7 @@ source "${ENV_FILE}"
 echo "==> Compose validation"
 docker compose -f "${REPO_DIR}/services/audiobookshelf/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/calibre-web/compose.yml" config -q
+docker compose -f "${REPO_DIR}/services/monitoring/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/authentik/compose.yml" config -q
 docker compose -f "${REPO_DIR}/services/cloudflared/compose.yml" config -q
 
@@ -31,10 +32,10 @@ docker exec cloudflared cloudflared tunnel --config /etc/cloudflared/config.yml 
 
 echo "==> Expected container status"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' \
-  --filter name='^(audiobookshelf|calibre-web|authentik-server|authentik-worker|authentik-postgresql|cloudflared)$'
+  --filter name='^(audiobookshelf|calibre-web|beszel|authentik-server|authentik-worker|authentik-postgresql|cloudflared)$'
 
 echo "==> Host publication check (must allow LAN and Tailscale access)"
-for port in 13378 8083; do
+for port in 13378 8083 8090; do
     if ! ss -ltnH "( sport = :${port} )" | awk '{print $4}' | grep -Eq '^(0\.0\.0\.0:|\[::\]:|\*:)'; then
         echo "ERROR: Port ${port} is not published on a non-loopback host interface." >&2
         exit 1
@@ -44,6 +45,7 @@ done
 echo "==> Local tunnel-to-container connectivity"
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://audiobookshelf:80
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://calibre-web:8083
+docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://beszel:8090
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://authentik-server:9000/-/health/ready/
 
 echo "==> Tunnel connection log"
@@ -52,7 +54,7 @@ docker logs --tail 100 cloudflared 2>&1 | grep -Ei 'registered tunnel connection
     exit 1
 }
 
-for hostname in "audiobooks.${CLOUDFLARE_DOMAIN}" "books.${CLOUDFLARE_DOMAIN}"; do
+for hostname in "audiobooks.${CLOUDFLARE_DOMAIN}" "books.${CLOUDFLARE_DOMAIN}" "status.${CLOUDFLARE_DOMAIN}"; do
     echo "==> DNS and HTTPS: ${hostname}"
     getent ahosts "${hostname}" >/dev/null || { echo "ERROR: DNS does not resolve: ${hostname}" >&2; exit 1; }
     if [[ "${MODE}" == "safe" ]]; then

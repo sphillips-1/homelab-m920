@@ -3,7 +3,7 @@
 ## Security model
 
 Cloudflare Tunnel is the only intended public ingress. The `cloudflared`
-container makes outbound connections to Cloudflare and reaches the two web
+container makes outbound connections to Cloudflare and reaches the web
 applications on Docker's private `homelab` network. Do **not** forward router
 ports 80 or 443. Do not expose SSH, Tailscale, Docker, databases, or any other
 host service through this tunnel.
@@ -18,9 +18,15 @@ not affect the tunnel: `cloudflared` continues to connect directly to
 
 The normal pre-SSO state is **safe mode**. It keeps the tunnel connected and
 DNS records in place but returns HTTP 404 for `audiobooks.<DOMAIN>`,
-`books.<DOMAIN>`. The identity hostname routes to Authentik. Safe mode does not
+`books.<DOMAIN>`, and `status.<DOMAIN>`. The identity hostname routes to Authentik. Safe mode does not
 rely only on an Access policy, so an accidental policy deletion cannot expose
 either content application.
+
+The repository's current desired production mode is recorded in
+`config/cloudflared/desired-mode`. Deployments render that mode before starting
+the connector, so the checked-in ingress template and the live tunnel do not
+drift. Change it to `safe` for a persistent emergency closure; `test` and the
+deprecated `access` mode are intentionally rejected by automatic deployment.
 
 ## Prerequisites
 
@@ -60,6 +66,7 @@ In the Cloudflare DNS dashboard, create proxied CNAME records:
 | --- | --- |
 | `audiobooks` | `<TUNNEL_UUID>.cfargotunnel.com` |
 | `books` | `<TUNNEL_UUID>.cfargotunnel.com` |
+| `status` | `<TUNNEL_UUID>.cfargotunnel.com` |
 | `auth` | `<TUNNEL_UUID>.cfargotunnel.com` |
 
 Do not create public hostnames or routes for any other internal service. The
@@ -78,14 +85,14 @@ sudo ./scripts/deploy-services.sh
 sudo bash ./scripts/verify-cloudflare-tunnel.sh safe
 ```
 
-The expected external response from both application hostnames is HTTPS 404.
+The expected external response from all application hostnames is HTTPS 404.
 The `auth` hostname routes to Authentik. The router needs no port-forwarding
 rule.
 
 ## TEMPORARY TEST ACCESS
 
-Before enabling test routing, create **two Cloudflare Zero Trust Access
-applications**, one for `audiobooks.<DOMAIN>` and one for `books.<DOMAIN>`.
+Before enabling test routing, create Cloudflare Zero Trust Access applications
+for `audiobooks.<DOMAIN>`, `books.<DOMAIN>`, and `status.<DOMAIN>`.
 Use self-hosted application type, exact hostname paths (`/*`), and an Allow
 policy restricted to your own identity/email domain. Verify in an incognito
 browser that Cloudflare Access requests authentication and that anonymous
@@ -101,8 +108,9 @@ sudo docker compose -f services/cloudflared/compose.yml up -d
 sudo bash ./scripts/verify-cloudflare-tunnel.sh test
 ```
 
-Test mode routes `audiobooks.<DOMAIN>` to Audiobookshelf and
-`books.<DOMAIN>` to Calibre-Web. `auth.<DOMAIN>` continues to route to Authentik. This is
+Test mode routes `audiobooks.<DOMAIN>` to Audiobookshelf,
+`books.<DOMAIN>` to Calibre-Web, and `status.<DOMAIN>` to Beszel.
+`auth.<DOMAIN>` continues to route to Authentik. This is
 **TEMPORARY TEST ACCESS** and would be unauthenticated if the Access policies
 are missing, disabled, or incorrectly scoped.
 
@@ -123,7 +131,7 @@ dashboard or stop the connector:
 sudo docker compose -f services/cloudflared/compose.yml stop
 ```
 
-Stopping it makes all three public hostnames unavailable but does not affect
+Stopping it makes all four public hostnames unavailable but does not affect
 the local applications or Tailscale. Keep the safe-mode configuration as the
 normal ready state.
 
@@ -141,7 +149,7 @@ Cloudflare account, DNS, or router.
   `<TUNNEL_UUID>.cfargotunnel.com`, proxied, and in the correct zone.
 - If test mode exposes an app without an Access login, immediately return to
   safe mode and correct the Access application/policy before retesting.
-- If cloudflared cannot resolve an app name, confirm all three containers are
+- If cloudflared cannot resolve an app name, confirm all application containers are
   attached to the external `homelab` Docker network.
 
 ## Authentik identity route

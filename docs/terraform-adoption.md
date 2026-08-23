@@ -6,7 +6,7 @@ HCP Terraform workspace `homelab-m920` is the remote state backend. GitHub
 Actions plans and applies both providers from `terraform/`:
 
 - Cloudflare provider resources own the existing production tunnel and the
-  three proxied application DNS records.
+  the existing proxied DNS records.
 - An Authentik provider resource owns one internal blueprint instance. The
   blueprint can reconcile most Authentik configuration models atomically,
   including applications, providers, groups, flows, stages, policies, sources,

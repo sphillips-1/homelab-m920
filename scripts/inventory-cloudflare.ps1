@@ -43,7 +43,7 @@ try {
     $zone = $zones[0]
     $zoneId = $zone.id
     $accountId = $zone.account.id
-    $targetNames = @("audiobooks.$ZoneName", "books.$ZoneName", "auth.$ZoneName")
+    $targetNames = @("audiobooks.$ZoneName", "books.$ZoneName", "status.$ZoneName", "auth.$ZoneName")
 
     $dnsRecords = @(Invoke-CloudflareGet "/zones/$zoneId/dns_records?per_page=100") |
         Where-Object { $_.name -in $targetNames } |

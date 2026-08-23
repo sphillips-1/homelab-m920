@@ -25,18 +25,20 @@ EXCLUDED_MODELS = {
     "authentik_tasks_schedules.schedule",
 }
 
-CUSTOM_GROUPS = {"audiobooks-users", "books-users"}
+CUSTOM_GROUPS = {"audiobooks-users", "books-users", "status-users"}
 
 SEED_NAMES = {
     "Audiobookshelf",
     "Audiobookshelf OIDC",
     "Books",
     "Books Proxy",
+    "Status",
+    "Status Proxy",
     "Google",
     "authentik Embedded Outpost",
     "default-authentication-identification",
 }
-SEED_SLUGS = {"audiobookshelf", "books", "google", "google-source-enrollment"}
+SEED_SLUGS = {"audiobookshelf", "books", "status", "google", "google-source-enrollment"}
 REVERSE_REFERENCE_MODELS = {
     "authentik_flows.flowstagebinding",
     "authentik_policies.policybinding",

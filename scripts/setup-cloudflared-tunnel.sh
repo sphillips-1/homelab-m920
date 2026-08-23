@@ -111,7 +111,7 @@ fi
 
 echo
 echo "Tunnel UUID: ${TUNNEL_ID}"
-echo "Create proxied DNS CNAME records for audiobooks, books, and auth to:"
+echo "Create proxied DNS CNAME records for audiobooks, books, status, and auth to:"
 echo "${TUNNEL_ID}.cfargotunnel.com"
 echo "SAFE mode is active: application hostnames return 404 until test mode is explicitly enabled."
 

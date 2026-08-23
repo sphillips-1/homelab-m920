@@ -12,6 +12,8 @@ ingress:
     service: http://audiobookshelf:80
   - hostname: books.__DOMAIN__
     service: http://calibre-web:8083
+  - hostname: status.__DOMAIN__
+    service: http://beszel:8090
   - hostname: auth.__DOMAIN__
     service: http://authentik-server:9000
   - service: http_status:404

@@ -50,7 +50,7 @@ echo "Rendered ${MODE} tunnel configuration at ${RUNTIME_DIR}/config.yml."
 if [[ "${MODE}" == "test" ]]; then
     echo "WARNING: TEST MODE is unauthenticated unless Cloudflare Access is already enforced."
 elif [[ "${MODE}" == "sso" ]]; then
-    echo "SSO mode active: Audiobookshelf uses native OIDC and Books uses the Authentik proxy."
+    echo "SSO mode active: Audiobookshelf uses native OIDC; Books and Status use the Authentik proxy."
 elif [[ "${MODE}" == "access" ]]; then
     echo "WARNING: ACCESS mode is deprecated after native-client compatibility testing. Use SSO mode."
 else

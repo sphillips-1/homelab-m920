@@ -11,6 +11,8 @@ ingress:
     service: http_status:404
   - hostname: books.__DOMAIN__
     service: http_status:404
+  - hostname: status.__DOMAIN__
+    service: http_status:404
   - hostname: auth.__DOMAIN__
     service: http://authentik-server:9000
   - service: http_status:404

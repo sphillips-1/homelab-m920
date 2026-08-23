@@ -29,12 +29,12 @@ Deployed and managed by this repository:
 - Authentik with Google OAuth identity
 - Cloudflare DNS and Tunnel Terraform
 - Cloudflare Tunnel
+- Beszel container status and resource monitoring
 - Tailscale-based private access
 
 Planned:
 
 - Homepage
-- Monitoring
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
 Automatic container deployment from `main`, runner setup, verification, and
@@ -57,7 +57,7 @@ pending decommission and is not being expanded.
   Calibre-Web at `http://<m920q-lan-ip>:8083`.
 - Tailscale: use the same ports with the M920Q's Tailscale name or IP; SSH port
   forwarding is not required for normal private browser access.
-- Internet: only the Cloudflare Tunnel may route the two application hostnames.
+- Internet: only the Cloudflare Tunnel may route application hostnames.
   It connects to the containers over Docker's `homelab` network; no router port
   forwarding is configured or required.
 
