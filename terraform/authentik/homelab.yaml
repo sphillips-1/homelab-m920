@@ -1800,28 +1800,6 @@ entries:
   permissions: []
   state: present
 - attrs:
-    captcha_stage: null
-    case_insensitive_matching: true
-    enable_remember_me: false
-    enrollment_flow: null
-    name: default-authentication-identification
-    password_stage: null
-    passwordless_flow: null
-    pretend_user_exists: true
-    recovery_flow: null
-    show_matched_user: true
-    show_source_labels: true
-    sources:
-    - ea38341d-43ff-4148-adde-c0892ec7a32c
-    user_fields: []
-    webauthn_stage: null
-  conditions: []
-  identifiers:
-    pk: a2cfb738-efc3-470a-8c0e-8a86e9bcd260
-  model: authentik_stages_identification.identificationstage
-  permissions: []
-  state: present
-- attrs:
     allow_show_password: false
     backends:
     - authentik.core.auth.InbuiltBackend

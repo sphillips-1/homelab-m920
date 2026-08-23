@@ -72,6 +72,16 @@ def sanitize_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
         # identification stages can still reference its stable UUID.
         return None
 
+    if (
+        model == "authentik_stages_identification.identificationstage"
+        and attrs.get("name") == "default-authentication-identification"
+    ):
+        # This bundled stage owns the source selector. Validating an update to
+        # its source relation plans Authentik's dynamic GroupUpdateStage and
+        # collides with the existing in-memory stage name. Providers and flow
+        # bindings continue to reference the unchanged live stage by UUID.
+        return None
+
     if model == "authentik_core.group":
         if attrs.get("name") not in CUSTOM_GROUPS:
             return None
