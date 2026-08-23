@@ -344,10 +344,27 @@ entries:
     name: Welcome to authentik!
     policy_engine_mode: any
     slug: default-authentication-flow
-    title: Welcome to authentik!
+    title: Sign in to Shelf Goblin
   conditions: []
   identifiers:
     pk: fce67418-21a3-4dc7-b853-e7157f752a81
+  model: authentik_flows.flow
+  permissions: []
+  state: present
+- attrs:
+    authentication: none
+    background: ''
+    compatibility_mode: false
+    denied_action: message_continue
+    designation: authentication
+    layout: stacked
+    name: Administrator recovery
+    policy_engine_mode: any
+    slug: administrator-recovery
+    title: Administrator recovery
+  conditions: []
+  identifiers:
+    pk: 34a7e045-8e50-409d-aaf5-3d21e91926c3
   model: authentik_flows.flow
   permissions: []
   state: present
@@ -689,7 +706,7 @@ entries:
     policy_engine_mode: any
     re_evaluate_policies: true
     stage: 3ec79bfc-0a56-40db-bad6-d5883e009474
-    target: fce67418-21a3-4dc7-b853-e7157f752a81
+    target: 34a7e045-8e50-409d-aaf5-3d21e91926c3
   conditions: []
   identifiers:
     pk: f6fc5233-8e08-4af3-b9e9-77fa24a90800
@@ -703,7 +720,7 @@ entries:
     policy_engine_mode: any
     re_evaluate_policies: true
     stage: c58c9b11-e3bf-474e-9297-417d6b9a06d2
-    target: fce67418-21a3-4dc7-b853-e7157f752a81
+    target: 34a7e045-8e50-409d-aaf5-3d21e91926c3
   conditions: []
   identifiers:
     pk: e2329072-c022-43f9-830e-7620767a9f30
@@ -721,6 +738,34 @@ entries:
   conditions: []
   identifiers:
     pk: ab28bca1-59cd-4c07-b7fb-0b540d65d161
+  model: authentik_flows.flowstagebinding
+  permissions: []
+  state: present
+- attrs:
+    evaluate_on_plan: false
+    invalid_response_action: retry
+    order: 10
+    policy_engine_mode: any
+    re_evaluate_policies: true
+    stage: 3cc3fdad-ec4c-4918-843f-cecb50bed162
+    target: 34a7e045-8e50-409d-aaf5-3d21e91926c3
+  conditions: []
+  identifiers:
+    pk: 41bf3061-8dba-4222-9053-908bb75d9c40
+  model: authentik_flows.flowstagebinding
+  permissions: []
+  state: present
+- attrs:
+    evaluate_on_plan: false
+    invalid_response_action: retry
+    order: 100
+    policy_engine_mode: any
+    re_evaluate_policies: true
+    stage: c1e9b621-bbd7-485b-b474-469cf904b606
+    target: 34a7e045-8e50-409d-aaf5-3d21e91926c3
+  conditions: []
+  identifiers:
+    pk: f7061294-fcdf-4e23-941c-e2a61c00ed1f
   model: authentik_flows.flowstagebinding
   permissions: []
   state: present
@@ -930,6 +975,24 @@ entries:
   conditions: []
   identifiers:
     pk: ac182514-23f7-4280-825e-9ec24a00b9d9
+  model: authentik_policies_expression.expressionpolicy
+  permissions: []
+  state: present
+- attrs:
+    execution_logging: false
+    expression: |-
+      http_request = request.http_request
+      if not http_request:
+          ak_message("Administrator recovery is available only on the private LAN/Tailscale route.")
+          return False
+      if "HTTP_CF_CONNECTING_IP" in http_request.META:
+          ak_message("Administrator recovery is available only on the private LAN/Tailscale route.")
+          return False
+      return True
+    name: administrator-recovery-private-route
+  conditions: []
+  identifiers:
+    pk: e48df228-13ae-46b6-8d20-bf49e16a56ad
   model: authentik_policies_expression.expressionpolicy
   permissions: []
   state: present
@@ -1409,6 +1472,22 @@ entries:
   permissions: []
   state: present
 - attrs:
+    enabled: true
+    failure_result: false
+    group: null
+    negate: false
+    order: 10
+    policy: e48df228-13ae-46b6-8d20-bf49e16a56ad
+    target: 34a7e045-8e50-409d-aaf5-3d21e91926c3
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    pk: 8cc38aa4-b6ad-4740-a791-9a737ff09b1f
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
     description: ''
     expression: '# This scope is required by the OpenID-spec, and must as such exist in authentik.
 
@@ -1666,7 +1745,7 @@ entries:
     pkce: S256
     policy_engine_mode: any
     profile_url: https://openidconnect.googleapis.com/v1/userinfo
-    promoted: false
+    promoted: true
     provider_type: google
     request_token_url: null
     slug: google
@@ -1769,13 +1848,34 @@ entries:
     show_source_labels: true
     sources:
     - ea38341d-43ff-4148-adde-c0892ec7a32c
+    user_fields: []
+    webauthn_stage: null
+  conditions: []
+  identifiers:
+    pk: a2cfb738-efc3-470a-8c0e-8a86e9bcd260
+  model: authentik_stages_identification.identificationstage
+  permissions: []
+  state: present
+- attrs:
+    captcha_stage: null
+    case_insensitive_matching: true
+    enable_remember_me: false
+    enrollment_flow: null
+    name: administrator-recovery-identification
+    password_stage: null
+    passwordless_flow: null
+    pretend_user_exists: true
+    recovery_flow: null
+    show_matched_user: true
+    show_source_labels: false
+    sources: []
     user_fields:
     - username
     - email
     webauthn_stage: null
   conditions: []
   identifiers:
-    pk: a2cfb738-efc3-470a-8c0e-8a86e9bcd260
+    pk: 3cc3fdad-ec4c-4918-843f-cecb50bed162
   model: authentik_stages_identification.identificationstage
   permissions: []
   state: present

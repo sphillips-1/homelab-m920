@@ -95,12 +95,18 @@ both work. Google verifies identity, but this flow must not add
 `audiobooks-users` or `books-users`. Application access remains an explicit
 administrator decision.
 
-Finally, edit the `default-authentication-identification` stage and add Google
-under **Source settings -> Sources**. Enable **Show sources' labels** so the
-login option is clearly identified. A successful first login creates only an
-Authentik identity; it grants no Audiobookshelf or Calibre-Web authorization.
-Follow `docs/user-onboarding.md` for approval and application-account
-procedures.
+The managed authentication blueprint makes the normal login flow Google-only.
+The `default-authentication-identification` stage has no local user fields, and
+the Google source is promoted so it renders as a full-width **Continue with
+Google** button whenever the source chooser is shown. With Google as the only
+source, Authentik normally redirects to it automatically.
+
+Local username/password entry exists only in the **Administrator recovery**
+flow at `/if/flow/administrator-recovery/`. Use that path through the private
+LAN/Tailscale port documented above; its policy denies requests forwarded by
+Cloudflare. A successful first Google login creates only an Authentik identity;
+it grants no Audiobookshelf or Calibre-Web authorization. Follow
+`docs/user-onboarding.md` for approval and application-account procedures.
 
 ## Validation
 
