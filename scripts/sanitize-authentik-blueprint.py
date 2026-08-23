@@ -64,6 +64,14 @@ def sanitize_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
 
     attrs = entry.get("attrs") or {}
 
+    if model == "authentik_sources_oauth.oauthsource":
+        # Authentik 2026.5 rebuilds source-owned flow-manager stages whenever an
+        # OAuth source is updated. Replaying an adopted source through a
+        # blueprint then fails validation because its internal GroupUpdateStage
+        # already exists. Keep the live source outside reconciliation; managed
+        # identification stages can still reference its stable UUID.
+        return None
+
     if model == "authentik_core.group":
         if attrs.get("name") not in CUSTOM_GROUPS:
             return None
@@ -79,12 +87,6 @@ def sanitize_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
             attrs["client_secret"] = EnvReference(
                 "AUTHENTIK_AUDIOBOOKSHELF_CLIENT_SECRET"
             )
-
-    if model == "authentik_sources_oauth.oauthsource" and attrs.get("slug") == "google":
-        # The global export omits Google's write-only consumer secret. Keep the
-        # client ID out of Git as well so both values have one recovery path.
-        attrs["consumer_key"] = EnvReference("AUTHENTIK_GOOGLE_CLIENT_ID")
-        attrs["consumer_secret"] = EnvReference("AUTHENTIK_GOOGLE_CLIENT_SECRET")
 
     if (
         model == "authentik_policies_expression.expressionpolicy"

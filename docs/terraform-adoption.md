@@ -61,6 +61,11 @@ notifications, certificates, OAuth user connections, RBAC defaults, and nested
 blueprint instances. It also moves the personal Google enrollment allow-list
 expression behind `AUTHENTIK_GOOGLE_EMAIL_ALLOWLIST_EXPRESSION`. Review the
 result manually; a successful sanitizer run is not approval to apply it.
+OAuth source objects are also excluded from reconciliation. Authentik 2026.5
+rebuilds source-owned flow-manager stages during a source update, and validating
+an adopted source can otherwise collide with its existing internal
+`GroupUpdateStage`. The live Google source remains referenced by stable UUID
+from the managed identification stage and must be backed up with Authentik.
 The sanitizer also sets `re_evaluate_policies: true` where the global exporter
 emits both that field and `evaluate_on_plan` as false; Authentik 2026.5 can
 persist that combination but rejects it during blueprint validation.
