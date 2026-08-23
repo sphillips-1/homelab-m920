@@ -76,7 +76,7 @@ fi
 if grep -Eq '^services/(audiobookshelf|calibre-web)/compose\.yml$' <<<"${changed_files}" &&
    docker inspect audiobookshelf calibre-web >/dev/null 2>&1; then
     log "Backing up application state before an application image or Compose configuration changes"
-    "${REPO_DIR}/scripts/backup-applications.sh"
+    bash "${REPO_DIR}/scripts/backup-applications.sh"
 fi
 
 trap rollback ERR

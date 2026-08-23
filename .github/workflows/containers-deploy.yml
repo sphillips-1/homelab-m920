@@ -25,5 +25,8 @@ jobs:
     environment: infrastructure
     timeout-minutes: 45
     steps:
+      - name: Repair backup script permissions
+        run: sudo --non-interactive chmod 0755 /opt/homelab/scripts/backup-applications.sh
+
       - name: Deploy exact main commit
         run: sudo --non-interactive /usr/local/sbin/homelab-deploy "${{ github.sha }}"
