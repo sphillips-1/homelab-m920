@@ -1423,7 +1423,7 @@ entries:
     scope_name: calibre_web_proxy
   conditions: []
   identifiers:
-    pk: 3cdfb3ea-ce80-4dad-9fab-d783d030933f
+    name: Calibre-Web proxy identity header
   model: authentik_providers_oauth2.scopemapping
   permissions: []
   state: present
@@ -1489,7 +1489,7 @@ entries:
     logout_uri: ''
     name: Books Proxy
     property_mappings:
-    - 3cdfb3ea-ce80-4dad-9fab-d783d030933f
+    - !Find [authentik_providers_oauth2.scopemapping, [name, Calibre-Web proxy identity header]]
     - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
     - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
     - 62a9b3d1-5ce5-4996-87a8-626f6f3ee70d
@@ -1530,7 +1530,7 @@ entries:
     mode: proxy
     name: Books Proxy
     property_mappings:
-    - 3cdfb3ea-ce80-4dad-9fab-d783d030933f
+    - !Find [authentik_providers_oauth2.scopemapping, [name, Calibre-Web proxy identity header]]
     - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
     - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
     - 62a9b3d1-5ce5-4996-87a8-626f6f3ee70d
