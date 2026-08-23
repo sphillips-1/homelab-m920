@@ -55,6 +55,10 @@ Access policies are in place.
 - `apply-authentik-blueprint.sh` is the production CI post-apply gate. It
   explicitly applies the Terraform-managed Authentik blueprint and waits for a
   fresh successful reconciliation result.
+- `repair-authentik-group-update-stage.py` is a guarded one-time deployment
+  migration for an orphaned row whose name belongs to Authentik's in-memory
+  source flow manager. Deployment backs up Authentik first; the repair refuses
+  to delete a bound row or a concrete stage subtype.
 
 ## Container deployment
 

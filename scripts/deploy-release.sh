@@ -70,7 +70,7 @@ changed_files="$(git_repo diff --name-only "${PREVIOUS_SHA}" "${TARGET_SHA}")"
 if grep -qx 'services/authentik/compose.yml' <<<"${changed_files}" &&
    docker inspect authentik-postgresql >/dev/null 2>&1; then
     log "Backing up Authentik before its image or Compose configuration changes"
-    "${REPO_DIR}/scripts/backup-authentik.sh"
+    bash "${REPO_DIR}/scripts/backup-authentik.sh"
 fi
 
 if grep -Eq '^services/(audiobookshelf|calibre-web)/compose\.yml$' <<<"${changed_files}" &&
@@ -84,6 +84,15 @@ trap rollback ERR
 log "Checking out ${TARGET_SHA}"
 git_repo checkout --detach --force "${TARGET_SHA}"
 CHECKED_OUT_TARGET=true
+
+repair_marker="${DEPLOY_STATE_DIR}/authentik-group-update-stage-repaired"
+if [[ ! -e "${repair_marker}" ]] && docker inspect authentik-worker >/dev/null 2>&1; then
+    log "Backing up Authentik before the guarded GroupUpdateStage repair"
+    bash "${REPO_DIR}/scripts/backup-authentik.sh"
+    docker exec -i authentik-worker ak shell \
+        <"${REPO_DIR}/scripts/repair-authentik-group-update-stage.py"
+    install -m 0600 /dev/null "${repair_marker}"
+fi
 
 log "Validating Compose configuration"
 while IFS= read -r compose_file; do
