@@ -57,14 +57,6 @@ PREVIOUS_SHA="$(git_repo rev-parse HEAD)"
 install -d -m 0700 "${DEPLOY_STATE_DIR}"
 printf '%s\n' "${TARGET_SHA}" > "${DEPLOY_STATE_DIR}/pending-sha"
 
-if [[ "${PREVIOUS_SHA}" == "${TARGET_SHA}" ]]; then
-    log "Commit ${TARGET_SHA} is already checked out; verifying the deployment"
-    bash "${REPO_DIR}/scripts/verify-services.sh"
-    printf '%s\n' "${TARGET_SHA}" > "${DEPLOY_STATE_DIR}/current-sha"
-    rm -f "${DEPLOY_STATE_DIR}/pending-sha"
-    exit 0
-fi
-
 changed_files="$(git_repo diff --name-only "${PREVIOUS_SHA}" "${TARGET_SHA}")"
 
 if grep -qx 'services/authentik/compose.yml' <<<"${changed_files}" &&
@@ -92,6 +84,14 @@ if [[ ! -e "${repair_marker}" ]] && docker inspect authentik-worker >/dev/null 2
     docker exec -i authentik-worker ak shell \
         <"${REPO_DIR}/scripts/repair-authentik-group-update-stage.py"
     install -m 0600 /dev/null "${repair_marker}"
+fi
+
+if [[ "${PREVIOUS_SHA}" == "${TARGET_SHA}" ]]; then
+    log "Commit ${TARGET_SHA} is already checked out; verifying the deployment"
+    bash "${REPO_DIR}/scripts/verify-services.sh"
+    printf '%s\n' "${TARGET_SHA}" > "${DEPLOY_STATE_DIR}/current-sha"
+    rm -f "${DEPLOY_STATE_DIR}/pending-sha"
+    exit 0
 fi
 
 log "Validating Compose configuration"
