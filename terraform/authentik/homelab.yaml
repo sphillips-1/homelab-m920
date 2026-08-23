@@ -1408,13 +1408,14 @@ entries:
 - attrs:
     description: Explicit verified identity header for Calibre-Web proxy login
     expression: |-
+      attributes = request.user.group_attributes(request)
+      additional_headers = dict(attributes.get("additionalHeaders", {}))
+      additional_headers["X-Calibre-Web-User"] = request.user.email.strip().lower()
+      attributes["additionalHeaders"] = additional_headers
       return {
           "ak_proxy": {
-              "user_attributes": {
-                  "additionalHeaders": {
-                      "X-Calibre-Web-User": request.user.email.strip().lower(),
-                  },
-              },
+              "user_attributes": attributes,
+              "is_superuser": request.user.is_superuser,
           },
       }
     managed: null
@@ -1488,7 +1489,6 @@ entries:
     logout_uri: ''
     name: Books Proxy
     property_mappings:
-    - 2fbe4c58-1876-4fc9-8f57-98940be3dca2
     - 3cdfb3ea-ce80-4dad-9fab-d783d030933f
     - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
     - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
@@ -1530,7 +1530,6 @@ entries:
     mode: proxy
     name: Books Proxy
     property_mappings:
-    - 2fbe4c58-1876-4fc9-8f57-98940be3dca2
     - 3cdfb3ea-ce80-4dad-9fab-d783d030933f
     - a4a1dbab-2bc5-4f2a-9f47-b6164384a0e9
     - 49c340d6-e33f-4cf3-8a21-fa4a59ed4562
