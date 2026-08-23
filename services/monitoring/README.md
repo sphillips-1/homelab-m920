@@ -22,9 +22,14 @@ until its credentials exist.
 
 1. Open the dashboard and create the first admin account.
 2. Choose **Add system**, name it `m920q`, and select the Docker setup.
-3. Copy `.env.example` to `.env` in this directory and replace `KEY` and
-   `TOKEN` with the values Beszel generated. Do not commit `.env`.
-4. Run `sudo bash /opt/homelab/scripts/deploy-services.sh` again.
+3. Install the generated `KEY` and `TOKEN` with the interactive helper:
+
+   ```bash
+   sudo bash /opt/homelab/scripts/configure-beszel-agent.sh
+   ```
+
+   The helper hides the token while it is entered, writes the ignored `.env`
+   file with mode `0600`, and recreates the agent. Do not commit `.env`.
 
 The deployment script detects `.env`, enables the local agent, and Beszel then
 discovers all containers through the read-only Docker socket. No agent port is
@@ -37,5 +42,5 @@ docker compose --profile agent ps
 docker compose --profile agent logs --tail 100 beszel beszel-agent
 ```
 
-To rotate the agent credentials, replace the values in the ignored `.env` file
-and rerun the deployment script.
+To replace or rotate the agent credentials, run the same helper again. It
+atomically replaces the protected `.env` file and recreates only the agent.

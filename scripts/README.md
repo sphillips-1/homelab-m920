@@ -65,6 +65,9 @@ Access policies are in place.
   readiness endpoints.
 - `install-container-deployment.sh RUNNER_USER` installs the entry point and a
   narrowly scoped sudoers rule for the existing GitHub Actions runner.
+- `configure-beszel-agent.sh` interactively installs or rotates the local
+  Beszel agent key and token without placing the token in shell history, then
+  recreates only the monitoring agent.
 
 See `docs/container-deployment.md` for runner setup, deployment behavior, and
 rollback limitations.
