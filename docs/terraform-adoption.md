@@ -11,6 +11,14 @@ Actions plans and applies both providers from `terraform/`:
   blueprint can reconcile most Authentik configuration models atomically,
   including applications, providers, groups, flows, stages, policies, sources,
   mappings, and outposts represented by the reviewed export.
+
+The adopted blueprint currently ignores Terraform changes to its `content`
+attribute. Authentik 2026.5.6 and 2026.8.0 reject provider `PUT` validation of
+the live export with a false duplicate-name error for the source manager's
+dynamic `GroupUpdateStage`. Terraform still owns the blueprint instance, its
+enabled state, and destroy protection; reviewed YAML changes must not be treated
+as deployed until this compatibility guard is deliberately removed and a
+protected apply plus blueprint reconciliation succeeds.
 - PostgreSQL, uploaded files, application users, passwords, sessions, tokens,
   event history, and write-only provider secrets remain backup/secret-store
   concerns. Terraform state is not a replacement for `backup-authentik.sh`.

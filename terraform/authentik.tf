@@ -15,5 +15,12 @@ resource "authentik_blueprint" "homelab" {
 
   lifecycle {
     prevent_destroy = true
+
+    # Authentik 2026.5.6 and 2026.8.0 reject provider PUT validation for this
+    # adopted blueprint while planning the source manager's dynamic
+    # GroupUpdateStage. Keep Terraform ownership and destroy protection without
+    # repeatedly submitting unchanged content. The reviewed YAML remains the
+    # desired source for a future provider/Authentik validator fix.
+    ignore_changes = [content]
   }
 }
