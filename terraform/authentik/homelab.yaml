@@ -165,6 +165,25 @@ entries:
   permissions: []
   state: present
 - attrs:
+    backchannel_providers: []
+    group: Administration
+    meta_description: Create a 24-hour media-service invite and copy it to the clipboard.
+    meta_hide: false
+    meta_icon: fa://fa-user-plus
+    meta_launch_url: https://auth.shelfgoblin.dev/invite/new/
+    meta_publisher: Homelab
+    name: Create user invite
+    open_in_new_tab: false
+    policy_engine_mode: all
+    provider: null
+    slug: create-user-invite
+  conditions: []
+  identifiers:
+    slug: create-user-invite
+  model: authentik_core.application
+  permissions: []
+  state: present
+- attrs:
     authentication: require_authenticated
     background: ''
     compatibility_mode: false
@@ -1172,6 +1191,32 @@ entries:
   conditions: []
   identifiers:
     pk: 660688c2-1044-48ec-9fcf-7027fa105ab7
+  model: authentik_policies.policybinding
+  permissions: []
+  state: present
+- attrs:
+    expression: return request.user.is_superuser
+    name: require-superuser-for-invite-creator
+  conditions: []
+  identifiers:
+    name: require-superuser-for-invite-creator
+  model: authentik_policies_expression.expressionpolicy
+  permissions: []
+  state: present
+- attrs:
+    enabled: true
+    failure_result: false
+    group: null
+    negate: false
+    order: 0
+    policy: !Find [authentik_policies_expression.expressionpolicy, [name, require-superuser-for-invite-creator]]
+    target: !Find [authentik_core.application, [slug, create-user-invite]]
+    timeout: 30
+    user: null
+  conditions: []
+  identifiers:
+    order: 0
+    target: !Find [authentik_core.application, [slug, create-user-invite]]
   model: authentik_policies.policybinding
   permissions: []
   state: present

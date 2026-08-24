@@ -25,6 +25,83 @@ CALIBRE_READER_ROLE = 258
 INVITE_PATH = re.compile(
     r"^/invite/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$"
 )
+INVITE_CREATOR_PATH = "/invite/new/"
+
+INVITE_CREATOR_HTML = b"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create a media invite</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #151515; color: #f5f5f5; }
+    main { width: min(34rem, calc(100% - 2rem)); padding: 2rem; border: 1px solid #444; border-radius: .75rem; background: #202020; box-sizing: border-box; }
+    h1 { margin-top: 0; font-size: 1.5rem; }
+    p { line-height: 1.5; color: #ccc; }
+    button { width: 100%; padding: .8rem 1rem; border: 0; border-radius: .35rem; background: #fd4b2d; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    #result { width: 100%; margin-top: 1rem; padding: .65rem; box-sizing: border-box; border: 1px solid #555; border-radius: .35rem; background: #111; color: inherit; }
+    #status { min-height: 1.5rem; margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Create a media invite</h1>
+    <p>Creates a reusable link that expires in 24 hours and grants access to Audiobookshelf and Books.</p>
+    <button id="create" type="button">Create invite and copy link</button>
+    <input id="result" type="text" readonly hidden aria-label="Invite link">
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+  <script>
+    const button = document.querySelector('#create');
+    const result = document.querySelector('#result');
+    const status = document.querySelector('#status');
+    const cookie = name => document.cookie.split('; ').find(row => row.startsWith(name + '='))?.split('=').slice(1).join('=');
+
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      status.textContent = 'Creating invite...';
+      result.hidden = true;
+      try {
+        const now = new Date();
+        const response = await fetch('/api/v3/stages/invitation/invitations/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-authentik-CSRF': decodeURIComponent(cookie('authentik_csrf') || ''),
+          },
+          body: JSON.stringify({
+            name: 'media-' + now.toISOString().replace(/\\D/g, '').slice(0, 14),
+            expires: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+            flow: '3ed71870-1894-47e9-82c0-4c2c1a0968c2',
+            fixed_data: {services: ['audiobookshelf', 'calibre-web'], reusable_link: true},
+            single_use: false,
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || JSON.stringify(payload));
+        const link = location.origin + '/invite/' + payload.pk;
+        result.value = link;
+        result.hidden = false;
+        try {
+          await navigator.clipboard.writeText(link);
+          status.textContent = 'Invite copied to your clipboard.';
+        } catch (_) {
+          result.select();
+          status.textContent = 'Clipboard access was denied. The link is selected; copy it manually.';
+        }
+      } catch (error) {
+        status.textContent = 'Could not create an invite. Confirm you are signed in as an administrator. ' + error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+"""
 
 
 def sign_invitation(token, expires):
@@ -190,6 +267,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/healthz":
             return self.respond(200, {"ok": True})
+        if self.path == INVITE_CREATOR_PATH:
+            return self.respond_html(INVITE_CREATOR_HTML)
         match = INVITE_PATH.fullmatch(self.path)
         if not match:
             return self.respond(404, {"error": "not found"})
@@ -236,6 +315,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
+
+    def respond_html(self, content):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.end_headers()
+        self.wfile.write(content)
 
     def log_message(self, fmt, *args):
         print(f"{self.address_string()} {fmt % args}", flush=True)

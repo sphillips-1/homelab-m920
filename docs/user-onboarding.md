@@ -40,6 +40,16 @@ that recovery port through Cloudflare.
 
 ## Invite a new user
 
+Superusers can select **Create user invite** from the Authentik library at
+`https://auth.shelfgoblin.dev/`. The page creates the same reusable 24-hour
+media invitation described below and copies its bearer link to the device
+clipboard. If the browser denies clipboard access, the page displays and
+selects the link for manual copying. The tile is hidden from non-superusers,
+and Authentik's invitation API independently enforces create permission.
+
+The server-side command remains available for recovery and custom labels or
+lifetimes:
+
 1. In Audiobookshelf Admin, copy the root/admin API token from the root user's
    settings into `AUDIOBOOKSHELF_API_TOKEN` in a mode-0600 copy of
    `services/authentik/.env.invitation.example` named `.env.invitation`.
