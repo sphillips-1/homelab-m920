@@ -55,6 +55,9 @@ Access policies are in place.
 - `apply-authentik-blueprint.sh` is the production CI post-apply gate. It
   explicitly applies the Terraform-managed Authentik blueprint and waits for a
   fresh successful reconciliation result.
+- `reconcile-invite-creator.py` runs through `ak shell` during service
+  deployment to idempotently maintain the admin-only invite-generator tile
+  while full blueprint content reconciliation is compatibility-guarded.
 
 ## Container deployment
 
