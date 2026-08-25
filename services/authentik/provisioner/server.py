@@ -12,6 +12,7 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 
 ABS_URL = os.environ.get("AUDIOBOOKSHELF_URL", "http://audiobookshelf:80").rstrip("/")
@@ -25,7 +26,7 @@ CALIBRE_READER_ROLE = 258
 INVITE_PATH = re.compile(
     r"^/invite/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/?$"
 )
-INVITE_CREATOR_PATH = "/invite/new/"
+INVITE_CREATOR_PATHS = {"/invite/new", "/invite/new/"}
 
 INVITE_CREATOR_HTML = b"""<!doctype html>
 <html lang="en">
@@ -110,6 +111,11 @@ def sign_invitation(token, expires):
         PROVISIONER_TOKEN.encode(), payload.encode(), hashlib.sha256
     ).hexdigest()
     return f"{payload}.{signature}"
+
+
+def request_path(target):
+    """Return only the URL path used for provisioner route matching."""
+    return urlsplit(target).path
 
 
 def abs_request(method, path, payload=None):
@@ -265,11 +271,12 @@ def provision(email, name, services):
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/healthz":
+        path = request_path(self.path)
+        if path == "/healthz":
             return self.respond(200, {"ok": True})
-        if self.path == INVITE_CREATOR_PATH:
+        if path in INVITE_CREATOR_PATHS:
             return self.respond_html(INVITE_CREATOR_HTML)
-        match = INVITE_PATH.fullmatch(self.path)
+        match = INVITE_PATH.fullmatch(path)
         if not match:
             return self.respond(404, {"error": "not found"})
 
