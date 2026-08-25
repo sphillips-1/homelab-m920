@@ -95,11 +95,11 @@ both work. Google verifies identity, but this flow must not add
 `audiobooks-users` or `books-users`. Application access remains an explicit
 administrator decision.
 
-The managed authentication blueprint makes the normal login flow Google-only.
-The `default-authentication-identification` stage has no local user fields, and
-the Google source is promoted so it renders as a full-width **Continue with
-Google** button whenever the source chooser is shown. With Google as the only
-source, Authentik normally redirects to it automatically.
+The managed authentication blueprint gives the normal login flow two choices:
+**Continue with Google** and **Administrator recovery**. Google remains the
+normal authentication path. The `homelab-google-login` identification stage has
+no local user fields, so username/password credentials cannot be entered on the
+normal login screen. Its recovery action opens the separate recovery flow.
 
 Local username/password entry exists only in the **Administrator recovery**
 flow at `/if/flow/administrator-recovery/`. Use that path through the private
@@ -127,9 +127,12 @@ curl -fsS http://192.168.4.37:8083/ >/dev/null
 Confirm `authentik-server` and cloudflared both belong to `homelab`; recent
 cloudflared logs must show registered connections without repeated origin
 errors. Repeat the two application checks through the M920Q's Tailscale name or
-IP. In an incognito browser, open Authentik, choose Google, complete login,
-and confirm the user reaches `/if/user/` without a redirect loop. Log out and
-log in again. Confirm a newly enrolled identity receives no application groups
+IP. In an incognito browser, open Authentik and confirm the login screen contains
+the Google and administrator-recovery actions but no username/password fields.
+Choose Google, complete login, and confirm the user reaches `/if/user/` without
+a redirect loop. Log out and log in again. From a private LAN/Tailscale URL,
+confirm the administrator-recovery action opens its separate username/password
+screen. Confirm a newly enrolled identity receives no application groups
 and cannot enter either application before administrator approval. Browser
 Google SSO and Tailscale checks
 require the operator's sessions and cannot be completed from a repository-only
