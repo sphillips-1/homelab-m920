@@ -124,6 +124,7 @@ chown root:root "${fstab_temp}"
 chmod 0644 "${fstab_temp}"
 mv -f "${fstab_temp}" "${FSTAB}"
 
+systemctl daemon-reload
 mount -a
 
 [[ "$(findmnt -rn -M "${STORAGE_ROOT}" -o UUID 2>/dev/null || true)" == "${MEDIA_UUID}" ]] || \
@@ -132,6 +133,12 @@ for directory in audiobooks movies tv; do
     mountpoint -q "${MEDIA_ROOT}/${directory}" || fail "Bind mount verification failed: ${MEDIA_ROOT}/${directory}"
 done
 [[ -d "${MEDIA_ROOT}/audiobooks/Books" ]] || fail "Audiobook library is not visible after migration."
+
+if docker inspect beszel-agent >/dev/null 2>&1; then
+    log "Recreating the monitoring agent against the external filesystem"
+    docker compose -f /opt/homelab/services/monitoring/compose.yml \
+        --profile agent up -d --force-recreate beszel-agent
+fi
 
 log "Restarting media consumers"
 restart_services
