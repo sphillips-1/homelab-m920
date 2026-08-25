@@ -71,11 +71,22 @@ if grep -Eq '^services/(audiobookshelf|calibre-web)/compose\.yml$' <<<"${changed
     bash "${REPO_DIR}/scripts/backup-applications.sh"
 fi
 
+if grep -qx 'services/jellyfin/compose.yml' <<<"${changed_files}" &&
+   docker inspect jellyfin >/dev/null 2>&1; then
+    log "Backing up Jellyfin before its image or Compose configuration changes"
+    bash "${REPO_DIR}/scripts/backup-jellyfin.sh"
+fi
+
 trap rollback ERR
 
 log "Checking out ${TARGET_SHA}"
 git_repo checkout --detach --force "${TARGET_SHA}"
 CHECKED_OUT_TARGET=true
+
+if [[ -f "${REPO_DIR}/scripts/configure-jellyfin-host.sh" ]]; then
+    log "Configuring Jellyfin host-specific LAN and GPU values"
+    bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
+fi
 
 if [[ "${PREVIOUS_SHA}" == "${TARGET_SHA}" ]]; then
     log "Commit ${TARGET_SHA} is already checked out; verifying the deployment"

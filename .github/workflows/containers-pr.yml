@@ -26,6 +26,8 @@ jobs:
             'AUTHENTIK_SECRET_KEY=ci-not-a-secret' \
             > services/authentik/.env
           : > services/authentik/.env.invitation
+          cp services/jellyfin/.env.example services/jellyfin/.env
+          sed -i 's/REPLACE_WITH_DETECTED_GID/109/' services/jellyfin/.env
       - name: Validate Compose files
         run: |
           set -euo pipefail

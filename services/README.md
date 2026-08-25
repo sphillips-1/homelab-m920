@@ -11,5 +11,6 @@ Initial services:
 - `homepage`
 - `monitoring`
 - `authentik`
+- `jellyfin`
 
 Calibre-Web is deployed with the other services by `scripts/deploy-services.sh`. Its persistent state is under `/srv/homelab/appdata/calibre-web`; its Calibre library is under `/srv/homelab/media/ebooks`.

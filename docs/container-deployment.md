@@ -33,7 +33,8 @@ commit. The host deployment command:
 1. locks against concurrent deployments;
 2. refuses to overwrite tracked local changes;
 3. verifies the commit belongs to `origin/main`;
-4. backs up affected state when a stateful Compose definition changed;
+4. backs up affected state when a stateful Compose definition changed,
+   including Jellyfin configuration but not media or transcode cache;
 5. validates every Compose model and pulls its declared images;
 6. runs the repository's idempotent service deployment;
 7. verifies containers and local HTTP readiness; and

@@ -11,6 +11,7 @@ M920Q
 ├── Tailscale
 ├── Cloudflare Tunnel (outbound-only public ingress)
 ├── Beszel container monitoring (private LAN/Tailscale access)
+├── Jellyfin (LAN-only, Intel UHD 630 Quick Sync)
 ├── /opt/homelab
 └── /srv/homelab
 ```
@@ -67,3 +68,8 @@ communicates with the dashboard through a Unix socket; no agent port is exposed.
 In **safe** mode, the application hostnames return 404 while Authentik is
 routed. In normal **sso** mode, public application access uses Authentik without
 changing LAN or Tailscale routes.
+
+Jellyfin is intentionally outside that ingress model. Bridge networking
+publishes port 8096 only on the detected physical LAN address. Jellyfin has no
+Cloudflare route, public DNS record, Access policy, Authentik dependency,
+Tailscale Serve/Funnel configuration, or router port forward.

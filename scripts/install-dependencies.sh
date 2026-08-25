@@ -24,11 +24,14 @@ apt-get install -y \
     curl \
     git \
     gnupg \
+    intel-gpu-tools \
+    iproute2 \
     jq \
     rsync \
     unzip \
     vim \
-    wget
+    wget \
+    vainfo
 
 log "Installing Docker"
 

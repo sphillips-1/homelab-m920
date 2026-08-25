@@ -1,0 +1,36 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.11
+    container_name: jellyfin
+    restart: unless-stopped
+
+    ports:
+      # Bind only to the detected LAN address; do not expose on Tailscale or all interfaces.
+      - "${JELLYFIN_LAN_IP}:8096:8096"
+
+    group_add:
+      # Generated from the group that owns the selected render device on this host.
+      - "${JELLYFIN_RENDER_GID}"
+
+    devices:
+      - "${JELLYFIN_RENDER_DEVICE}:${JELLYFIN_RENDER_DEVICE}"
+
+    networks:
+      - homelab
+
+    volumes:
+      - /srv/homelab/appdata/jellyfin:/config
+      - /srv/homelab/cache/jellyfin:/cache
+      - /srv/homelab/media/movies:/media/movies:ro
+      - /srv/homelab/media/tv:/media/tv:ro
+
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8096/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  homelab:
+    external: true

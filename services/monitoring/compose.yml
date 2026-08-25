@@ -44,6 +44,8 @@ services:
       - /srv/homelab/appdata/monitoring/beszel-socket:/beszel_socket
       # Read-only access is sufficient to discover and monitor every container.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Explicit media-capacity chart, including when media moves to another filesystem.
+      - /srv/homelab/media/.beszel:/extra-filesystems/media__Homelab_Media:ro
 
     depends_on:
       beszel:

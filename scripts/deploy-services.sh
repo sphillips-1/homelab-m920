@@ -141,6 +141,9 @@ docker exec -i authentik-worker ak shell \
 
 deploy_service "audiobookshelf"
 deploy_service "calibre-web"
+log "Configuring Jellyfin host-specific LAN and GPU values"
+bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
+deploy_service "jellyfin"
 deploy_service "homepage"
 deploy_monitoring
 deploy_cloudflared

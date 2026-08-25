@@ -26,6 +26,7 @@ Deployed and managed by this repository:
 
 - Audiobookshelf
 - Calibre-Web
+- Jellyfin (LAN-only, with Intel Quick Sync transcoding)
 - Authentik with Google OAuth identity
 - Cloudflare DNS and Tunnel Terraform
 - Cloudflare Tunnel
@@ -54,7 +55,8 @@ pending decommission and is not being expanded.
 ## Application access
 
 - LAN: Audiobookshelf is available at `http://<m920q-lan-ip>:13378` and
-  Calibre-Web at `http://<m920q-lan-ip>:8083`.
+  Calibre-Web at `http://<m920q-lan-ip>:8083`. Jellyfin is intentionally
+  LAN-only at `http://192.168.4.37:8096` and binds only to the LAN address.
 - Tailscale: use the same ports with the M920Q's Tailscale name or IP; SSH port
   forwarding is not required for normal private browser access.
 - Internet: only the Cloudflare Tunnel may route application hostnames.

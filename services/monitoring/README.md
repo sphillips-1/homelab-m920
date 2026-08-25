@@ -38,6 +38,10 @@ published: the hub and agent communicate over a local Unix socket.
 The hub and agent define Docker health checks. Audiobookshelf, Calibre-Web, and
 cloudflared also have service-specific checks, so Beszel can display their
 health as `healthy` or `unhealthy` instead of leaving the value blank.
+Jellyfin likewise reports Docker health from `/health`. Beszel automatically
+records its running state, restart count, CPU, memory, and network use. The
+agent's read-only `Homelab Media` mount reports capacity, free space, and
+utilization for the filesystem backing `/srv/homelab/media`.
 
 ## Operations
 

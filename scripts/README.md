@@ -23,6 +23,8 @@ Access policies are in place.
 - `backup-applications.sh` creates consistent Audiobookshelf and Calibre-Web
   appdata/library archives under `/srv/homelab/backups/applications`.
 - `backup-authentik.sh` creates an Authentik PostgreSQL dump and file archive.
+- `backup-jellyfin.sh` archives Jellyfin application state while excluding
+  media and disposable transcode cache.
 - `remove-legacy-untracked-pull-blockers.sh` removes only the four known legacy
   untracked files that block adoption of their Git-managed replacements. It
   refuses to remove tracked files or paths with an unexpected Git status.
@@ -71,6 +73,10 @@ Access policies are in place.
 - `configure-beszel-agent.sh` interactively installs or rotates the local
   Beszel agent key and token without placing the token in shell history, then
   recreates only the monitoring agent.
+- `configure-jellyfin-host.sh` detects the LAN address, render device, and its
+  owning group ID and atomically writes Jellyfin's ignored Compose environment.
+- `verify-jellyfin-gpu.sh` validates device permissions, VA-API discovery, and
+  QSV initialization inside the running container.
 
 See `docs/container-deployment.md` for runner setup, deployment behavior, and
 rollback limitations.

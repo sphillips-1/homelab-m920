@@ -39,6 +39,7 @@ for container in \
     authentik-invitation-provisioner \
     audiobookshelf \
     calibre-web \
+    jellyfin \
     beszel; do
     wait_for_container "${container}"
 done
@@ -55,6 +56,9 @@ fi
 echo "==> Verifying local application endpoints"
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:13378/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8083/
+JELLYFIN_LAN_IP="$(sed -n 's/^JELLYFIN_LAN_IP=//p' /opt/homelab/services/jellyfin/.env)"
+[[ -n "${JELLYFIN_LAN_IP}" ]] || { echo "ERROR: Jellyfin LAN address is not configured." >&2; exit 1; }
+curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused "http://${JELLYFIN_LAN_IP}:8096/health"
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:9000/-/health/ready/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8090/
 

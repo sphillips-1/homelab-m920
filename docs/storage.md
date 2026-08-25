@@ -30,14 +30,20 @@ Directory layout
 │   │   ├── certs/
 │   │   └── custom-templates/
 │   ├── homepage/
-│   └── monitoring/
+│   ├── monitoring/
+│   └── jellyfin/
+│
+├── cache/
+│   └── jellyfin/
 │
 ├── media/
 │   ├── audiobooks/
 │   │   ├── Books/
 │   │   │   └── ...
 │   │   └── <compatibility symlinks>
-│   └── ebooks/
+│   ├── ebooks/
+│   ├── movies/
+│   └── tv/
 │
 └── backups/
     ├── appdata/
@@ -108,6 +114,8 @@ Audiobook files belong under /srv/homelab/media/audiobooks/Books.
 Compatibility symlinks must point into Books/.
 Ebooks belong under /srv/homelab/media/ebooks, with the Calibre library metadata.db at that directory's root.
 Application containers should mount persistent state from /srv/homelab.
+Jellyfin configuration belongs under /srv/homelab/appdata/jellyfin and its transcode cache under /srv/homelab/cache/jellyfin.
+Jellyfin movies and TV shows belong under /srv/homelab/media/movies and /srv/homelab/media/tv; both mounts are read-only in the container.
 Storage setup should be automated by repository scripts where practical.
 The M920 should be recoverable by cloning the repository and rerunning the bootstrap/deployment scripts.
 Ownership
