@@ -710,7 +710,7 @@ entries:
     order: 10
     policy_engine_mode: any
     re_evaluate_policies: true
-    stage: 97f2342f-6149-4874-b2d0-2501d78e206a
+    stage: a2cfb738-efc3-470a-8c0e-8a86e9bcd260
     target: fce67418-21a3-4dc7-b853-e7157f752a81
   conditions: []
   identifiers:
@@ -758,28 +758,6 @@ entries:
   identifiers:
     pk: ab28bca1-59cd-4c07-b7fb-0b540d65d161
   model: authentik_flows.flowstagebinding
-  permissions: []
-  state: present
-- attrs:
-    captcha_stage: null
-    case_insensitive_matching: true
-    enable_remember_me: false
-    enrollment_flow: null
-    name: homelab-google-login
-    password_stage: null
-    passwordless_flow: null
-    pretend_user_exists: true
-    recovery_flow: 34a7e045-8e50-409d-aaf5-3d21e91926c3
-    show_matched_user: false
-    show_source_labels: true
-    sources:
-    - ea38341d-43ff-4148-adde-c0892ec7a32c
-    user_fields: []
-    webauthn_stage: null
-  conditions: []
-  identifiers:
-    pk: 97f2342f-6149-4874-b2d0-2501d78e206a
-  model: authentik_stages_identification.identificationstage
   permissions: []
   state: present
 - attrs:

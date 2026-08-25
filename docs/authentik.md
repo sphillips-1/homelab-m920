@@ -95,7 +95,7 @@ both work. Google verifies identity, but this flow must not add
 `audiobooks-users` or `books-users`. Application access remains an explicit
 administrator decision.
 
-The managed authentication blueprint gives the normal login flow two choices:
+Native Authentik Terraform resources give the normal login flow two choices:
 **Continue with Google** and **Administrator recovery**. Google remains the
 normal authentication path. The `homelab-google-login` identification stage has
 no local user fields, so username/password credentials cannot be entered on the

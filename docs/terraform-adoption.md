@@ -22,6 +22,14 @@ protected apply plus blueprint reconciliation succeeds.
 The production workflow sets `AUTHENTIK_BLUEPRINT_CONTENT_MANAGED=false`, so it
 also skips the post-apply reconciliation call while this guard is active. Set it
 back to `true` in the same reviewed change that removes `ignore_changes`.
+
+Do not block all Authentik automation on this compatibility guard. Models with
+native provider coverage are managed as individual Terraform resources; for
+example, `terraform/authentik-login.tf` owns the normal login identification
+stage and adopts its existing flow binding. These resources deploy through the
+ordinary protected Terraform plan/apply workflow without submitting the
+monolithic blueprint content to Authentik's broken validator.
+
 - PostgreSQL, uploaded files, application users, passwords, sessions, tokens,
   event history, and write-only provider secrets remain backup/secret-store
   concerns. Terraform state is not a replacement for `backup-authentik.sh`.
