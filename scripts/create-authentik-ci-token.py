@@ -17,6 +17,13 @@ PERMISSIONS = {
     "authentik_blueprints.add_blueprintinstance",
     "authentik_blueprints.change_blueprintinstance",
     "authentik_blueprints.view_blueprintinstance",
+    "authentik_flows.add_flowstagebinding",
+    "authentik_flows.change_flowstagebinding",
+    "authentik_flows.view_flow",
+    "authentik_flows.view_flowstagebinding",
+    "authentik_stages_identification.add_identificationstage",
+    "authentik_stages_identification.change_identificationstage",
+    "authentik_stages_identification.view_identificationstage",
 }
 
 if User.objects.filter(username=USERNAME).exists():
