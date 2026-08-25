@@ -135,6 +135,13 @@ fi
 
 deploy_service "authentik"
 
+# The provisioner source is bind-mounted read-only, so Compose does not detect
+# Python-only changes as a reason to recreate the otherwise unchanged container.
+# Restart it on deployment to load the checked-out server.py.
+log "Reloading Authentik invitation provisioner"
+docker compose -f "${SERVICES_DIR}/authentik/compose.yml" \
+    restart invitation-provisioner
+
 log "Reconciling Authentik invite creator"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-invite-creator.py"
