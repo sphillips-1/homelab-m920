@@ -9,6 +9,10 @@ Persistent Homelab data lives outside the Git repository:
 
 /srv/homelab
 
+The external media filesystem is mounted once at `/srv/homelab/storage`.
+Read-only or application-specific paths remain stable beneath
+`/srv/homelab/media` through bind mounts for `audiobooks`, `movies`, and `tv`.
+
 The Git repository must never contain:
 
 Audiobook files
@@ -20,6 +24,11 @@ Secrets
 Other persistent runtime state
 Directory layout
 /srv/homelab/
+├── storage/                    # external media filesystem
+│   ├── audiobooks/
+│   ├── movies/
+│   └── tv/
+│
 ├── appdata/
 │   ├── audiobookshelf/
 │   │   └── metadata/
@@ -117,6 +126,11 @@ Application containers should mount persistent state from /srv/homelab.
 Jellyfin configuration belongs under /srv/homelab/appdata/jellyfin and its transcode cache under /srv/homelab/cache/jellyfin.
 Jellyfin movies and TV shows belong under /srv/homelab/media/movies and /srv/homelab/media/tv; both mounts are read-only in the container.
 Storage setup should be automated by repository scripts where practical.
+The guarded one-time conversion from the legacy audiobook-only external mount
+is performed by `sudo bash scripts/migrate-media-storage.sh`. It refuses to
+continue if the movie or TV directories contain data, preserves a pre-migration
+fstab backup, uses same-filesystem renames for the audiobook tree, and is safe
+to rerun after successful migration.
 The M920 should be recoverable by cloning the repository and rerunning the bootstrap/deployment scripts.
 Ownership
 

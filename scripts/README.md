@@ -77,6 +77,9 @@ Access policies are in place.
   owning group ID and atomically writes Jellyfin's ignored Compose environment.
 - `verify-jellyfin-gpu.sh` validates device permissions, VA-API discovery, and
   QSV initialization inside the running container.
+- `migrate-media-storage.sh` performs the guarded one-time conversion from the
+  legacy audiobook-only external mount to a canonical external storage mount
+  with stable audiobook, movie, and TV bind mounts.
 
 See `docs/container-deployment.md` for runner setup, deployment behavior, and
 rollback limitations.

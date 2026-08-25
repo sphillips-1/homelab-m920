@@ -2,6 +2,7 @@
 set -euo pipefail
 
 HOMELAB_ROOT="/srv/homelab"
+STORAGE_ROOT="${HOMELAB_ROOT}/storage"
 
 APPDATA_ROOT="${HOMELAB_ROOT}/appdata"
 CACHE_ROOT="${HOMELAB_ROOT}/cache"
@@ -34,6 +35,7 @@ mkdir -p \
     "${MEDIA_ROOT}/movies" \
     "${MEDIA_ROOT}/tv" \
     "${MEDIA_ROOT}/.beszel" \
+    "${STORAGE_ROOT}/.beszel" \
     "${BACKUP_ROOT}/appdata" \
     "${BACKUP_ROOT}/database" \
     "${BACKUP_ROOT}/authentik"

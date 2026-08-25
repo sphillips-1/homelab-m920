@@ -12,6 +12,10 @@ version-pinned image. **Jellyfin is intentionally LAN-only.**
 - TV: `/srv/homelab/media/tv` -> `/media/tv` (read-only)
 - Compose project: `/opt/homelab/services/jellyfin`
 
+Movies and TV are bind-mounted from the external filesystem at
+`/srv/homelab/storage`; the stable `/srv/homelab/media/...` paths keep the
+Compose model independent of the physical disk mount.
+
 Port 8096 binds only to the host's default-route LAN IPv4 address. Jellyfin is
 not published through Cloudflare, protected by Cloudflare Access, exposed by
 router port forwarding, or exposed via Tailscale. It is not intended for
