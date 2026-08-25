@@ -48,6 +48,11 @@ trap cleanup EXIT
 if [[ "$(findmnt -rn -M "${STORAGE_ROOT}" -o UUID 2>/dev/null || true)" == "${MEDIA_UUID}" ]] &&
    mountpoint -q "${MEDIA_ROOT}/movies" && mountpoint -q "${MEDIA_ROOT}/tv"; then
     echo "External media storage is already migrated."
+    systemctl daemon-reload
+    if docker inspect beszel-agent >/dev/null 2>&1; then
+        docker compose -f /opt/homelab/services/monitoring/compose.yml \
+            --profile agent up -d --force-recreate beszel-agent
+    fi
     for directory in "${STORAGE_ROOT}" "${MEDIA_ROOT}/audiobooks" "${MEDIA_ROOT}/movies" "${MEDIA_ROOT}/tv"; do
         findmnt -M "${directory}"
     done
