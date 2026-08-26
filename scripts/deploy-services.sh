@@ -146,6 +146,10 @@ log "Reconciling Authentik invite creator"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-invite-creator.py"
 
+log "Reconciling Status SSO invitation access"
+docker exec -i authentik-worker ak shell \
+    < "${REPO_DIR}/scripts/reconcile-status-sso.py"
+
 log "Reconciling Authentik Terraform CI permissions"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-authentik-ci-permissions.py"

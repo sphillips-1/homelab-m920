@@ -63,6 +63,9 @@ Access policies are in place.
 - `reconcile-authentik-ci-permissions.py` runs through `ak shell` during service
   deployment to keep the Terraform service account limited to the blueprint,
   flow-binding, and identification-stage permissions used by managed resources.
+- `reconcile-status-sso.py` runs through `ak shell` during service deployment
+  to idempotently add the `status-users` grant without submitting the full
+  blueprint through Authentik's incompatible update validator.
 
 ## Container deployment
 
