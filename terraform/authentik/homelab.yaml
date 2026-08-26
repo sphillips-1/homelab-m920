@@ -1136,8 +1136,9 @@ entries:
           ak_message("Application account creation failed. Please retry this invitation.")
           return False
 
-      groups = list(Group.objects.filter(name__in=["audiobooks-users", "books-users"]))
-      if len(groups) != 2:
+      access_group_names = ["audiobooks-users", "books-users", "status-users"]
+      groups = list(Group.objects.filter(name__in=access_group_names))
+      if len(groups) != len(access_group_names):
           ak_message("Application access groups are not configured.")
           return False
       if user and not user._state.adding:

@@ -1,6 +1,7 @@
 # User onboarding and offboarding
 
-This runbook covers public Audiobookshelf and Books access through Authentik.
+This runbook covers public Audiobookshelf, Books, and Status access through
+Authentik.
 Google authentication creates an identity; it does not grant application
 access unless it follows an active reusable service-invitation link.
 
@@ -8,6 +9,7 @@ access unless it follows an active reusable service-invitation link.
 
 - `audiobooks-users` grants access to the Audiobookshelf OIDC application.
 - `books-users` grants access to the Authentik-protected Books application.
+- `status-users` grants access to the Authentik-protected Status application.
 - Audiobookshelf auto-registration is disabled. Every authorized identity must
   match an active Audiobookshelf user by email.
 - Authentik's verified email signs the user into a matching native Calibre-Web
@@ -17,7 +19,7 @@ access unless it follows an active reusable service-invitation link.
 Ordinary Google enrollment never adds an application group automatically. The
 service-invitation path is the narrow exception: it requires a valid signed
 link handoff and a verified Google email, provisions both local accounts first,
-and only then adds `audiobooks-users` and `books-users`.
+and only then adds `audiobooks-users`, `books-users`, and `status-users`.
 
 ## Enable Calibre-Web SSO once
 
@@ -79,8 +81,9 @@ lifetimes:
 3. Send the printed URL to the people being invited. Each recipient opens it
    and signs in with Google. Anyone possessing the link can enroll while it is
    valid, so treat it as a temporary credential and do not post it publicly.
-4. Confirm Authentik added both application groups, both applications created
-   a non-admin account with the same email, and no second Books login appears.
+4. Confirm Authentik added all three application groups, both applications that
+   require local accounts created a non-admin account with the same email, all
+   three applications open, and no second Books login appears.
 
 The local Audiobookshelf password is random and is not shown to the invitee or
 administrator; OIDC is the credential they use. New invited accounts can play
@@ -89,10 +92,10 @@ access to all libraries and tags. Adjust those defaults in
 `services/authentik/provisioner/server.py` before deploying if needed.
 
 Provisioning is idempotent. Matching application accounts are reused. Duplicate,
-inactive, or unmigrated legacy matches fail closed, and Authentik grants neither
-group. The invitation remains reusable until its configured
-expiry. Opening it creates a signed, HttpOnly handoff cookie valid for 60
-minutes, allowing Authentik to prove that Google login began from the link
+inactive, or unmigrated legacy matches fail closed, and Authentik grants none of
+the three application groups. The invitation remains reusable until its
+configured expiry. Opening it creates a signed, HttpOnly handoff cookie valid
+for 60 minutes, allowing Authentik to prove that Google login began from the link
 despite the external redirect. Each Google identity receives a separate
 Audiobookshelf account.
 
@@ -146,6 +149,13 @@ Authentik protects the browser route, but Calibre-Web still enforces its own
 account permissions. Ordinary OPDS clients cannot complete interactive
 Authentik login; do not expose an unauthenticated OPDS bypass.
 
+## Status access
+
+The normal service invitation grants `status-users` automatically; Beszel does
+not require a separate local account. For a manual grant, add `status-users` to
+the Authentik identity and test `https://status.shelfgoblin.dev/` in a fresh
+session.
+
 ## Existing Calibre-Web user
 
 Map the existing record instead of recreating it, preserving its shelves,
@@ -195,8 +205,9 @@ more than 60 minutes before completing Google login, and
 
 ### Access denied
 
-The identity exists but lacks the required group. Add `audiobooks-users` or
-`books-users` as appropriate. Group assignment is intentionally manual.
+The identity exists but lacks the required group. Add `audiobooks-users`,
+`books-users`, or `status-users` as appropriate. Outside the service-invitation
+flow, group assignment is intentionally manual.
 
 ### SSO token unavailable or Unauthorized
 
@@ -223,12 +234,14 @@ Audiobookshelf's internal permissions.
 
 1. Remove `audiobooks-users` to revoke public Audiobookshelf SSO.
 2. Remove `books-users` to revoke public Books access.
-3. For full revocation, remove both groups and deactivate the Authentik user.
-4. Disable the corresponding Audiobookshelf and Calibre-Web users. Preserve
+3. Remove `status-users` to revoke public Status access.
+4. For full revocation, remove all three groups and deactivate the Authentik
+   user.
+5. Disable the corresponding Audiobookshelf and Calibre-Web users. Preserve
    them rather than deleting them when progress or history may be needed.
-5. Test in a private browser session and record the administrative change.
+6. Test in a private browser session and record the administrative change.
 
-Removing one application group does not revoke the other application.
+Removing one application group does not revoke the other applications.
 Audiobookshelf uses OpenID exclusively on public, LAN, and Tailscale paths, so
 removing `audiobooks-users` revokes its interactive login everywhere. Disable
 the application user too when tokens or existing sessions must be invalidated.

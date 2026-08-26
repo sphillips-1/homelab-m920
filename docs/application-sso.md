@@ -26,14 +26,15 @@ Authentik has separate applications and providers:
 - `Status` / `status`: proxy provider, restricted to `status-users`.
 
 Google login establishes identity only. To grant access, add the existing
-Authentik user to the relevant group. Add both groups for both applications;
-remove a group membership to revoke only that application. Disable the user or
-remove both memberships to revoke all application access.
+Authentik user to the relevant group. The normal service invitation grants all
+three groups. Remove a group membership to revoke only that application.
+Disable the user or remove all three memberships to revoke all application
+access.
 
 The Google source uses the dedicated `google-source-enrollment` flow. It may
 create an Authentik identity after Google verifies the account, but it does not
-add either application group. A new user will remain denied until an
-administrator explicitly grants the relevant group membership.
+add any application group. A new user will remain denied until an administrator
+explicitly grants the relevant group membership.
 
 Audiobookshelf auto-registration is disabled. The owner's existing root user
 is matched by email, preserving its user ID, password, permissions, progress,
