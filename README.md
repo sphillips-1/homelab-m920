@@ -38,6 +38,8 @@ Planned:
 - Homepage
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
+For a clean-host build, including the complete manual script order and the
+automation performed for each service, see `docs/deployment-runbook.md`.
 Automatic container deployment from `main`, runner setup, verification, and
 rollback behavior are documented in `docs/container-deployment.md`.
 

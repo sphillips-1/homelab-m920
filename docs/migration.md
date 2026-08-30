@@ -15,4 +15,8 @@ Migration should be performed in stages:
 9. Verify services.
 10. Retire or repurpose the old host only after verification.
 
+Use `deployment-runbook.md` as the executable version of this sequence. It
+identifies which scripts are manual, which are invoked by other automation,
+and where each service's one-time application setup belongs.
+
 Audiobookshelf data should be migrated with particular care because its database and metadata are persistent application state.
