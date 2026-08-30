@@ -81,6 +81,9 @@ Access policies are in place.
   recreates only the monitoring agent.
 - `configure-jellyfin-host.sh` detects the LAN address, render device, and its
   owning group ID and atomically writes Jellyfin's ignored Compose environment.
+- `configure-jellyfin-transcoding.sh` idempotently reconciles Jellyfin's
+  persistent playback configuration to use Intel Quick Sync, preserving a
+  one-time pre-QSV backup and restarting the container only when needed.
 - `verify-jellyfin-gpu.sh` validates device permissions, VA-API discovery, and
   QSV initialization inside the running container.
 - `migrate-media-storage.sh` performs the guarded one-time conversion from the

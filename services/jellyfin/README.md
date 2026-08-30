@@ -54,6 +54,9 @@ configuration on Coffee Lake.
 
 The administrator, libraries, playback selections, users, metadata, and API
 keys remain application state in `/config` and are intentionally not committed.
+The deployment reconciles the hardware-acceleration type to QSV with
+`scripts/configure-jellyfin-transcoding.sh`; the generated `encoding.xml` still
+remains persistent application state and is never committed.
 
 ## Intel Quick Sync verification
 
