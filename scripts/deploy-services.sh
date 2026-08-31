@@ -154,6 +154,10 @@ log "Reconciling Authentik Terraform CI permissions"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-authentik-ci-permissions.py"
 
+log "Reconciling Authentik bookshelf branding"
+docker exec -i authentik-worker ak shell \
+    < "${REPO_DIR}/scripts/reconcile-authentik-branding.py"
+
 deploy_service "audiobookshelf"
 deploy_service "calibre-web"
 log "Configuring Jellyfin host-specific LAN and GPU values"

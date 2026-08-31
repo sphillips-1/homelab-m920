@@ -43,7 +43,6 @@ services:
     volumes:
       - /srv/homelab/appdata/authentik/data:/data
       - /srv/homelab/appdata/authentik/custom-templates:/templates
-      - ./branding/bookshelf.css:/web/dist/custom.css:ro
       - ./branding/bookshelf-background.svg:/web/dist/assets/images/bookshelf-background.svg:ro
     networks:
       - authentik-internal
@@ -66,6 +65,7 @@ services:
       - /srv/homelab/appdata/authentik/data:/data
       - /srv/homelab/appdata/authentik/certs:/certs
       - /srv/homelab/appdata/authentik/custom-templates:/templates
+      - ./branding:/branding:ro
     networks:
       - authentik-internal
 

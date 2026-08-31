@@ -149,13 +149,14 @@ separate normal manual steps:
 - `reconcile-invite-creator.py`
 - `reconcile-status-sso.py`
 - `reconcile-authentik-ci-permissions.py`
+- `reconcile-authentik-branding.py`
 
-The Authentik deployment also installs the repository-owned bookshelf theme by
-bind-mounting its CSS and SVG from `services/authentik/branding/` into the
-server container. No theme upload or Admin UI change is required on a clean
-installation. A later `deploy-services.sh` run recreates the server whenever
-the Compose mounts change; use `--force-recreate server` as documented in
-`authentik.md` when only the contents of an already-mounted theme file change.
+The Authentik deployment also installs the repository-owned bookshelf theme.
+It mounts the SVG into the server and exposes the CSS to the worker, then
+reconciles Authentik's supported Brand CSS and default-background fields. No
+theme upload or Admin UI change is required on a clean installation. Follow
+the targeted server/worker recreation in `authentik.md` when only theme file
+contents change.
 
 ### 6. Complete each service's one-time setup
 
@@ -181,7 +182,7 @@ cd /opt/homelab
 sudo bash ./scripts/verify-services.sh
 sudo bash ./scripts/verify-jellyfin-gpu.sh
 sudo bash ./scripts/verify-cloudflare-tunnel.sh sso
-curl -fsS https://auth.shelfgoblin.dev/static/dist/custom.css \
+curl -fsS https://auth.shelfgoblin.dev/if/flow/default-authentication-flow/ \
   | grep -F "Shelf Goblin Authentik theme"
 curl -fsS https://auth.shelfgoblin.dev/static/dist/assets/images/bookshelf-background.svg \
   | grep -F "Bookshelves in a quiet private library"

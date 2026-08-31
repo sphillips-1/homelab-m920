@@ -10,9 +10,10 @@ Persistent state lives at `/srv/homelab/appdata/authentik`; see
 `../../docs/authentik.md` for setup, Google OAuth, recovery, and backup steps.
 
 The flow UI uses the repository-owned bookshelf theme in `branding/`. Compose
-mounts its CSS and SVG artwork read-only into the server image, so updates are
-reviewable and do not depend on external assets. Restart the server container
-after changing either file.
+mounts the SVG artwork read-only into the server and makes the CSS available to
+the worker. Deployment reconciles both into the default Authentik Brand through
+`scripts/reconcile-authentik-branding.py`, so updates are reviewable and do not
+depend on external assets.
 
 The Compose project also runs an internal invitation provisioner. It is not
 published on a host port. Cloudflare routes only `/invite/*` to its bearer-link

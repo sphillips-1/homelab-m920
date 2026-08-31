@@ -28,20 +28,25 @@ Persistent state is under `/srv/homelab/appdata/authentik`:
 
 ## Bookshelf theme
 
-The authentication flows use a repository-owned bookshelf theme. The server
-mounts `services/authentik/branding/bookshelf.css` as Authentik's global custom
-stylesheet and mounts the matching SVG under its static assets. The theme has
-no external fonts, scripts, images, or CDN requests; an unavailable third party
-therefore cannot block login or observe visits to the identity provider.
+The authentication flows use a repository-owned bookshelf theme. The worker
+reads `services/authentik/branding/bookshelf.css` from a read-only mount and an
+idempotent deployment reconciler stores it in the default Brand's supported
+Custom CSS field. The server mounts the matching SVG under its static assets,
+and the reconciler selects it as the Brand's default flow background. The theme
+has no external fonts, scripts, images, or CDN requests; an unavailable third
+party therefore cannot block login or observe visits to the identity provider.
 
 The CSS scopes component styling to Authentik flow pages where practical. Its
 global declarations are limited to the palette and flow background because
 those variables must cross Authentik's shadow-DOM boundary. After a change,
-redeploy only the server and hard-refresh the browser:
+recreate the affected containers, reconcile the Brand, and hard-refresh the
+browser:
 
 ```bash
 cd /opt/homelab
-sudo docker compose -f services/authentik/compose.yml up -d --force-recreate server
+sudo docker compose -f services/authentik/compose.yml up -d --force-recreate server worker
+sudo docker exec -i authentik-worker ak shell \
+  < scripts/reconcile-authentik-branding.py
 ```
 
 Check the normal Google flow, administrator-recovery flow, invitation flow,
