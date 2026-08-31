@@ -165,6 +165,12 @@ bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
 deploy_service "jellyfin"
 log "Reconciling Jellyfin Intel Quick Sync transcoding"
 bash "${REPO_DIR}/scripts/configure-jellyfin-transcoding.sh"
+if [[ -f "${SERVICES_DIR}/jellyfin/.intro-skipper.env" ]]; then
+    log "Reconciling Jellyfin Intro Skipper"
+    bash "${REPO_DIR}/scripts/configure-jellyfin-intro-skipper.sh"
+else
+    echo "Intro Skipper reconciliation skipped: services/jellyfin/.intro-skipper.env is not configured."
+fi
 deploy_service "homepage"
 deploy_monitoring
 deploy_cloudflared

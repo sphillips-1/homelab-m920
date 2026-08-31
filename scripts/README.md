@@ -87,6 +87,11 @@ Access policies are in place.
 - `configure-jellyfin-transcoding.sh` idempotently reconciles Jellyfin's
   persistent playback configuration to use Intel Quick Sync, preserving a
   one-time pre-QSV backup and restarting the container only when needed.
+- `configure-jellyfin-intro-skipper.sh` idempotently registers and installs
+  Intro Skipper through supported Jellyfin APIs, verifies FFmpeg/Chromaprint,
+  and applies conservative Media Segment settings when its ignored API-key
+  file exists. `run-jellyfin-intro-scan.sh` safely starts its analysis task,
+  and `verify-jellyfin-intro-skipper.sh [EPISODE_ID]` reports live status.
 - `verify-jellyfin-gpu.sh` validates device permissions, VA-API discovery, and
   QSV initialization inside the running container.
 - `migrate-media-storage.sh` performs the guarded one-time conversion from the

@@ -133,10 +133,12 @@ The script performs the following work in this exact order:
 8. deploys Calibre-Web;
 9. detects Jellyfin's LAN IP, render device, and render-device GID;
 10. deploys Jellyfin and reconciles Quick Sync as its acceleration type;
-11. skips Homepage because it currently has no Compose definition;
-12. deploys the Beszel dashboard, and deploys its agent only if
+11. when the protected Jellyfin Intro Skipper API-key file exists, registers,
+    installs, and reconciles Intro Skipper and its Media Segment settings;
+12. skips Homepage because it currently has no Compose definition;
+13. deploys the Beszel dashboard, and deploys its agent only if
     `services/monitoring/.env` exists; and
-13. deploys cloudflared only if its rendered runtime configuration already
+14. deploys cloudflared only if its rendered runtime configuration already
     exists.
 
 The following scripts are invoked by deployment and must not be added as
@@ -146,6 +148,7 @@ separate normal manual steps:
 - `create-audiobook-links.sh`
 - `configure-jellyfin-host.sh`
 - `configure-jellyfin-transcoding.sh`
+- `configure-jellyfin-intro-skipper.sh` when its protected API-key file exists
 - `reconcile-invite-creator.py`
 - `reconcile-status-sso.py`
 - `reconcile-authentik-ci-permissions.py`
@@ -168,10 +171,11 @@ Complete the service sections below in this order:
 4. Calibre library and Calibre-Web initial setup
 5. Calibre-Web SSO configuration
 6. Jellyfin wizard, libraries, and GPU verification
-7. Beszel administrator and agent pairing
-8. Cloudflare Tunnel creation in safe mode
-9. Terraform adoption or provisioning of Cloudflare DNS and Authentik resources
-10. SSO-mode cutover and end-to-end verification
+7. Jellyfin Intro Skipper API key, reconciliation, and initial off-hours scan
+8. Beszel administrator and agent pairing
+9. Cloudflare Tunnel creation in safe mode
+10. Terraform adoption or provisioning of Cloudflare DNS and Authentik resources
+11. SSO-mode cutover and end-to-end verification
 
 ### 7. Verify the complete deployment
 
@@ -338,6 +342,9 @@ network for Cloudflare Tunnel. Port 9000 must never be forwarded by the router.
   address, mounts movies and TV read-only, and exposes the GPU device.
 - `configure-jellyfin-transcoding.sh` changes the persisted acceleration type
   to QSV and preserves a one-time pre-QSV backup.
+- When `services/jellyfin/.intro-skipper.env` exists, deployment uses supported
+  Jellyfin APIs to register and install Intro Skipper and reconcile conservative
+  Intro, Recap, Outro, and Media Segment settings. It never patches Jellyfin Web.
 - Jellyfin is never routed through Cloudflare and is not exposed over
   Tailscale by this repository.
 
@@ -351,6 +358,32 @@ network for Cloudflare Tunnel. Port 9000 must never be forwarded by the router.
 4. Run `verify-jellyfin-gpu.sh`.
 5. Force one real transcode and confirm QSV/VA-API log entries and Intel video
    engine activity.
+6. In **Dashboard -> API Keys**, create a dedicated administrator key for
+   repository reconciliation, then install it without committing the secret:
+
+   ```bash
+   sudo install -m 0600 services/jellyfin/.intro-skipper.env.example \
+     services/jellyfin/.intro-skipper.env
+   sudo editor services/jellyfin/.intro-skipper.env
+   sudo bash /opt/homelab/scripts/configure-jellyfin-intro-skipper.sh
+   ```
+
+   The reconciler verifies Jellyfin and Jellyfin FFmpeg/Chromaprint compatibility
+   before making changes. Preserve the ignored key file in the encrypted secret
+   backup used for other service `.env` files.
+7. During an off-hours window, start the initial analysis:
+
+   ```bash
+   sudo bash /opt/homelab/scripts/run-jellyfin-intro-scan.sh
+   ```
+
+   The first scan is CPU intensive; later analysis is incremental and uses the
+   persisted fingerprint cache. Confirm generated segments and client playback
+   actions with the exact commands in `services/jellyfin/README.md`, or run:
+
+   ```bash
+   sudo bash /opt/homelab/scripts/verify-jellyfin-intro-skipper.sh EPISODE_ID
+   ```
 
 ### Beszel monitoring
 
@@ -474,18 +507,21 @@ maintenance commands should be run only when their stated condition applies.
 | 6 | `install-invitation-env.sh` | Once after the Audiobookshelf root user exists. |
 | 7 | `configure-calibre-sso.py` | Once after Calibre-Web and Authentik are configured; rerun for mapped existing users. |
 | 8 | `verify-jellyfin-gpu.sh` | After Jellyfin setup and after relevant GPU/image changes. |
-| 9 | `configure-beszel-agent.sh` | Once after creating the Beszel system; rerun to rotate credentials. |
-| 10 | `setup-cloudflared-tunnel.sh` | Once after applications and Authentik exist; safe to rerun. |
-| 11 | Terraform adoption scripts | Only for adoption, in the service-specific order above. |
-| 12 | `backup-applications.sh` | Before application SSO/public route changes and during maintenance. |
-| 13 | `configure-cloudflared.sh` | For explicit safe/test/SSO route transitions; normal deploys render the desired checked-in mode. |
-| 14 | `verify-cloudflare-tunnel.sh` | Immediately after each tunnel mode change. |
-| 15 | `verify-services.sh` | After full deployment or for manual health validation. |
-| 16 | `install-container-deployment.sh` | Once after the self-hosted GitHub runner exists. |
-| 17 | `create-service-invitation.sh` | Operationally, once for each new invitation. |
-| 18 | `backup-authentik.sh` | Before Authentik changes and as part of backup operations. |
-| 19 | `backup-jellyfin.sh` | Before Jellyfin changes and as part of backup operations. |
-| 20 | `remove-legacy-untracked-pull-blockers.sh` | Only when the documented legacy untracked files prevent a Git pull. |
+| 9 | `configure-jellyfin-intro-skipper.sh` | Once after creating its protected Jellyfin API key; later deployments reconcile it automatically. |
+| 10 | `run-jellyfin-intro-scan.sh` | Once during an off-hours window for the existing library; safe to rerun. |
+| 11 | `verify-jellyfin-intro-skipper.sh` | After installation and with an optional episode ID to verify generated segments. |
+| 12 | `configure-beszel-agent.sh` | Once after creating the Beszel system; rerun to rotate credentials. |
+| 13 | `setup-cloudflared-tunnel.sh` | Once after applications and Authentik exist; safe to rerun. |
+| 14 | Terraform adoption scripts | Only for adoption, in the service-specific order above. |
+| 15 | `backup-applications.sh` | Before application SSO/public route changes and during maintenance. |
+| 16 | `configure-cloudflared.sh` | For explicit safe/test/SSO route transitions; normal deploys render the desired checked-in mode. |
+| 17 | `verify-cloudflare-tunnel.sh` | Immediately after each tunnel mode change. |
+| 18 | `verify-services.sh` | After full deployment or for manual health validation. |
+| 19 | `install-container-deployment.sh` | Once after the self-hosted GitHub runner exists. |
+| 20 | `create-service-invitation.sh` | Operationally, once for each new invitation. |
+| 21 | `backup-authentik.sh` | Before Authentik changes and as part of backup operations. |
+| 22 | `backup-jellyfin.sh` | Before Jellyfin changes and as part of backup operations. |
+| 23 | `remove-legacy-untracked-pull-blockers.sh` | Only when the documented legacy untracked files prevent a Git pull. |
 
 `deploy-release.sh` is invoked by the installed CI entry point, not directly by
 an operator during normal operation. `install-dependencies.sh`,
@@ -505,6 +541,9 @@ The build is complete when:
 - Audiobookshelf and Calibre-Web work privately and through their intended SSO
   paths;
 - Jellyfin works only on the LAN and completes a verified QSV transcode;
+- Intro Skipper is active, its analysis task completes, at least one TV episode
+  has Intro/Recap/Outro Media Segments, and a supported client exposes the
+  configured skip actions;
 - Beszel discovers the containers and media filesystem;
 - the public application routes require Authentik while the identity route is
   healthy;
