@@ -5,6 +5,8 @@ from authentik.brands.models import Brand
 
 stylesheet_path = Path("/branding/bookshelf.css")
 background_path = "/static/dist/assets/images/bookshelf-background.svg"
+logo_path = "/static/dist/assets/images/shelfgoblin-logo.svg"
+favicon_path = "/static/dist/assets/images/shelfgoblin-favicon.svg"
 interface_background = """background:
 linear-gradient(rgba(22, 12, 8, 0.42), rgba(15, 8, 6, 0.68)),
 url('/static/dist/assets/images/bookshelf-background.svg') center / cover fixed;
@@ -25,6 +27,12 @@ if brand.branding_custom_css != stylesheet:
 if brand.branding_default_flow_background != background_path:
     brand.branding_default_flow_background = background_path
     changed.append("branding_default_flow_background")
+if brand.branding_logo != logo_path:
+    brand.branding_logo = logo_path
+    changed.append("branding_logo")
+if brand.branding_favicon != favicon_path:
+    brand.branding_favicon = favicon_path
+    changed.append("branding_favicon")
 
 attributes = dict(brand.attributes or {})
 settings = dict(attributes.get("settings") or {})

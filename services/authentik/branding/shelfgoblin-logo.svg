@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="96" viewBox="0 0 420 96" role="img" aria-labelledby="title desc">
+  <title id="title">ShelfGoblin</title>
+  <desc id="desc">A friendly green goblin with round glasses peeking over an open book beside the ShelfGoblin name.</desc>
+  <defs>
+    <linearGradient id="book" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f7ecd5"/><stop offset="1" stop-color="#d8bd8d"/></linearGradient>
+    <linearGradient id="goblin" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#77936d"/><stop offset="1" stop-color="#405b4a"/></linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="165%"><feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#160c08" flood-opacity=".45"/></filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M29 38 5 23l18 34zM67 38l24-15-18 34z" fill="url(#goblin)" stroke="#26382e" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M20 43c0-23 13-35 28-35s28 12 28 35v13H20z" fill="url(#goblin)" stroke="#26382e" stroke-width="3"/>
+    <path d="M44 12 36 1l16 8" fill="none" stroke="#b98a43" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="36" cy="38" r="11" fill="#f4ead7" fill-opacity=".18" stroke="#d6ad67" stroke-width="3"/>
+    <circle cx="60" cy="38" r="11" fill="#f4ead7" fill-opacity=".18" stroke="#d6ad67" stroke-width="3"/>
+    <path d="M47 38h2M25 36l-7-3M71 36l7-3" fill="none" stroke="#d6ad67" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="37" cy="39" r="2.8" fill="#18100b"/><circle cx="59" cy="39" r="2.8" fill="#18100b"/>
+    <path d="M44 51q4 4 8 0" fill="none" stroke="#26382e" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M8 56q19-6 39 7v28Q29 79 8 85z" fill="url(#book)" stroke="#68451f" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M88 56q-19-6-39 7v28q18-12 39-6z" fill="url(#book)" stroke="#68451f" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M48 63v28" stroke="#8f7045" stroke-width="2"/>
+    <path d="M16 65q14-2 25 5M16 72q14-1 25 6M80 65q-14-2-25 5M80 72q-14-1-25 6" fill="none" stroke="#aa8d62" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g aria-label="ShelfGoblin">
+    <text x="111" y="62" fill="#f4ead7" stroke="#2b1b12" stroke-width="1.2" paint-order="stroke" font-family="Georgia, 'Times New Roman', serif" font-size="45" font-weight="700">Shelf</text>
+    <text x="224" y="62" fill="#d6ad67" stroke="#2b1b12" stroke-width="1.2" paint-order="stroke" font-family="Georgia, 'Times New Roman', serif" font-size="45" font-weight="700">Goblin</text>
+    <path d="M112 73h272" stroke="#b98a43" stroke-width="2"/><path d="M126 78h244" stroke="#70462f" stroke-width="3"/>
+  </g>
+</svg>

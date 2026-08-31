@@ -39,6 +39,8 @@ The same reconciler merges the bookshelf background into the Brand's interface
 theme attributes without discarding unrelated Brand settings. This carries the
 palette, navigation, parchment cards, and background through the authenticated
 application dashboard and settings pages as well as the login flows.
+The matching ShelfGoblin logo and favicon are also repository-owned SVGs,
+mounted into Authentik's static assets and selected by the same reconciler.
 
 The CSS scopes component styling to Authentik flow pages where practical. Its
 global declarations are limited to the palette and flow background because
