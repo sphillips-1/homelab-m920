@@ -150,6 +150,13 @@ separate normal manual steps:
 - `reconcile-status-sso.py`
 - `reconcile-authentik-ci-permissions.py`
 
+The Authentik deployment also installs the repository-owned bookshelf theme by
+bind-mounting its CSS and SVG from `services/authentik/branding/` into the
+server container. No theme upload or Admin UI change is required on a clean
+installation. A later `deploy-services.sh` run recreates the server whenever
+the Compose mounts change; use `--force-recreate server` as documented in
+`authentik.md` when only the contents of an already-mounted theme file change.
+
 ### 6. Complete each service's one-time setup
 
 Complete the service sections below in this order:
@@ -174,6 +181,10 @@ cd /opt/homelab
 sudo bash ./scripts/verify-services.sh
 sudo bash ./scripts/verify-jellyfin-gpu.sh
 sudo bash ./scripts/verify-cloudflare-tunnel.sh sso
+curl -fsS https://auth.shelfgoblin.dev/static/dist/custom.css \
+  | grep -F "Shelf Goblin Authentik theme"
+curl -fsS https://auth.shelfgoblin.dev/static/dist/assets/images/bookshelf-background.svg \
+  | grep -F "Bookshelves in a quiet private library"
 ```
 
 `verify-services.sh` checks the expected containers and local HTTP endpoints.
@@ -236,7 +247,9 @@ on failure.
 Compose deploys PostgreSQL 16, Authentik server and worker, and the private
 invitation provisioner. Deployment also reconciles the invite creator,
 `status-users` access, and the narrowly scoped Terraform service-account
-permissions.
+permissions. The server receives the bookshelf stylesheet and background as
+read-only mounts from the checked-out repository, making the login design part
+of both clean installs and ordinary deployments.
 
 Persistent state is stored under `/srv/homelab/appdata/authentik`. Authentik is
 available privately on host port 9000 for recovery and over the `homelab`

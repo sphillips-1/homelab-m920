@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Bookshelves in a quiet private library</title>
+  <desc id="desc">Dark walnut shelves filled with muted clothbound books and warm brass reading lamps.</desc>
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b100c"/>
+      <stop offset="0.58" stop-color="#321e16"/>
+      <stop offset="1" stop-color="#130b08"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#70462f"/>
+      <stop offset="0.45" stop-color="#3d2419"/>
+      <stop offset="1" stop-color="#24130e"/>
+    </linearGradient>
+    <linearGradient id="lamp" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffe6a3" stop-opacity=".76"/>
+      <stop offset="1" stop-color="#cc8d35" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#f4c96e" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#f4c96e" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grain" width="90" height="90" patternUnits="userSpaceOnUse">
+      <path d="M-10 22C18 7 42 38 100 13M-8 67C30 51 55 82 105 58" fill="none" stroke="#d7a678" stroke-opacity=".055" stroke-width="3"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#090403" flood-opacity=".7"/>
+    </filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#wall)"/>
+  <ellipse cx="310" cy="258" rx="330" ry="310" fill="url(#glow)" filter="url(#soft)"/>
+  <ellipse cx="1610" cy="258" rx="330" ry="310" fill="url(#glow)" filter="url(#soft)"/>
+
+  <!-- Two bookcases leave a calm center field behind the login card. -->
+  <g filter="url(#shadow)">
+    <g id="case">
+      <rect x="28" y="50" width="590" height="960" rx="7" fill="#160b08" stroke="#8a5b3b" stroke-width="4"/>
+      <rect x="52" y="76" width="542" height="904" fill="#25140f"/>
+      <rect x="52" y="76" width="542" height="904" fill="url(#grain)"/>
+      <g fill="url(#wood)" stroke="#8b5938" stroke-width="2">
+        <rect x="32" y="39" width="582" height="43" rx="4"/>
+        <rect x="24" y="997" width="598" height="48" rx="4"/>
+        <rect x="36" y="58" width="34" height="952"/>
+        <rect x="576" y="58" width="34" height="952"/>
+        <rect x="52" y="279" width="542" height="24"/>
+        <rect x="52" y="505" width="542" height="24"/>
+        <rect x="52" y="731" width="542" height="24"/>
+        <rect x="52" y="957" width="542" height="24"/>
+      </g>
+      <g stroke="#1a0d0a" stroke-width="3">
+        <!-- top shelf -->
+        <path fill="#6f3c34" d="M82 119h42v158H82z"/><path fill="#405b4a" d="M126 101h48v176h-48z"/><path fill="#9c7440" d="M177 129h35v148h-35z"/><path fill="#414b63" d="M215 91h51v186h-51z"/><path fill="#744934" d="M269 113h39v164h-39z"/><path fill="#596643" d="M311 123h46v154h-46z"/><path fill="#884f42" d="M360 96h55v181h-55z"/><path fill="#ad8b56" d="M418 139h35v138h-35z"/><path fill="#364f50" d="M456 108h47v169h-47z"/><path fill="#765340" d="M506 89h56v188h-56z"/>
+        <!-- second shelf -->
+        <path fill="#384e45" d="M81 330h51v173H81z"/><path fill="#a07e49" d="M135 352h37v151h-37z"/><path fill="#794036" d="M175 315h47v188h-47z"/><path fill="#4d546a" d="M225 341h45v162h-45z"/><path fill="#897044" d="M273 324h54v179h-54z"/><path fill="#405c4a" d="M330 361h38v142h-38z"/><path fill="#684638" d="M371 333h43v170h-43z"/><path fill="#965949" d="M417 307h51v196h-51z"/><path fill="#3c5054" d="M471 344h38v159h-38z"/><path fill="#a17c48" d="M512 320h49v183h-49z"/>
+        <!-- third shelf -->
+        <path fill="#9b7344" d="M81 551h43v178H81z"/><path fill="#4a566e" d="M127 579h49v150h-49z"/><path fill="#405a48" d="M179 540h43v189h-43z"/><path fill="#814a3b" d="M225 564h56v165h-56z"/><path fill="#6a503e" d="M284 547h36v182h-36z"/><path fill="#a78751" d="M323 594h42v135h-42z"/><path fill="#394d4e" d="M368 556h51v173h-51z"/><path fill="#765040" d="M422 578h38v151h-38z"/><path fill="#964f43" d="M463 537h54v192h-54z"/><path fill="#4e6348" d="M520 567h41v162h-41z"/>
+        <!-- bottom shelf -->
+        <path fill="#744238" d="M81 789h49v166H81z"/><path fill="#3b5550" d="M133 769h42v186h-42z"/><path fill="#aa8650" d="M178 804h39v151h-39z"/><path fill="#4a5064" d="M220 779h54v176h-54z"/><path fill="#5b673f" d="M277 817h35v138h-35z"/><path fill="#8b4d3e" d="M315 762h50v193h-50z"/><path fill="#a27d48" d="M368 795h46v160h-46z"/><path fill="#3c5448" d="M417 775h39v180h-39z"/><path fill="#71483a" d="M459 812h48v143h-48z"/><path fill="#46536a" d="M510 783h51v172h-51z"/>
+      </g>
+      <g stroke="#d9b267" stroke-opacity=".55" stroke-width="3">
+        <path d="M139 114v150M235 105v158M382 111v153M527 103v161M195 329v160M297 338v151M443 321v168M107 565v150M253 577v138M490 552v163M153 783v158M341 776v165M535 796v145"/>
+      </g>
+    </g>
+    <use href="#case" transform="translate(1920 0) scale(-1 1)"/>
+  </g>
+
+  <!-- Brass pools of light. -->
+  <g>
+    <path d="M250 58h120l28 60H222z" fill="#b48740" stroke="#e1bc72" stroke-width="3"/>
+    <path d="M286 20h48v38h-48z" fill="#7b562a"/>
+    <path d="M310 118V322" stroke="#c59b54" stroke-width="8"/>
+    <ellipse cx="310" cy="337" rx="62" ry="12" fill="#8c642f"/>
+    <path d="M215 116h190l120 370H95z" fill="url(#lamp)" opacity=".27"/>
+    <use href="#case" opacity="0"/>
+    <g transform="translate(1300 0)">
+      <path d="M250 58h120l28 60H222z" fill="#b48740" stroke="#e1bc72" stroke-width="3"/>
+      <path d="M286 20h48v38h-48z" fill="#7b562a"/>
+      <path d="M310 118V322" stroke="#c59b54" stroke-width="8"/>
+      <ellipse cx="310" cy="337" rx="62" ry="12" fill="#8c642f"/>
+      <path d="M215 116h190l120 370H95z" fill="url(#lamp)" opacity=".27"/>
+    </g>
+  </g>
+
+  <!-- Dark veil preserves WCAG contrast behind every supported flow layout. -->
+  <rect width="1920" height="1080" fill="#100906" opacity=".2"/>
+  <rect y="1000" width="1920" height="80" fill="#0d0705"/>
+</svg>

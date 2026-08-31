@@ -1,0 +1,134 @@
+/* Shelf Goblin Authentik theme
+ *
+ * Keep this file dependency-free: it is loaded on the authentication boundary.
+ * Most values are inherited by Authentik's web components, including their
+ * shadow roots. Selectors are deliberately scoped to flow pages where possible.
+ */
+
+:root {
+  --shelf-ink: #2b1b12;
+  --shelf-ink-soft: #604633;
+  --shelf-paper: #f4ead7;
+  --shelf-paper-deep: #e4d2b5;
+  --shelf-walnut: #4b2d1f;
+  --shelf-walnut-dark: #24140f;
+  --shelf-brass: #b98a43;
+  --shelf-brass-bright: #d6ad67;
+  --shelf-green: #405b4a;
+  --ak-accent: var(--shelf-brass);
+  --ak-flow-background: url("/static/dist/assets/images/bookshelf-background.svg");
+}
+
+/* Authentik sets the background through this component-level variable. */
+.pf-c-background-image,
+ak-flow-executor {
+  --ak-flow-background: url("/static/dist/assets/images/bookshelf-background.svg") !important;
+}
+
+ak-flow-executor {
+  color: var(--shelf-ink);
+  --pf-global--primary-color--100: var(--shelf-green);
+  --pf-global--primary-color--200: #304438;
+  --pf-global--link--Color: #68451f;
+  --pf-global--link--Color--hover: #3f2912;
+  --pf-global--BackgroundColor--100: var(--shelf-paper);
+  --pf-global--BackgroundColor--150: #eee0c9;
+  --pf-global--Color--100: var(--shelf-ink);
+  --pf-global--Color--200: var(--shelf-ink-soft);
+  --pf-global--BorderColor--100: #bda989;
+  --pf-global--BorderRadius--sm: 4px;
+  --pf-global--BorderRadius--lg: 10px;
+}
+
+/* The login surface reads as an old library card, without sacrificing contrast. */
+ak-flow-executor::part(card),
+.pf-c-login__main {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.16), rgba(120, 76, 36, 0.04)),
+    var(--shelf-paper) !important;
+  border: 1px solid rgba(90, 55, 28, 0.6) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 2px 0 var(--shelf-paper-deep),
+    0 18px 55px rgba(15, 8, 5, 0.5) !important;
+}
+
+.pf-c-login__main-header,
+.pf-c-login__main-body,
+.pf-c-login__main-footer {
+  color: var(--shelf-ink);
+}
+
+.pf-c-title,
+.pf-c-login__main-header-desc {
+  font-family: Georgia, "Times New Roman", serif !important;
+  letter-spacing: 0.015em;
+}
+
+.pf-c-login__main-header::after {
+  display: block;
+  width: 3.5rem;
+  height: 2px;
+  margin-top: 1rem;
+  background: linear-gradient(90deg, transparent, var(--shelf-brass), transparent);
+  content: "";
+}
+
+.pf-c-button.pf-m-primary {
+  color: #fffaf0 !important;
+  background: linear-gradient(180deg, #4e6957, #34483b) !important;
+  border: 1px solid #28382e !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 0 #1f2d25, 0 5px 12px rgba(32, 22, 15, 0.2);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.pf-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:focus-visible {
+  background: linear-gradient(180deg, #5a7664, #3c5244) !important;
+  box-shadow: 0 2px 0 #1f2d25, 0 0 0 3px rgba(185, 138, 67, 0.35);
+}
+
+.pf-c-button.pf-m-secondary,
+.pf-c-login__main-footer-links-item .pf-c-button {
+  color: var(--shelf-ink) !important;
+  background: rgba(255, 250, 239, 0.45) !important;
+  border-color: #9d8058 !important;
+  border-radius: 6px !important;
+}
+
+.pf-c-button.pf-m-secondary:hover,
+.pf-c-login__main-footer-links-item .pf-c-button:hover {
+  background: rgba(185, 138, 67, 0.14) !important;
+  border-color: var(--shelf-brass) !important;
+}
+
+.pf-c-form-control {
+  color: var(--shelf-ink) !important;
+  background: rgba(255, 252, 244, 0.85) !important;
+  border-color: #a9906e !important;
+}
+
+.pf-c-form-control:focus {
+  border-color: var(--shelf-brass) !important;
+  box-shadow: 0 0 0 3px rgba(185, 138, 67, 0.22) !important;
+}
+
+@media (max-width: 600px) {
+  .pf-c-login__main {
+    margin: 1rem !important;
+    border-radius: 9px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ak-flow-executor *,
+  ak-flow-executor *::before,
+  ak-flow-executor *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
