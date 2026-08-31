@@ -60,10 +60,15 @@ provider: its embedded proxy protects Calibre-Web and its OIDC provider serves
 Audiobookshelf browser/mobile clients. Cloudflare remains the DNS and Tunnel
 edge. Entra External ID is pending decommission.
 
-Beszel provides the container status page on host port 8090 for LAN and
-Tailscale clients. Public access at `status.shelfgoblin.dev` passes through the
-Authentik embedded proxy. Its local agent reads the Docker socket read-only and
-communicates with the dashboard through a Unix socket; no agent port is exposed.
+Beszel publishes host port 8090 for LAN and Tailscale clients. Public access at
+`status.shelfgoblin.dev` passes through the Authentik embedded proxy and an
+internal Status gateway, which routes `/top-users/` to a seven-day
+Audiobookshelf listening leaderboard and all other paths to Beszel. Beszel's
+local agent reads the Docker socket read-only and communicates through a Unix
+socket; no agent port is exposed. The leaderboard uses a protected
+Audiobookshelf API credential and stores no separate activity history.
+Authentik exposes the leaderboard as a dedicated **Top listeners** tile
+restricted to `status-users`.
 
 In **safe** mode, the application hostnames return 404 while Authentik is
 routed. In normal **sso** mode, public application access uses Authentik without

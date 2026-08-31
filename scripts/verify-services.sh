@@ -40,7 +40,9 @@ for container in \
     audiobookshelf \
     calibre-web \
     jellyfin \
-    beszel; do
+    beszel \
+    top-users \
+    status-gateway; do
     wait_for_container "${container}"
 done
 

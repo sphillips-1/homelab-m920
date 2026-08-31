@@ -49,7 +49,7 @@ entries:
     cookie_domain: ''
     external_host: https://status.shelfgoblin.dev
     intercept_header_auth: true
-    internal_host: http://beszel:8090
+    internal_host: http://status-gateway:8080
     internal_host_ssl_validation: true
     invalidation_flow: aee838f1-0784-473e-b765-802ce49584c8
     jwt_federation_providers: []

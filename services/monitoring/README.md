@@ -4,6 +4,20 @@
 It shows the running state, CPU, memory, network, and storage usage for every
 Docker container and keeps historical metrics and alerts.
 
+The Authentik-protected Status hostname also exposes an Audiobookshelf
+listening leaderboard:
+
+```text
+https://status.shelfgoblin.dev/top-users/
+```
+
+The leaderboard route requires Authentik even though the Beszel root remains
+available privately on port 8090. It ranks Audiobookshelf users by their actual
+hours listened during the previous seven days. Authentik also presents a
+**Top listeners** application tile to members of `status-users`, so the page is
+available directly from the Authentik library without navigating through
+Beszel.
+
 The dashboard is available on the LAN and Tailscale at:
 
 ```text
@@ -43,11 +57,26 @@ records its running state, restart count, CPU, memory, and network use. The
 agent's read-only `Homelab Media` mount at `/srv/homelab/storage/.beszel`
 reports capacity, free space, and utilization for the external media filesystem.
 
+## Top-users setup
+
+The leaderboard is deployed automatically. A missing or rejected credential
+shows an explanatory warning rather than stale data.
+
+1. Create an Audiobookshelf admin API token.
+2. Copy `top-users.env.example` to the ignored `.top-users.env`, then add
+   `AUDIOBOOKSHELF_API_TOKEN`. Prefix the token with `Bearer `.
+3. Use `TOP_USERS_ALIASES` to replace local usernames with preferred display
+   names where needed.
+4. Redeploy monitoring and open `/top-users/`.
+
+Credentials and generated user activity remain under `/srv/homelab` or the
+ignored `.top-users.env`; none belongs in Git.
+
 ## Operations
 
 ```bash
 docker compose --profile agent ps
-docker compose --profile agent logs --tail 100 beszel beszel-agent
+docker compose --profile agent logs --tail 100 beszel beszel-agent status-gateway top-users
 ```
 
 To replace or rotate the agent credentials, run the same helper again. It

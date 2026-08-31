@@ -34,11 +34,19 @@ SEED_NAMES = {
     "Books Proxy",
     "Status",
     "Status Proxy",
+    "Top listeners",
     "Google",
     "authentik Embedded Outpost",
     "default-authentication-identification",
 }
-SEED_SLUGS = {"audiobookshelf", "books", "status", "google", "google-source-enrollment"}
+SEED_SLUGS = {
+    "audiobookshelf",
+    "books",
+    "status",
+    "top-listeners",
+    "google",
+    "google-source-enrollment",
+}
 REVERSE_REFERENCE_MODELS = {
     "authentik_flows.flowstagebinding",
     "authentik_policies.policybinding",

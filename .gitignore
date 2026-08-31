@@ -6,6 +6,7 @@
 *.secret
 secrets/
 services/authentik/.env
+services/monitoring/.top-users.env
 
 # Runtime/application state
 appdata/
