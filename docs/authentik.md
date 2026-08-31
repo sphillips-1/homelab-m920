@@ -35,6 +35,10 @@ Custom CSS field. The server mounts the matching SVG under its static assets,
 and the reconciler selects it as the Brand's default flow background. The theme
 has no external fonts, scripts, images, or CDN requests; an unavailable third
 party therefore cannot block login or observe visits to the identity provider.
+The same reconciler merges the bookshelf background into the Brand's interface
+theme attributes without discarding unrelated Brand settings. This carries the
+palette, navigation, parchment cards, and background through the authenticated
+application dashboard and settings pages as well as the login flows.
 
 The CSS scopes component styling to Authentik flow pages where practical. Its
 global declarations are limited to the palette and flow background because
