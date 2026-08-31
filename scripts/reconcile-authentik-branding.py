@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from authentik.core.models import Brand
+from authentik.brands.models import Brand
 
 
 stylesheet_path = Path("/branding/bookshelf.css")
