@@ -25,5 +25,7 @@ jobs:
     environment: infrastructure
     timeout-minutes: 45
     steps:
+      - name: Report canonical checkout status
+        run: git -C /opt/homelab status --short
       - name: Deploy exact main commit
         run: sudo --non-interactive /usr/local/sbin/homelab-deploy "${{ github.sha }}"
