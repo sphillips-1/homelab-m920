@@ -1,8 +1,9 @@
 /* Shelf Goblin Authentik theme
  *
  * Keep this file dependency-free: it is loaded on the authentication boundary.
- * Most values are inherited by Authentik's web components, including their
- * shadow roots. Selectors are deliberately scoped to flow pages where possible.
+ * Keep interface styling stock for usability. The decorative rules below are
+ * limited to authentication flows; the Brand logo and favicon provide the
+ * identity in the user and administration interfaces.
  */
 
 :root {
@@ -15,7 +16,6 @@
   --shelf-brass: #b98a43;
   --shelf-brass-bright: #d6ad67;
   --shelf-green: #405b4a;
-  --ak-accent: var(--shelf-brass);
   --ak-flow-background: url("/static/dist/assets/images/bookshelf-background.svg");
 }
 
@@ -23,110 +23,6 @@
 .pf-c-background-image,
 ak-flow-executor {
   --ak-flow-background: url("/static/dist/assets/images/bookshelf-background.svg") !important;
-}
-
-/* Carry the library palette into the authenticated user portal. Authentik
- * injects Brand CSS into its component styles, so these PatternFly selectors
- * also apply inside the interface's encapsulated component tree. */
-ak-interface-user,
-ak-interface-admin {
-  color: var(--shelf-ink);
-  --pf-global--primary-color--100: #75552c;
-  --pf-global--primary-color--200: #50391d;
-  --pf-global--link--Color: #76501f;
-  --pf-global--link--Color--hover: #4b3215;
-  --pf-global--BackgroundColor--100: rgba(244, 234, 215, 0.97);
-  --pf-global--BackgroundColor--150: rgba(232, 214, 184, 0.97);
-  --pf-global--BackgroundColor--200: #3a2419;
-  --pf-global--Color--100: var(--shelf-ink);
-  --pf-global--Color--200: var(--shelf-ink-soft);
-  --pf-global--BorderColor--100: #a98b61;
-  --pf-global--BoxShadow--md: 0 10px 28px rgba(20, 10, 6, 0.32);
-}
-
-.pf-c-page__main {
-  background: rgba(27, 16, 12, 0.38) !important;
-}
-
-.pf-c-page__main-section,
-.pf-c-page__main-group {
-  color: var(--shelf-paper);
-}
-
-.pf-c-page__main-section .pf-c-title,
-.pf-c-page__main-group .pf-c-title,
-.pf-c-page__main h1,
-.pf-c-page__main h2,
-.pf-c-page__main h3,
-.pf-c-page__main legend {
-  color: #fff4df !important;
-  font-family: Georgia, "Times New Roman", serif !important;
-  text-shadow: 0 2px 8px rgba(16, 7, 4, 0.75);
-}
-
-.pf-c-masthead,
-.pf-c-page__header {
-  background:
-    linear-gradient(180deg, rgba(80, 48, 31, 0.98), rgba(43, 25, 17, 0.98)),
-    url("/static/dist/assets/images/bookshelf-background.svg") center 15% / cover !important;
-  border-bottom: 2px solid var(--shelf-brass);
-  box-shadow: 0 5px 18px rgba(12, 6, 4, 0.4);
-}
-
-.pf-c-masthead a,
-.pf-c-page__header a,
-.pf-c-nav__link {
-  color: #f5e7cc !important;
-}
-
-.pf-c-nav__link.pf-m-current,
-.pf-c-nav__link:hover {
-  color: var(--shelf-brass-bright) !important;
-  border-bottom-color: var(--shelf-brass-bright) !important;
-}
-
-.pf-c-card {
-  color: var(--shelf-ink) !important;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.2), rgba(137, 90, 45, 0.04)),
-    var(--shelf-paper) !important;
-  border: 1px solid rgba(118, 78, 39, 0.72) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 0 #c9ae82, 0 12px 28px rgba(16, 8, 5, 0.34) !important;
-  transition: transform 140ms ease, box-shadow 140ms ease;
-}
-
-.pf-c-card:hover,
-.pf-c-card:focus-within {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 0 var(--shelf-brass), 0 18px 32px rgba(16, 8, 5, 0.42) !important;
-}
-
-.pf-c-card a,
-.pf-c-card .pf-c-title {
-  color: #5a3b19 !important;
-  font-family: Georgia, "Times New Roman", serif !important;
-  font-weight: 700;
-}
-
-.pf-c-toolbar,
-.pf-c-input-group,
-.pf-c-form-control,
-.pf-c-modal-box,
-.pf-c-drawer__panel {
-  color: var(--shelf-ink) !important;
-  background-color: rgba(244, 234, 215, 0.97) !important;
-}
-
-.pf-c-divider,
-.pf-c-divider::after {
-  border-color: rgba(214, 173, 103, 0.55) !important;
-}
-
-@media (max-width: 600px) {
-  .pf-c-card {
-    box-shadow: 0 3px 0 #c9ae82, 0 8px 18px rgba(16, 8, 5, 0.3) !important;
-  }
 }
 
 ak-flow-executor {
@@ -163,7 +59,7 @@ ak-flow-executor::part(card),
   color: var(--shelf-ink);
 }
 
-.pf-c-title,
+.pf-c-login .pf-c-title,
 .pf-c-login__main-header-desc {
   font-family: Georgia, "Times New Roman", serif !important;
   letter-spacing: 0.015em;
@@ -178,7 +74,7 @@ ak-flow-executor::part(card),
   content: "";
 }
 
-.pf-c-button.pf-m-primary {
+.pf-c-login .pf-c-button.pf-m-primary {
   color: #fffaf0 !important;
   background: linear-gradient(180deg, #4e6957, #34483b) !important;
   border: 1px solid #28382e !important;
@@ -188,13 +84,13 @@ ak-flow-executor::part(card),
   letter-spacing: 0.02em;
 }
 
-.pf-c-button.pf-m-primary:hover,
-.pf-c-button.pf-m-primary:focus-visible {
+.pf-c-login .pf-c-button.pf-m-primary:hover,
+.pf-c-login .pf-c-button.pf-m-primary:focus-visible {
   background: linear-gradient(180deg, #5a7664, #3c5244) !important;
   box-shadow: 0 2px 0 #1f2d25, 0 0 0 3px rgba(185, 138, 67, 0.35);
 }
 
-.pf-c-button.pf-m-secondary,
+.pf-c-login .pf-c-button.pf-m-secondary,
 .pf-c-login__main-footer-links-item .pf-c-button {
   color: var(--shelf-ink) !important;
   background: rgba(255, 250, 239, 0.45) !important;
@@ -202,19 +98,19 @@ ak-flow-executor::part(card),
   border-radius: 6px !important;
 }
 
-.pf-c-button.pf-m-secondary:hover,
+.pf-c-login .pf-c-button.pf-m-secondary:hover,
 .pf-c-login__main-footer-links-item .pf-c-button:hover {
   background: rgba(185, 138, 67, 0.14) !important;
   border-color: var(--shelf-brass) !important;
 }
 
-.pf-c-form-control {
+.pf-c-login .pf-c-form-control {
   color: var(--shelf-ink) !important;
   background: rgba(255, 252, 244, 0.85) !important;
   border-color: #a9906e !important;
 }
 
-.pf-c-form-control:focus {
+.pf-c-login .pf-c-form-control:focus {
   border-color: var(--shelf-brass) !important;
   box-shadow: 0 0 0 3px rgba(185, 138, 67, 0.22) !important;
 }
@@ -228,14 +124,8 @@ ak-flow-executor::part(card),
 
 @media (prefers-reduced-motion: reduce) {
   ak-flow-executor *,
-  ak-interface-user *,
-  ak-interface-admin *,
   ak-flow-executor *::before,
-  ak-interface-user *::before,
-  ak-interface-admin *::before,
-  ak-flow-executor *::after,
-  ak-interface-user *::after,
-  ak-interface-admin *::after {
+  ak-flow-executor *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;

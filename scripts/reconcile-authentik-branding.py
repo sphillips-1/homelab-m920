@@ -7,7 +7,7 @@ stylesheet_path = Path("/branding/bookshelf.css")
 background_path = "/static/dist/assets/images/bookshelf-background.svg"
 logo_path = "/static/dist/assets/images/shelfgoblin-logo.svg"
 favicon_path = "/static/dist/assets/images/shelfgoblin-favicon.svg"
-interface_background = """background:
+legacy_interface_background = """background:
 linear-gradient(rgba(22, 12, 8, 0.42), rgba(15, 8, 6, 0.68)),
 url('/static/dist/assets/images/bookshelf-background.svg') center / cover fixed;
 """
@@ -37,10 +37,16 @@ if brand.branding_favicon != favicon_path:
 attributes = dict(brand.attributes or {})
 settings = dict(attributes.get("settings") or {})
 theme = dict(settings.get("theme") or {})
-if theme.get("background") != interface_background:
-    theme["background"] = interface_background
-    settings["theme"] = theme
-    attributes["settings"] = settings
+if theme.get("background") == legacy_interface_background:
+    del theme["background"]
+    if theme:
+        settings["theme"] = theme
+    else:
+        settings.pop("theme", None)
+    if settings:
+        attributes["settings"] = settings
+    else:
+        attributes.pop("settings", None)
     brand.attributes = attributes
     changed.append("attributes")
 

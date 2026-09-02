@@ -35,16 +35,16 @@ Custom CSS field. The server mounts the matching SVG under its static assets,
 and the reconciler selects it as the Brand's default flow background. The theme
 has no external fonts, scripts, images, or CDN requests; an unavailable third
 party therefore cannot block login or observe visits to the identity provider.
-The same reconciler merges the bookshelf background into the Brand's interface
-theme attributes without discarding unrelated Brand settings. This carries the
-palette, navigation, parchment cards, and background through the authenticated
-application dashboard and settings pages as well as the login flows.
+The authenticated user and administration interfaces retain Authentik's native
+layout and palette so dense tables, forms, navigation, and dialogs stay usable.
+The reconciler removes the legacy bookshelf interface background when it is
+still present, without discarding unrelated Brand settings.
 The matching ShelfGoblin logo and favicon are also repository-owned SVGs,
 mounted into Authentik's static assets and selected by the same reconciler.
 
-The CSS scopes component styling to Authentik flow pages where practical. Its
-global declarations are limited to the palette and flow background because
-those variables must cross Authentik's shadow-DOM boundary. After a change,
+The CSS scopes decorative component styling to Authentik flow pages. Its global
+declarations are limited to bookshelf color constants and the flow background.
+After a change,
 recreate the affected containers, reconcile the Brand, and hard-refresh the
 browser:
 
@@ -56,8 +56,9 @@ sudo docker exec -i authentik-worker ak shell \
 ```
 
 Check the normal Google flow, administrator-recovery flow, invitation flow,
-and an error page at desktop and mobile widths. Confirm visible keyboard focus,
-legible text, and usable buttons in both light and dark browser preferences.
+an error page, the user portal, and the administration interface at desktop and
+mobile widths. Confirm visible keyboard focus, legible text, and usable buttons
+in both light and dark browser preferences.
 The end-to-end install verification also checks that both mounted theme assets
 are publicly served by Authentik before the deployment is considered complete.
 
