@@ -4,6 +4,10 @@ services:
     container_name: audiobookshelf
     restart: unless-stopped
 
+    # Explicit upstream for Docker DNS; retain Pi-hole filtering for metadata lookups.
+    dns:
+      - 192.168.4.75
+
     ports:
       # Publish to the host LAN and Tailscale interfaces for normal private access.
       - "13378:80"

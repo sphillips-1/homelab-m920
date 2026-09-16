@@ -293,6 +293,10 @@ network for Cloudflare Tunnel. Port 9000 must never be forwarded by the router.
 
 - Deploys `ghcr.io/advplyr/audiobookshelf:2.36.0`.
 - Publishes host port 13378 for LAN and Tailscale access.
+- Explicitly uses Pi-hole at `192.168.4.75` as Docker's upstream DNS resolver.
+  Docker still provides internal service discovery through `127.0.0.11`.
+  This prevents metadata lookup failures when Docker inherits no upstream
+  nameservers. Update the Compose DNS address if Pi-hole moves.
 - Mounts configuration, audiobook media, and metadata from `/srv/homelab`.
 - Makes the service reachable to Cloudflare Tunnel on the private Docker
   network.
