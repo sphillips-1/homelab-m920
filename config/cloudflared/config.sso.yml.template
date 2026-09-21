@@ -10,7 +10,7 @@ ingress:
     path: ^/invite/.*$
     service: http://invitation-provisioner:8080
   - hostname: audiobooks.__DOMAIN__
-    service: http://audiobookshelf:80
+    service: http://audiobookshelf-gateway:80
   - hostname: books.__DOMAIN__
     service: http://authentik-server:9000
   - hostname: status.__DOMAIN__

@@ -43,7 +43,7 @@ for port in 13378 8083 8090; do
 done
 
 echo "==> Local tunnel-to-container connectivity"
-docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://audiobookshelf:80
+docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://audiobookshelf-gateway:80
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://calibre-web:8083
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://status-gateway:8080
 docker run --rm --network homelab curlimages/curl:latest -fsS -o /dev/null http://status-gateway:8080/top-users/health

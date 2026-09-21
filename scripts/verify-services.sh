@@ -38,6 +38,7 @@ for container in \
     authentik-worker \
     authentik-invitation-provisioner \
     audiobookshelf \
+    audiobookshelf-gateway \
     calibre-web \
     jellyfin \
     beszel \

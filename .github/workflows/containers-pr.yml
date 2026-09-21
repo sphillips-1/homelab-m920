@@ -37,3 +37,7 @@ jobs:
           done < <(find services -name compose.yml -type f -print | sort)
       - name: Check shell scripts
         run: shellcheck scripts/*.sh
+      - name: Check Audiobookshelf mobile prompt
+        run: node --test services/audiobookshelf/mobile-app.test.cjs
+      - name: Validate Audiobookshelf gateway
+        run: docker run --rm -v "$PWD/services/audiobookshelf/gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.29.1-alpine nginx -t

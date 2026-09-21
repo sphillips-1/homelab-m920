@@ -52,6 +52,13 @@ on the M920Q host so they are directly reachable on the LAN and through
 Tailscale. The `cloudflared` container reaches those same applications directly
 over the internal Docker `homelab` network; it does not use their host ports.
 
+Audiobookshelf's `audiobookshelf-gateway` nginx service owns host port 13378
+and receives the Audiobookshelf tunnel route. It inserts a mobile-only app
+prompt into HTML, offering Audiobookshelf on Android and AudioBooth on iOS.
+The gateway proxies API, streaming and WebSocket traffic to `audiobookshelf:80`.
+Internal API consumers continue to use that backend directly. The prompt
+launches an installed app after a tap; it does not transfer browser credentials.
+
 Only Audiobookshelf, Calibre-Web, Beszel, and Authentik are candidates for public
 routing. SSH, Docker, databases, Tailscale, and other host services are never
 exposed through Cloudflare. Permanent unauthenticated Internet access is not

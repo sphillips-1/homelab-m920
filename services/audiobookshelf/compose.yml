@@ -8,10 +8,6 @@ services:
     dns:
       - 192.168.4.75
 
-    ports:
-      # Publish to the host LAN and Tailscale interfaces for normal private access.
-      - "13378:80"
-
     networks:
       - homelab
 
@@ -30,6 +26,26 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  audiobookshelf-gateway:
+    image: nginx:1.29.1-alpine
+    container_name: audiobookshelf-gateway
+    restart: unless-stopped
+    ports:
+      - "13378:80"
+    networks:
+      - homelab
+    volumes:
+      - ./gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./mobile-app.js:/usr/share/nginx/html/mobile-app.js:ro
+    depends_on:
+      audiobookshelf:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   homelab:
