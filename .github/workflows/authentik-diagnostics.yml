@@ -1,0 +1,150 @@
+name: Authentik Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Share the deployment lock so inspection does not overlap a deployment job.
+concurrency:
+  group: production-containers
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 10
+    steps:
+      # No checkout, deploy, restart, credential changes, or raw log uploads.
+      # Keep this self-contained: adding scripts would trigger Container Deploy.
+      - name: Read container state and classify OAuth failures
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import datetime
+          import json
+          import re
+          import subprocess
+
+          def run(args, data=None):
+              try:
+                  return subprocess.run(args, input=data, text=True, capture_output=True, timeout=90)
+              except (OSError, subprocess.TimeoutExpired):
+                  return None
+
+          def emit(label, value):
+              print(json.dumps({"check": label, "result": value}), flush=True)
+
+          emit("runner_utc", datetime.datetime.now(datetime.timezone.utc).isoformat())
+          docker = None
+          for command in (["docker"], ["sudo", "-n", "docker"]):
+              result = run(command + ["ps", "--format", "{{.ID}}"])
+              if result is not None and result.returncode == 0:
+                  docker = command
+                  break
+          if docker is None:
+              emit("docker_access", "unavailable; deployment-only sudo may be installed")
+              raise SystemExit(1)
+          emit("docker_access", "available")
+
+          revision = run(["git", "-c", "safe.directory=/opt/homelab", "-C", "/opt/homelab", "rev-parse", "HEAD"])
+          if revision is not None and re.fullmatch(r"[0-9a-f]{40}\s*", revision.stdout):
+              emit("deployed_commit", revision.stdout.strip())
+
+          names = ("authentik-server", "authentik-worker", "authentik-postgresql", "cloudflared", "audiobookshelf", "audiobookshelf-gateway")
+          for name in names:
+              result = run(docker + ["inspect", name])
+              if result is None or result.returncode:
+                  emit(name, "inspect unavailable")
+                  continue
+              try:
+                  item = json.loads(result.stdout)[0]
+                  state = item["State"]
+                  emit(name, {
+                      "image": item["Config"]["Image"],
+                      "image_id": item["Image"],
+                      "status": state["Status"],
+                      "health": state.get("Health", {}).get("Status"),
+                      "restarts": item["RestartCount"],
+                      "started_at": state["StartedAt"],
+                  })
+              except (KeyError, ValueError, IndexError, TypeError):
+                  emit(name, "unexpected inspect schema")
+
+          # Classify only known error markers. Never publish raw exception strings,
+          # response bodies, callback URLs, cookies, codes, or arbitrary log fields.
+          markers = (
+              "invalid_client", "invalid_grant", "redirect_uri_mismatch",
+              "unauthorized_client", "invalid_request", "access_denied",
+              "NameResolutionError", "gaierror", "Temporary failure in name resolution",
+              "SSLError", "CERTIFICATE_VERIFY_FAILED", "ConnectTimeout",
+              "ReadTimeout", "ProxyError", "ConnectionError",
+              "Application state check failed", "No state stored in the session",
+          )
+          for name in ("authentik-server", "authentik-worker", "cloudflared"):
+              result = run(docker + ["logs", "--since", "48h", "--tail", "20000", name])
+              if result is None or result.returncode:
+                  emit(name + "_logs", "unavailable")
+                  continue
+              counts = {}
+              matches = []
+              for line in (result.stdout + "\n" + result.stderr).splitlines():
+                  for marker in markers:
+                      if marker in line:
+                          counts[marker] = counts.get(marker, 0) + 1
+                  if "Unable to fetch access token" not in line and "Could not retrieve token" not in line:
+                      continue
+                  row = {"event": "token_exchange_failure", "markers": [m for m in markers if m in line]}
+                  try:
+                      event = json.loads(line)
+                      timestamp = str(event.get("timestamp", ""))
+                      request_id = str(event.get("request_id", ""))
+                      if re.fullmatch(r"[0-9T:.+Z -]{10,40}", timestamp):
+                          row["timestamp"] = timestamp
+                      if re.fullmatch(r"[0-9a-f-]{16,36}", request_id):
+                          row["request_id"] = request_id
+                  except (ValueError, AttributeError):
+                      pass
+                  matches.append(row)
+              emit(name + "_log_markers", counts)
+              emit(name + "_token_failure_count", len(matches))
+              emit(name + "_recent_token_failures", matches[-20:])
+
+          # Run inside each Authentik container, using its inherited proxy/CA env.
+          # GET requests only; no OAuth credentials or authorization codes sent.
+          network_probe = '''
+          import datetime, json, os, socket
+          import requests
+          def report(name, value):
+              print(json.dumps({"check": name, "result": value}))
+          report("container_utc", datetime.datetime.now(datetime.timezone.utc).isoformat())
+          report("outbound_environment_present", [key for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy", "REQUESTS_CA_BUNDLE", "SSL_CERT_FILE") if os.environ.get(key)])
+          for host in ("accounts.google.com", "oauth2.googleapis.com"):
+              try:
+                  socket.getaddrinfo(host, 443)
+                  report(host + "_dns", "resolved")
+              except OSError:
+                  report(host + "_dns", "failed")
+          for url in ("https://accounts.google.com/.well-known/openid-configuration", "https://oauth2.googleapis.com/token"):
+              try:
+                  response = requests.get(url, timeout=15, allow_redirects=False)
+                  report(url, {"status": response.status_code, "tls_validated": True})
+              except requests.RequestException as exc:
+                  report(url, {"error_type": type(exc).__name__})
+          '''
+          for name in ("authentik-server", "authentik-worker"):
+              result = run(docker + ["exec", "-i", name, "python", "-"], network_probe)
+              if result is None or result.returncode:
+                  emit(name + "_network", "probe unavailable")
+                  continue
+              # Only accept structured output from our probe; suppress startup logs.
+              for line in result.stdout.splitlines():
+                  try:
+                      row = json.loads(line)
+                      if isinstance(row, dict) and set(row) == {"check", "result"}:
+                          emit(name + "_network", row)
+                  except ValueError:
+                      pass
+          PY
