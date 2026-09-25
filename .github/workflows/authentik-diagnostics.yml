@@ -148,3 +148,133 @@ jobs:
                   except ValueError:
                       pass
           PY
+      - name: Verify resolver candidate and repair prerequisites
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          def run(args, data=None):
+              try:
+                  return subprocess.run(args, input=data, text=True, capture_output=True, timeout=90)
+              except (OSError, subprocess.TimeoutExpired):
+                  return None
+          def emit(check, result):
+              print(json.dumps({"check": check, "result": result}), flush=True)
+          docker = None
+          for command in (["docker"], ["sudo", "-n", "docker"]):
+              result = run(command + ["ps", "--format", "{{.ID}}"])
+              if result is not None and result.returncode == 0:
+                  docker = command
+                  break
+          if docker is None:
+              raise SystemExit("Docker access unavailable")
+          for file in ("compose.yml", ".env", ".env.invitation"):
+              path = Path("/opt/homelab/services/authentik") / file
+              emit(file + "_permissions", {"readable": os.access(path, os.R_OK), "writable": os.access(path, os.W_OK)})
+          result = run(["sudo", "-n", "true"])
+          emit("sudo_true_available", result is not None and result.returncode == 0)
+          result = run(["git", "-c", "safe.directory=/opt/homelab", "-C", "/opt/homelab", "diff", "--quiet", "HEAD", "--", "services/authentik/compose.yml"])
+          emit("authentik_compose_matches_HEAD", result is not None and result.returncode == 0)
+          source_probe = '''
+          import json, os
+          from authentik.sources.oauth.models import OAuthSource
+          for source in OAuthSource.objects.all():
+              if source.source_type.name != "google":
+                  continue
+              value = {"slug": source.slug, "enabled": source.enabled,
+                  "client_id_present": bool(source.consumer_key), "client_secret_present": bool(source.consumer_secret),
+                  "client_id_matches_env": source.consumer_key == os.environ.get("AUTHENTIK_GOOGLE_CLIENT_ID"),
+                  "client_secret_matches_env": source.consumer_secret == os.environ.get("AUTHENTIK_GOOGLE_CLIENT_SECRET"),
+                  "authorization_url": source.source_type.authorization_url,
+                  "token_url": source.source_type.access_token_url,
+                  "authentication_flow": source.authentication_flow.slug if source.authentication_flow else None,
+                  "enrollment_flow": source.enrollment_flow.slug if source.enrollment_flow else None}
+              print("SOURCE_RESULT=" + json.dumps(value))
+          '''
+          result = run(docker + ["exec", "-i", "authentik-server", "ak", "shell"], source_probe)
+          found = False
+          if result is not None and result.returncode == 0:
+              for line in result.stdout.splitlines():
+                  if line.startswith("SOURCE_RESULT="):
+                      emit("google_source", json.loads(line.removeprefix("SOURCE_RESULT=")))
+                      found = True
+          if not found:
+              emit("google_source", "probe unavailable; no raw shell output published")
+          for name in ("authentik-server", "authentik-worker", "audiobookshelf"):
+              result = run(docker + ["inspect", "--format", "{{json .HostConfig.Dns}}", name])
+              if result is not None and result.returncode == 0:
+                  emit(name + "_explicit_dns", json.loads(result.stdout))
+          probe = '''
+          import json, socket, struct
+          from pathlib import Path
+          import requests
+          def emit(check, result):
+              print(json.dumps({"check": check, "result": result}))
+          emit("resolv_nameservers", [line.split()[1] for line in Path("/etc/resolv.conf").read_text().splitlines() if line.startswith("nameserver ")])
+          def resolve(host):
+              labels = b"".join(bytes([len(x)]) + x.encode("ascii") for x in host.split(".")) + b"\\0"
+              query = struct.pack("!6H", 18432, 256, 1, 0, 0, 0) + labels + struct.pack("!2H", 1, 1)
+              with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                  sock.settimeout(5)
+                  sock.connect(("192.168.4.75", 53))
+                  sock.send(query)
+                  data = sock.recv(4096)
+              ident, flags, questions, answers, _, _ = struct.unpack("!6H", data[:12])
+              if ident != 18432 or flags & 15 or flags & 512 or not flags & 32768:
+                  raise ValueError("unusable DNS response")
+              def skip_name(pos):
+                  while data[pos]:
+                      if data[pos] & 192 == 192:
+                          return pos + 2
+                      pos += 1 + data[pos]
+                  return pos + 1
+              pos = 12
+              for _ in range(questions):
+                  pos = skip_name(pos) + 4
+              addresses = []
+              for _ in range(answers):
+                  pos = skip_name(pos)
+                  kind, cls, ttl, size = struct.unpack("!HHIH", data[pos:pos+10])
+                  pos += 10
+                  if kind == 1 and cls == 1 and size == 4:
+                      addresses.append(socket.inet_ntoa(data[pos:pos+4]))
+                  pos += size
+              if not addresses:
+                  raise ValueError("no IPv4 answers")
+              return addresses
+          answers = {}
+          for host in ("accounts.google.com", "oauth2.googleapis.com"):
+              try:
+                  answers[host] = resolve(host)
+                  emit(host + "_pihole", "resolved")
+              except (OSError, ValueError, IndexError, struct.error) as exc:
+                  emit(host + "_pihole", type(exc).__name__)
+          original = socket.getaddrinfo
+          def candidate(host, port, *args, **kwargs):
+              if host in answers:
+                  return original(answers[host][0], port, *args, **kwargs)
+              return original(host, port, *args, **kwargs)
+          socket.getaddrinfo = candidate
+          for host, path in (("accounts.google.com", "/.well-known/openid-configuration"), ("oauth2.googleapis.com", "/token")):
+              if host not in answers:
+                  continue
+              try:
+                  response = requests.get("https://" + host + path, timeout=10, allow_redirects=False)
+                  emit(host + "_candidate_https", {"status": response.status_code, "tls_validated": True})
+              except requests.RequestException as exc:
+                  emit(host + "_candidate_https", type(exc).__name__)
+          '''
+          for name in ("authentik-server", "authentik-worker"):
+              result = run(docker + ["exec", "-i", name, "python", "-"], probe)
+              if result is None or result.returncode:
+                  emit(name + "_candidate", "probe unavailable")
+                  continue
+              for line in result.stdout.splitlines():
+                  try:
+                      row = json.loads(line)
+                      if isinstance(row, dict) and set(row) == {"check", "result"}:
+                          emit(name + "_candidate", row)
+                  except ValueError:
+                      pass
+          PY
