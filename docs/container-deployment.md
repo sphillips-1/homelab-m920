@@ -1,8 +1,9 @@
 # Container deployment
 
-Pushes to `main` that change service definitions, scripts, or the container
-workflows deploy automatically on the existing M920Q GitHub Actions runner.
-Terraform continues to use its separate workflows.
+Every push to `main` runs the single **Deploy** workflow in
+`.github/workflows/deploy.yml`. It validates the container configuration and
+scripts, validates and applies Terraform, then deploys containers on the existing
+M920Q GitHub Actions runner. Pull requests do not run a separate pipeline.
 
 ## One-time runner setup
 
@@ -21,14 +22,22 @@ SHA that is contained in the fetched `origin/main` history. After a successful
 deployment it refreshes the installed entry point from the reviewed version in
 the repository, so deployment-script changes become active for the next run.
 
-Protect `main` with pull-request review and require the **Container PR** check.
+Protect `main` with pull-request review. Remove required status checks for the
+retired **Container PR** and **Terraform PR** workflows from branch protection
+or rulesets; validation now runs after merge as part of **Deploy**.
 Repository write access is production-equivalent because reviewed repository
 code controls Docker workloads and the root deployment process.
 
 ## Deployment behavior
 
-The **Container Deploy** workflow is serialized and invokes the exact pushed
-commit. The host deployment command:
+The **Deploy** workflow serializes the entire run and invokes the exact pushed
+commit. Container validation must pass before Terraform runs; Terraform retains
+its adoption gate, remote state, validation, saved plan, and rejection of deletes
+or replacements before apply. Containers deploy only after Terraform succeeds.
+All production jobs retain the `infrastructure` environment. If container
+deployment fails, the already-applied Terraform changes are not rolled back.
+
+The host deployment command:
 
 1. locks against concurrent deployments;
 2. refuses to overwrite tracked local changes;
@@ -60,5 +69,6 @@ The current and pending SHAs are available at:
 /srv/homelab/appdata/deployment/pending-sha
 ```
 
-The workflow can also be started manually from GitHub Actions. A manual run
-redeploys and verifies the commit selected by GitHub for that run.
+The workflow can also be started manually from GitHub Actions with `main`
+selected. A manual run validates, applies, and redeploys the selected main
+commit. Runs dispatched against other branches or tags skip all jobs.

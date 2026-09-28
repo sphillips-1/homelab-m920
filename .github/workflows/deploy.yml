@@ -1,4 +1,4 @@
-name: Terraform Apply
+name: Deploy
 
 on:
   push:
@@ -10,11 +10,40 @@ permissions:
   contents: read
 
 concurrency:
-  group: terraform-production
+  group: production-deployment
   cancel-in-progress: false
 
 jobs:
-  apply:
+  validate-containers:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create validation-only environment files
+        run: |
+          printf '%s\n' \
+            'PG_PASS=ci-not-a-secret' \
+            'AUTHENTIK_SECRET_KEY=ci-not-a-secret' \
+            > services/authentik/.env
+          : > services/authentik/.env.invitation
+          cp services/jellyfin/.env.example services/jellyfin/.env
+          sed -i 's/REPLACE_WITH_DETECTED_GID/109/' services/jellyfin/.env
+      - name: Validate Compose files
+        run: |
+          set -euo pipefail
+          while IFS= read -r compose_file; do
+            echo "Validating ${compose_file}"
+            docker compose -f "${compose_file}" config --quiet
+          done < <(find services -name compose.yml -type f -print | sort)
+      - name: Check shell scripts
+        run: shellcheck scripts/*.sh
+      - name: Check Audiobookshelf mobile prompt
+        run: node --test services/audiobookshelf/mobile-app.test.cjs
+      - name: Validate Audiobookshelf gateway
+        run: docker run --rm -v "$PWD/services/audiobookshelf/gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.29.1-alpine nginx -t
+
+  terraform:
+    needs: validate-containers
     runs-on: ubuntu-latest
     environment: infrastructure
     defaults:
@@ -68,3 +97,16 @@ jobs:
       - name: Apply and verify Authentik blueprint
         if: env.AUTHENTIK_BLUEPRINT_CONTENT_MANAGED == 'true' && env.TF_VAR_enable_authentik_blueprint == 'true' && env.TF_VAR_authentik_blueprint_enabled == 'true'
         run: ../scripts/apply-authentik-blueprint.sh
+
+  deploy-containers:
+    needs: terraform
+    # Add the `m920` label to the existing runner so this cannot land on another
+    # self-hosted machine if more runners are registered later.
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 45
+    steps:
+      - name: Report canonical checkout status
+        run: git -C /opt/homelab status --short
+      - name: Deploy exact main commit
+        run: sudo --non-interactive /usr/local/sbin/homelab-deploy "${{ github.sha }}"

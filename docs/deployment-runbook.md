@@ -206,8 +206,12 @@ sudo bash ./scripts/install-container-deployment.sh RUNNER_USER
 ```
 
 This installs `/usr/local/sbin/homelab-deploy` and a restricted sudo rule. A
-push to `main` that changes services, scripts, or container workflows then runs
-`deploy-release.sh` through the runner. The release process locks deployment,
+push to `main` then runs the unified **Deploy** workflow: container validation,
+Terraform validation and guarded apply, and finally `deploy-release.sh` through
+the runner. The entire workflow is serialized; a failed validation or Terraform
+job prevents container deployment. Retire any branch-protection requirements
+for the former PR workflows; checks now run on `main` after merge.
+The release process locks deployment,
 backs up affected state, validates and pulls images, deploys services, verifies
 readiness, records the deployed SHA, and reapplies the previous Compose version
 on failure.
