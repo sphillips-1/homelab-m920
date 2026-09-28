@@ -23,6 +23,8 @@ if [[ ! -f /etc/os-release ]]; then
     fail "Unable to determine operating system."
 fi
 
+# OS metadata is supplied by the target host, not the repository.
+# shellcheck source=/dev/null
 source /etc/os-release
 
 if [[ "${ID}" != "debian" ]]; then

@@ -26,8 +26,8 @@ echo
 [[ -n "${BESZEL_TOKEN}" ]] || fail "Token cannot be empty."
 [[ "${BESZEL_KEY}" != *$'\n'* && "${BESZEL_KEY}" != *$'\r'* ]] || fail "Public key must be one line."
 [[ "${BESZEL_TOKEN}" != *$'\n'* && "${BESZEL_TOKEN}" != *$'\r'* ]] || fail "Token must be one line."
-[[ "${BESZEL_KEY}" != *'"'* && "${BESZEL_KEY}" != *'\\'* ]] || fail "Public key contains unsupported quoting characters."
-[[ "${BESZEL_TOKEN}" != *'"'* && "${BESZEL_TOKEN}" != *'\\'* ]] || fail "Token contains unsupported quoting characters."
+[[ "${BESZEL_KEY}" != *'"'* && "${BESZEL_KEY}" != *\\* ]] || fail "Public key contains unsupported quoting characters."
+[[ "${BESZEL_TOKEN}" != *'"'* && "${BESZEL_TOKEN}" != *\\* ]] || fail "Token contains unsupported quoting characters."
 
 umask 077
 TEMP_FILE="$(mktemp "${SERVICE_DIR}/.env.tmp.XXXXXX")"

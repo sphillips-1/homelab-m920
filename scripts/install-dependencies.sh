@@ -45,8 +45,11 @@ if [[ ! -f /etc/apt/keyrings/docker.asc ]]; then
 fi
 
 if [[ ! -f /etc/apt/sources.list.d/docker.list ]]; then
+    # OS metadata is supplied by the target host, not the repository.
+    # shellcheck source=/dev/null
+    source /etc/os-release
     cat > /etc/apt/sources.list.d/docker.list <<EOF
-deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable
+deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable
 EOF
 fi
 

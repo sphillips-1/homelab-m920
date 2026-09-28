@@ -20,12 +20,12 @@ hostnamectl set-hostname "${HOSTNAME_VALUE}"
 HOSTS_FILE="/etc/hosts"
 
 if grep -qE '^127.0.1.1[[:space:]]' "${HOSTS_FILE}"; then
-sed -i
-"s/^127.0.1.1[[:space:]].*/127.0.1.1 ${HOSTNAME_VALUE} ${HOSTNAME_VALUE}/"
+sed -i \
+"s/^127.0.1.1[[:space:]].*/127.0.1.1 ${HOSTNAME_VALUE} ${HOSTNAME_VALUE}/" \
 "${HOSTS_FILE}"
 else
-printf '127.0.1.1 %s %s\n'
-"${HOSTNAME_VALUE}"
+printf '127.0.1.1 %s %s\n' \
+"${HOSTNAME_VALUE}" \
 "${HOSTNAME_VALUE}" >> "${HOSTS_FILE}"
 fi
 
