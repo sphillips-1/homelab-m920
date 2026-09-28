@@ -5,6 +5,7 @@ provider "registry.terraform.io/cloudflare/cloudflare" {
   version     = "5.23.0"
   constraints = "~> 5.23.0"
   hashes = [
+    "h1:C6JU7d5XoRQnksREiFD3hTgGRQ18ciV7ynKvpvGIteA=",
     "h1:LeM+28HS6S95Ab9xxG7GoLTrE9k9Q0GoJ3mjG2rVbMI=",
     "zh:3492a18e8753c2734bb253b70b46c8ec66151198b5221dc7772dab76778a2c06",
     "zh:698ca2b12417c7477744e5410796f4fa0311f7882e1a6c790581795182b3905c",
@@ -22,6 +23,7 @@ provider "registry.terraform.io/goauthentik/authentik" {
   version     = "2026.5.1"
   constraints = "~> 2026.5.0"
   hashes = [
+    "h1:L9q3pjCoeKQdn0/OApv4O1HiC/PDLDqcnM7Ff5XFB+0=",
     "h1:nyVAjSY1LG+N7KxmoMjHyFEPT1vhb+amacWQRMYzNdo=",
     "zh:05f252734db99792e5d3f52b582a4e0027348ac2614d8c9621bf7e623cff8036",
     "zh:0e1cd8041650aed9bb8d4af23301e786223ed5d1a00c2a5150b7ad874ae03917",
