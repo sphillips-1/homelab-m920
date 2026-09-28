@@ -24,6 +24,9 @@ services:
     image: ghcr.io/goauthentik/server:2026.8.0
     container_name: authentik-server
     restart: unless-stopped
+    # Explicit upstream for Docker DNS; use the existing LAN Pi-hole resolver.
+    dns:
+      - 192.168.4.75
     command: server
     env_file:
       - .env
@@ -54,6 +57,9 @@ services:
     image: ghcr.io/goauthentik/server:2026.8.0
     container_name: authentik-worker
     restart: unless-stopped
+    # Keep worker outbound lookups consistent with the server.
+    dns:
+      - 192.168.4.75
     command: worker
     env_file:
       - .env
