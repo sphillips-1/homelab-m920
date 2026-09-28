@@ -303,12 +303,19 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             body = json.loads(self.rfile.read(length))
+            if not isinstance(body, dict):
+                return self.respond(400, {"error": "JSON object required"})
             email = body.get("email", "")
-            if not email or "@" not in email:
+            if not isinstance(email, str) or not email or "@" not in email:
                 return self.respond(400, {"error": "valid email required"})
+            name = body.get("name", "")
+            services = body.get("services", [])
+            if (not isinstance(name, str) or not isinstance(services, list)
+                    or any(not isinstance(service, str) for service in services)):
+                return self.respond(400, {"error": "name must be a string and services a list of strings"})
             self.respond(
                 200,
-                provision(email, body.get("name", ""), body.get("services", [])),
+                provision(email, name, services),
             )
         except (ValueError, KeyError, json.JSONDecodeError) as error:
             self.respond(409, {"error": str(error)})

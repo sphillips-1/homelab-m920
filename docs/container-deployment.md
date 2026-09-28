@@ -34,7 +34,8 @@ The **Deploy** workflow serializes the entire run and invokes the exact pushed
 commit. Three validation jobs run in parallel without production credentials:
 
 - Container checks: Compose models, ShellCheck, Audiobookshelf mobile tests,
-  and Nginx configuration validation.
+  Nginx configuration validation, resolved Compose storage/port policies and
+  the Beszel agent profile, plus all four rendered Cloudflare routing modes.
 - Code checks: actionlint for all workflows, compilation of tracked Python
   files without executing them, invitation-provisioner unit tests, and isolated
   deployment/rollback regression tests.
@@ -102,3 +103,22 @@ the production root, commit, dirty-checkout, and locking guards. No production
 volumes, credentials, Docker socket, or network access are provided. Tests cover
 backups before deployment, validation failures, rollback and rollback-health
 failures, success markers, and retries after an interrupted checkout.
+
+`tests/test_compose_policy.py` checks tracked Compose definitions using the CI
+dummy environment files. Existing private-access ports are explicitly allowed;
+new publications require an intentional policy update. Repository mounts must
+be read-only, persistent bind mounts must stay under `/srv/homelab`, Jellyfin
+media must stay read-only, and only Beszel's agent may use host networking and
+the read-only Docker socket. These checks do not inspect router forwarding.
+
+`tests/test_cloudflare.py` runs the real renderer against temporary paths and
+dummy credentials, then validates configurations and tests routes with the
+declared Cloudflared image, without connecting a tunnel. It requires root for
+the renderer, Docker for route validation, and image-download access. Safe mode
+must block application routes; SSO must route Books and Status through
+Authentik; Jellyfin and unknown hostnames must return 404 in every mode.
+
+Provisioner tests cover rejected authentication, malformed payloads and invite
+paths, unsupported services, upstream failures, ambiguous/inactive users, and
+idempotent sequential account creation. Upstream APIs are mocked; these tests
+do not create real accounts or exercise concurrent request races.
