@@ -42,8 +42,49 @@ jobs:
       - name: Validate Audiobookshelf gateway
         run: docker run --rm -v "$PWD/services/audiobookshelf/gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.29.1-alpine nginx -t
 
+  validate-code:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate GitHub Actions workflows
+        run: docker run --rm -v "$PWD:/repo:ro" --workdir /repo rhysd/actionlint:1.7.12 -color
+      - name: Compile tracked Python files without executing them
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import subprocess
+          for name in subprocess.check_output(['git', 'ls-files', '-z', '*.py']).decode().split('\0'):
+              if name:
+                  compile(pathlib.Path(name).read_bytes(), name, 'exec')
+          PY
+      - name: Test invitation provisioner
+        run: python3 -B -m unittest discover -s services/authentik/provisioner -v
+      - name: Test deployment and rollback in an isolated container
+        run: docker run --rm --network none -v "$PWD:/source:ro" --workdir /source python:3.12-bookworm python3 -B tests/test_deploy_release.py
+
+  validate-terraform:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.8"
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -lockfile=readonly
+      - run: terraform validate
+
   terraform:
-    needs: validate-containers
+    needs: [validate-containers, validate-code, validate-terraform]
     runs-on: ubuntu-latest
     environment: infrastructure
     defaults:
@@ -73,7 +114,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.15.8"
-      - run: terraform fmt -check -recursive
       - name: Configure remote state
         run: |
           printf '%s\n' \

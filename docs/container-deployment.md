@@ -31,7 +31,17 @@ code controls Docker workloads and the root deployment process.
 ## Deployment behavior
 
 The **Deploy** workflow serializes the entire run and invokes the exact pushed
-commit. Container validation must pass before Terraform runs; Terraform retains
+commit. Three validation jobs run in parallel without production credentials:
+
+- Container checks: Compose models, ShellCheck, Audiobookshelf mobile tests,
+  and Nginx configuration validation.
+- Code checks: actionlint for all workflows, compilation of tracked Python
+  files without executing them, invitation-provisioner unit tests, and isolated
+  deployment/rollback regression tests.
+- Terraform checks: recursive formatting, initialization with the backend
+  disabled and a read-only lockfile, and validation of the production root.
+
+All three must pass before the production environment gate. Terraform retains
 its adoption gate, remote state, validation, saved plan, and rejection of deletes
 or replacements before apply. Containers deploy only after Terraform succeeds.
 All production jobs retain the `infrastructure` environment. If container
@@ -56,7 +66,11 @@ it as they do during initial bootstrap.
 ## Failures and rollback
 
 If deployment or verification fails, the command checks out the previous SHA
-and reapplies its Compose definitions. It deliberately does not restore
+and reapplies its Compose definitions, then verifies service health. Failed
+recovery removes `current-sha` and reports that operator recovery is required;
+`pending-sha` remains available for diagnosis. Retrying the same commit reapplies
+services and verifies readiness, so an interrupted release can be completed.
+It deliberately does not restore
 persistent data automatically: an automatic restore could discard writes made
 after the backup. When an image has performed an incompatible database
 migration, inspect the deployment logs and restore the timestamped backup under
@@ -72,3 +86,19 @@ The current and pending SHAs are available at:
 The workflow can also be started manually from GitHub Actions with `main`
 selected. A manual run validates, applies, and redeploys the selected main
 commit. Runs dispatched against other branches or tags skip all jobs.
+
+## Running the deployment regression tests
+
+From the repository root on a machine with Docker:
+
+```bash
+docker run --rm --network none -v "$PWD:/source:ro" --workdir /source \
+  python:3.12-bookworm python3 -B tests/test_deploy_release.py
+```
+
+Tests use temporary local Git repositories, fake Docker/service commands, and
+a copy of the release entry point with filesystem paths relocated. They retain
+the production root, commit, dirty-checkout, and locking guards. No production
+volumes, credentials, Docker socket, or network access are provided. Tests cover
+backups before deployment, validation failures, rollback and rollback-health
+failures, success markers, and retries after an interrupted checkout.

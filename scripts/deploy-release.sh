@@ -28,9 +28,15 @@ rollback() {
 
     if [[ "${CHECKED_OUT_TARGET}" == true && -n "${PREVIOUS_SHA}" ]]; then
         echo "Deployment failed; restoring repository and Compose definitions from ${PREVIOUS_SHA}." >&2
-        git_repo checkout --detach --force "${PREVIOUS_SHA}" || true
-        "${REPO_DIR}/scripts/deploy-services.sh" || true
-        printf '%s\n' "${PREVIOUS_SHA}" > "${DEPLOY_STATE_DIR}/current-sha" || true
+        # Remove the success marker until recovery has actually been verified.
+        rm -f "${DEPLOY_STATE_DIR}/current-sha"
+        if git_repo checkout --detach --force "${PREVIOUS_SHA}" &&
+           bash -e "${REPO_DIR}/scripts/deploy-services.sh" &&
+           bash -e "${REPO_DIR}/scripts/verify-services.sh"; then
+            printf '%s\n' "${PREVIOUS_SHA}" > "${DEPLOY_STATE_DIR}/current-sha"
+        else
+            echo "ERROR: Rollback failed; deployment state is unknown and requires operator recovery." >&2
+        fi
     fi
 
     echo "Persistent data was not automatically restored. Use the pre-deployment backup if an image performed an incompatible database migration." >&2
@@ -86,14 +92,6 @@ CHECKED_OUT_TARGET=true
 if [[ -f "${REPO_DIR}/scripts/configure-jellyfin-host.sh" ]]; then
     log "Configuring Jellyfin host-specific LAN and GPU values"
     bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
-fi
-
-if [[ "${PREVIOUS_SHA}" == "${TARGET_SHA}" ]]; then
-    log "Commit ${TARGET_SHA} is already checked out; verifying the deployment"
-    bash "${REPO_DIR}/scripts/verify-services.sh"
-    printf '%s\n' "${TARGET_SHA}" > "${DEPLOY_STATE_DIR}/current-sha"
-    rm -f "${DEPLOY_STATE_DIR}/pending-sha"
-    exit 0
 fi
 
 log "Validating Compose configuration"
