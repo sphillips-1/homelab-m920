@@ -60,6 +60,28 @@ The official Android/iOS client uses native OIDC with PKCE and
 login. Do not put Cloudflare Access in front of this hostname: its browser-only
 session does not authenticate the app's later API requests.
 
+Lissen uses the same server URL and the **Continue with Authentik / Google**
+button. Deployment runs `scripts/reconcile-audiobookshelf-clients.py` inside
+the invitation provisioner, reusing its protected ABS API credential. It adds
+`lissen://oauth` to ABS's `authOpenIDMobileRedirectURIs` through
+`/api/auth-settings`, preserves existing callbacks, and verifies the saved list.
+Repeat deployments are a no-op when Lissen is already allowed. An existing
+wildcard is preserved; this script never introduces one. No Authentik provider
+callback change is required. Other authentication settings are left untouched.
+
+To reconcile an already deployed server from the canonical checkout:
+
+```bash
+sudo docker exec -i authentik-invitation-provisioner python - \
+  < /opt/homelab/scripts/reconcile-audiobookshelf-clients.py
+```
+
+The setting persists in `/srv/homelab/appdata/audiobookshelf`. Reverting code
+does not remove it; to revoke Lissen, remove its URI in ABS **Settings →
+Authentication → Allowed Mobile Redirect URIs** after removing it from
+`REQUIRED_URIS` in the reconciler. Validate sign-in and playback on the phone
+after deployment.
+
 ## Calibre-Web and OPDS
 
 Calibre-Web 0.6.27 does not support generic Authentik OIDC. Browser access uses

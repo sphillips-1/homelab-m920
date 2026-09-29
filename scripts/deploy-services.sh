@@ -159,6 +159,9 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-authentik-branding.py"
 
 deploy_service "audiobookshelf"
+log "Reconciling Audiobookshelf mobile clients"
+docker exec -i authentik-invitation-provisioner python - \
+    < "${REPO_DIR}/scripts/reconcile-audiobookshelf-clients.py"
 deploy_service "calibre-web"
 log "Configuring Jellyfin host-specific LAN and GPU values"
 bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
