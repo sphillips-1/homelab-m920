@@ -1,5 +1,25 @@
 # M920 qBittorrent
 
+## Dedicated torrent USB
+
+The existing 116 GiB ext4 USB (UUID
+`e440863e-34ce-4c29-b05a-c5dfda01a743`, label `AUDIOBOOKS`) mounts directly at
+`/srv/homelab/media/torrents-m920`. Both complete and incomplete payloads live
+on this device. Appdata remains on the M920 internal disk.
+
+`scripts/setup-m920-torrent-storage.sh` mounts this specific existing filesystem
+without formatting it, preserves existing files, and installs its UUID-based
+fstab entry. It refuses conflicting mounts or pre-existing internal payloads.
+Deployment verifies the UUID, ext4, writable mount and download directories.
+The container entrypoint independently refuses an internal-disk download bind
+or a missing USB marker, including during Docker restart or manual Compose use.
+Missing USB storage therefore prevents qBittorrent startup. The rest of the
+M920 can boot without this optional device. Do not remove it while downloading;
+stop the Compose stack and unmount this path first.
+
+Run `bash scripts/check-m920-torrent-storage.sh` on the host and the existing
+API verifier in the qBittorrent network namespace after storage changes.
+
 Separate from the existing Pi instance; no Pi state or downloads are migrated.
 Appdata lives in `/srv/homelab/appdata/qbittorrent-m920`; downloads live in
 `/srv/homelab/media/torrents-m920/{complete,incomplete}`.

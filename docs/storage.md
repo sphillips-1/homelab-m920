@@ -1,6 +1,13 @@
 Storage
 Storage boundary
 
+M920 qBittorrent has a separate dedicated USB filesystem mounted at
+`/srv/homelab/media/torrents-m920` by UUID
+`e440863e-34ce-4c29-b05a-c5dfda01a743`. Complete and incomplete torrent
+payloads both live there; its appdata remains under `/srv/homelab/appdata`.
+This is independent of the large external audiobook/media filesystem.
+See `services/qbittorrent-m920/README.md` for mounting and storage guards.
+
 The Git repository and operating-system configuration live under:
 
 /opt/homelab

@@ -178,6 +178,7 @@ deploy_service "homepage"
 
 log "Configuring M920 qBittorrent and SSO"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
+bash "${REPO_DIR}/scripts/setup-m920-torrent-storage.sh"
 python3 "${REPO_DIR}/scripts/configure-m920-qbittorrent.py"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-qbittorrent-sso.py"

@@ -4,6 +4,7 @@ services:
     container_name: m920-qbittorrent
     restart: unless-stopped
     stop_grace_period: 60s
+    entrypoint: ["/bin/bash", "/storage-entrypoint.sh"]
     environment:
       PUID: "1000"
       PGID: "1000"
@@ -15,7 +16,12 @@ services:
       - homelab
     volumes:
       - /srv/homelab/appdata/qbittorrent-m920:/config
-      - /srv/homelab/media/torrents-m920:/downloads
+      - type: bind
+        source: /srv/homelab/media/torrents-m920
+        target: /downloads
+        bind:
+          create_host_path: false
+      - ./storage-entrypoint.sh:/storage-entrypoint.sh:ro
   gateway:
     image: nginx:1.28-alpine
     container_name: qbittorrent-gateway

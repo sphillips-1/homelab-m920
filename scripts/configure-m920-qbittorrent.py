@@ -3,7 +3,9 @@
 import configparser
 from pathlib import Path
 import os
+import subprocess
 
+subprocess.run(['bash', '/opt/homelab/scripts/check-m920-torrent-storage.sh'], check=True)
 root = Path('/srv/homelab')
 config_dir = root / 'appdata/qbittorrent-m920/qBittorrent'
 config_dir.mkdir(parents=True, exist_ok=True)
@@ -42,9 +44,7 @@ with temporary.open('w') as stream:
 os.chmod(temporary, 0o640)
 os.chown(temporary, 1000, 1000)
 temporary.replace(path)
-for directory in [config_dir.parent, config_dir,
-                  root / 'media/torrents-m920/complete',
-                  root / 'media/torrents-m920/incomplete']:
+for directory in [config_dir.parent, config_dir]:
     directory.mkdir(parents=True, exist_ok=True)
     os.chown(directory, 1000, 1000)
     os.chmod(directory, 0o750)

@@ -4,6 +4,13 @@ import json
 import socket
 import urllib.request
 import urllib.error
+import os
+from pathlib import Path
+
+if Path('/downloads').exists():
+    assert os.stat('/downloads').st_dev != os.stat('/config').st_dev
+    assert Path('/downloads/.homelab-torrent-volume').read_text().strip() == (
+        'e440863e-34ce-4c29-b05a-c5dfda01a743')
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args):
@@ -24,11 +31,21 @@ with urllib.request.urlopen(request, timeout=10) as response:
     preferences = json.load(response)
 assert preferences['save_path'].rstrip('/') == '/downloads/complete'
 assert preferences['temp_path'].rstrip('/') == '/downloads/incomplete'
+assert preferences['temp_path_enabled']
 assert preferences['web_ui_address'] == '127.0.0.1'
 assert preferences['web_ui_csrf_protection_enabled']
 assert preferences['web_ui_host_header_validation_enabled']
 assert not preferences['bypass_auth_subnet_whitelist_enabled']
 assert not preferences['upnp']
+for route in ('torrents/info', 'torrents/categories'):
+    request = urllib.request.Request('http://127.0.0.1:8080/api/v2/' + route,
+                                     headers={'Host': 'torrents.shelfgoblin.dev'})
+    with urllib.request.urlopen(request, timeout=10) as response:
+        data = json.load(response)
+    items = data.values() if isinstance(data, dict) else data
+    for item in items:
+        path = item.get('save_path', item.get('savePath', ''))
+        assert not path or path == '/downloads' or path.startswith('/downloads/'), path
 address = socket.gethostbyname('m920-qbittorrent')
 with socket.socket() as connection:
     connection.settimeout(3)
