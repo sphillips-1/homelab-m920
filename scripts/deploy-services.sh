@@ -181,6 +181,8 @@ docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
 python3 "${REPO_DIR}/scripts/configure-m920-qbittorrent.py"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-qbittorrent-sso.py"
+docker exec -i authentik-worker ak shell \
+    < "${REPO_DIR}/scripts/verify-qbittorrent-sso.py"
 deploy_service "qbittorrent-m920"
 # A recreated application has a new network namespace; reattach its sidecar.
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" \
