@@ -175,6 +175,16 @@ else
     echo "Intro Skipper reconciliation skipped: services/jellyfin/.intro-skipper.env is not configured."
 fi
 deploy_service "homepage"
+
+log "Configuring M920 qBittorrent and SSO"
+docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
+python3 "${REPO_DIR}/scripts/configure-m920-qbittorrent.py"
+docker exec -i authentik-worker ak shell \
+    < "${REPO_DIR}/scripts/reconcile-qbittorrent-sso.py"
+deploy_service "qbittorrent-m920"
+# A recreated application has a new network namespace; reattach its sidecar.
+docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" \
+    up -d --force-recreate gateway
 deploy_monitoring
 deploy_cloudflared
 

@@ -43,7 +43,9 @@ for container in \
     jellyfin \
     beszel \
     top-users \
-    status-gateway; do
+    status-gateway \
+    m920-qbittorrent \
+    qbittorrent-gateway; do
     wait_for_container "${container}"
 done
 

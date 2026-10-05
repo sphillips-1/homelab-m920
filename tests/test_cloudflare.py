@@ -57,6 +57,7 @@ class CloudflareTest(unittest.TestCase):
                     "auth.example.invalid/if/flow/default-authentication-flow/": "http://authentik-server:9000",
                     "jellyfin.example.invalid/": "http_status:404",
                     "unknown.example.invalid/": "http_status:404",
+                    "torrents.example.invalid/": "http://m920-qbittorrent:8091" if mode == "sso" else "http_status:404",
                     "books.example.invalid/": "http_status:404" if mode == "safe" else
                         "http://authentik-server:9000" if mode == "sso" else "http://calibre-web:8083",
                     "status.example.invalid/": "http_status:404" if mode == "safe" else

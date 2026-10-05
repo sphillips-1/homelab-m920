@@ -10,6 +10,12 @@ through the Authentik embedded proxy before reaching Calibre-Web.
 Beszel.
 `auth.shelfgoblin.dev` continues to route to Authentik.
 
+`torrents.shelfgoblin.dev` reaches the M920 qBittorrent gateway, which enforces
+Authentik forward authentication on every Web UI/API request. Its portal tile
+and application access require explicit `torrent-users` membership. Standard
+invitations do not grant this group. Approved users share full instance control.
+See `services/qbittorrent-m920/README.md` for storage and deployment details.
+
 LAN and Tailscale continue to use host ports 13378 and 8083. Audiobookshelf
 uses OpenID exclusively on every network path; its persisted password hashes
 remain in the database for rollback but password authentication is disabled.
