@@ -5,6 +5,16 @@
 Open the **Import audiobooks** Authentik tile or
 `https://torrents.shelfgoblin.dev/imports/`. Choose a completed audiobook,
 enter its author and title, and click **Import to Audiobookshelf**. The importer
+now requires a metadata review first: click **Search ABS metadata**, review
+the narrator/edition/series, and choose **Use this metadata**. Audible, Google
+Books and Open Library use the deployed ABS search API without importing any
+file. An explicit manual confirmation is available when no match is suitable.
+Editing the author/title invalidates a chosen match; review records expire
+after one hour. Selected metadata is written to the copied `metadata.json`
+before publication, preserving existing chapter information and USB originals.
+Matches are suggestions; they do not verify that the audio is the same edition.
+
+The importer
 copies audio, covers and companion metadata into `Books/Author/Title` on the
 large library drive, then requests the existing Audiobookshelf library scan.
 Original USB files remain untouched for seeding. Imports run on the server

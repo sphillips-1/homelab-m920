@@ -16,6 +16,11 @@
     <p id="details" class="hint"></p>
     <div class="fields"><div><label for="author">Author</label><input id="author" required maxlength="180" placeholder="e.g. Terry Pratchett"></div>
     <div><label for="title">Book title</label><input id="title" required maxlength="180" placeholder="e.g. Small Gods"></div></div>
+    <div class="fields"><div><label for="provider">Metadata provider</label><select id="provider"><option value="audible">Audible</option><option value="google">Google Books</option><option value="openlibrary">Open Library</option></select></div><div class="lookup"><button id="lookup" type="button">Search ABS metadata</button></div></div>
+    <p class="hint">Confirm the title, narrator and edition before importing. Search suggestions do not verify the audio itself.</p>
+    <div id="matches" aria-live="polite"></div>
+    <p id="review-status" role="status"></p>
+    <label class="manual"><input id="manual" type="checkbox"> I reviewed the entered author and title; import without a provider match.</label>
     <button id="submit" type="submit" disabled>Import to Audiobookshelf</button>
     <p id="message" role="status" aria-live="polite"></p>
   </form></section>

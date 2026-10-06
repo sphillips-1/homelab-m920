@@ -1,5 +1,7 @@
 """Exercise import safety without touching real downloads or library data."""
 import importlib.util
+import io
+import json
 from pathlib import Path
 import tempfile
 import threading
@@ -28,10 +30,12 @@ class ImportTests(unittest.TestCase):
         self.library.mkdir()
         self.stage.mkdir()
         for name, value in [('LIBRARY', self.library), ('STAGING', self.stage),
+                            ('STATE', self.root / 'state'),
                             ('storage_ready', lambda: None), ('torrents', lambda: [])]:
             p = patch.object(app, name, value)
             p.start()
             self.addCleanup(p.stop)
+        app.initialize()
 
     def test_copy_preserves_usb_and_publishes_complete_book(self):
         destination = app.destination('Author', 'Title')
@@ -95,6 +99,42 @@ class ImportTests(unittest.TestCase):
                 urllib.request.urlopen(urllib.request.Request(base + path, data=body,
                                                              headers=headers))
             self.assertEqual(error.exception.code, 403)
+
+    def test_metadata_review_is_required_and_cannot_be_reused_with_edits(self):
+        with self.assertRaises(ValueError):
+            app.reviewed_metadata({}, 'Author', 'Title')
+        with app.database() as db:
+            db.execute('INSERT INTO reviews VALUES (?, ?, ?, ?, ?)',
+                       ('match', 'Author', 'Title', json.dumps({'title': 'Title'}), 9999999999))
+        self.assertEqual(app.reviewed_metadata({'review': 'match'}, 'Author', 'Title'),
+                         {'title': 'Title'})
+        with self.assertRaises(ValueError):
+            app.reviewed_metadata({'review': 'match'}, 'Author', 'Different title')
+        self.assertEqual(app.reviewed_metadata({'manual': True}, 'Author', 'Title'),
+                         {'title': 'Title', 'authors': ['Author']})
+
+    def test_reviewed_metadata_overrides_only_the_copy(self):
+        original = {'metadata': {'title': 'Wrong title'}, 'chapters': [{'start': 0, 'end': 10}]}
+        (self.source / 'metadata.json').write_text(json.dumps(original))
+        target = app.destination('Author', 'Title')
+        app.copy_book(self.source, target, self.stage / 'job', {'title': 'Title',
+                                                              'authors': ['Author']})
+        imported = json.loads((target / 'metadata.json').read_text())
+        self.assertEqual(imported['title'], 'Title')
+        self.assertEqual(imported['chapters'], original['chapters'])
+        self.assertNotIn('metadata', imported)
+        self.assertEqual(json.loads((self.source / 'metadata.json').read_text()), original)
+
+    def test_abs_search_previews_without_publishing_a_book(self):
+        data = [{'title': 'Title', 'author': 'Author', 'narrator': 'Narrator',
+                 'series': [{'series': 'Series', 'sequence': '2'}], 'asin': 'B000000001'}]
+        with patch.object(app.urllib.request, 'urlopen', return_value=io.BytesIO(json.dumps(data).encode())):
+            result = app.metadata_search({'author': 'Author', 'title': 'Title', 'provider': 'audible'})
+        self.assertEqual(result[0]['metadata']['narrators'], ['Narrator'])
+        self.assertEqual(result[0]['metadata']['series'], ['Series #2'])
+        self.assertFalse((self.library / 'Author').exists())
+        self.assertEqual(app.reviewed_metadata({'review': result[0]['id']}, 'Author', 'Title')['asin'],
+                         'B000000001')
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

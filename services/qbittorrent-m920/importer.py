@@ -10,6 +10,7 @@ import stat
 import threading
 import time
 import urllib.request
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 DOWNLOADS = Path(os.getenv('IMPORT_DOWNLOADS', '/downloads'))
@@ -32,6 +33,8 @@ def initialize():
     with database() as db:
         db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, source TEXT, '
                    'author TEXT, title TEXT, status TEXT, message TEXT, created REAL)')
+        db.execute('CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, '
+                   'author TEXT, title TEXT, metadata TEXT, expires REAL)')
         db.execute("UPDATE jobs SET status='interrupted', message=? WHERE status='copying'",
                    ('Import interrupted. Check the library before retrying.',))
 
@@ -137,7 +140,7 @@ def update_job(job, status, message):
     with database() as db:
         db.execute('UPDATE jobs SET status=?, message=? WHERE id=?', (status, message, job))
 
-def copy_book(source, target, stage):
+def copy_book(source, target, stage, metadata=None):
     storage_ready()
     files = source_files(source)
     required = sum(size for _, size, _ in files)
@@ -162,6 +165,21 @@ def copy_book(source, target, stage):
                 if (after.st_size, after.st_mtime_ns) != (size, modified):
                     raise ValueError('Download changed during import; retry when complete.')
             os.chmod(output, 0o640)
+        if metadata is not None:
+            # Override only the copied sidecar; never change the USB original.
+            sidecar = stage / 'metadata.json'
+            try:
+                existing = json.loads(sidecar.read_text(encoding='utf-8'))
+                if not isinstance(existing, dict):
+                    existing = {}
+            except (OSError, ValueError):
+                existing = {}
+            legacy = existing.pop('metadata', None)
+            if isinstance(legacy, dict):
+                existing.update(legacy)
+            existing.update(metadata)
+            sidecar.write_text(json.dumps(existing, ensure_ascii=False),
+                                                 encoding='utf-8')
         storage_ready()
         ensure_complete(source, torrents())
         target.parent.mkdir(mode=0o755, exist_ok=True)
@@ -176,9 +194,9 @@ def copy_book(source, target, stage):
         if stage.exists():
             shutil.rmtree(stage)
 
-def run_job(job, source, target):
+def run_job(job, source, target, metadata=None):
     try:
-        copy_book(source, target, STAGING / job)
+        copy_book(source, target, STAGING / job, metadata)
     except Exception as error:
         update_job(job, 'failed', str(error) if isinstance(error, ValueError)
                    else 'Import failed. Check server logs and library storage.')
@@ -192,12 +210,75 @@ def run_job(job, source, target):
     finally:
         lock.release()
 
+def metadata_search(payload):
+    author, title = component(payload.get('author')), component(payload.get('title'))
+    provider = payload.get('provider', 'audible')
+    if provider not in ('audible', 'google', 'openlibrary'):
+        raise ValueError('Choose a supported metadata provider.')
+    token = os.environ.get('AUDIOBOOKSHELF_API_TOKEN', '')
+    base = os.getenv('AUDIOBOOKSHELF_URL', 'http://audiobookshelf:80').rstrip('/')
+    query = urllib.parse.urlencode({'title': title, 'author': author, 'provider': provider})
+    request = urllib.request.Request(base + '/api/search/books?' + query,
+                                     headers={'Authorization': 'Bearer ' + token})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        candidates = json.load(response)
+    if not isinstance(candidates, list):
+        raise ValueError('ABS returned an invalid metadata response.')
+    result = []
+    with database() as db:
+        db.execute('DELETE FROM reviews WHERE expires < ?', (time.time(),))
+        for candidate in candidates[:12]:
+            if (not isinstance(candidate.get('title'), str) or not candidate['title']
+                    or not isinstance(candidate.get('author'), str) or not candidate['author']):
+                continue
+            metadata = {'title': candidate['title'], 'authors': [candidate['author']]}
+            for field in ('subtitle', 'publisher', 'publishedYear', 'isbn', 'asin', 'language'):
+                if candidate.get(field) is not None:
+                    metadata[field] = str(candidate[field])
+            metadata['description'] = str(candidate.get('descriptionPlain') or '')[:10000]
+            for field in ('genres', 'tags'):
+                if isinstance(candidate.get(field), list):
+                    metadata[field] = [v for v in candidate[field] if isinstance(v, str)]
+            if candidate.get('narrator'):
+                metadata['narrators'] = [n.strip() for n in candidate['narrator'].split(',') if n.strip()]
+            if isinstance(candidate.get('abridged'), bool):
+                metadata['abridged'] = candidate['abridged']
+            metadata['series'] = []
+            series_values = candidate.get('series') or []
+            if isinstance(series_values, str):
+                series_values = [series_values]
+            for series in series_values:
+                if isinstance(series, dict) and series.get('series'):
+                    sequence = str(series.get('sequence') or '')
+                    metadata['series'].append(series['series'] + (' #' + sequence if sequence else ''))
+                elif isinstance(series, str):
+                    metadata['series'].append(series)
+            folder_author = component(candidate['author'].replace('/', ' - ').replace('\\', ' - '))
+            folder_title = component(candidate['title'].replace('/', ' - ').replace('\\', ' - '))
+            review = secrets.token_hex(16)
+            db.execute('INSERT INTO reviews VALUES (?, ?, ?, ?, ?)',
+                       (review, folder_author, folder_title, json.dumps(metadata), time.time() + 3600))
+            result.append({'id': review, 'author': folder_author, 'title': folder_title,
+                           'metadata': metadata, 'provider': provider})
+    return result
+
+def reviewed_metadata(payload, author, title):
+    if payload.get('manual') is True:
+        return {'title': title, 'authors': [author]}
+    with database() as db:
+        review = db.execute('SELECT * FROM reviews WHERE id=? AND expires>?',
+                            (payload.get('review', ''), time.time())).fetchone()
+    if not review or (review['author'], review['title']) != (author, title):
+        raise ValueError('Review an ABS match, or explicitly confirm manual metadata.')
+    return json.loads(review['metadata'])
+
 def start_job(payload):
     source_name = payload.get('source')
     available = {item['source'] for item in catalog()}
     if source_name not in available:
         raise ValueError('Choose a completed audiobook from the list.')
     author, title = component(payload.get('author')), component(payload.get('title'))
+    metadata = reviewed_metadata(payload, author, title)
     target = destination(author, title)
     if not lock.acquire(blocking=False):
         raise ValueError('An import is already running. Wait for it to finish.')
@@ -207,7 +288,7 @@ def start_job(payload):
             db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (job, source_name, author, title, 'copying', 'Copying audiobook…', time.time()))
         threading.Thread(target=run_job, args=(job, DOWNLOADS / 'complete' / source_name,
-                                              target), daemon=True).start()
+                                              target, metadata), daemon=True).start()
     except Exception:
         lock.release()
         raise
@@ -262,7 +343,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             self.send(403, {'error': 'Sign in with your approved account.'})
             return
-        if (self.path != '/imports/api/import' or
+        if (self.path not in ('/imports/api/import', '/imports/api/metadata') or
                 self.headers.get('Origin') != 'https://torrents.shelfgoblin.dev' or
                 self.headers.get('Content-Type') != 'application/json'):
             self.send(403, {'error': 'Invalid import request.'})
@@ -274,7 +355,10 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError('Invalid import request.')
-            self.send(202, start_job(payload))
+            if self.path == '/imports/api/metadata':
+                self.send(200, metadata_search(payload))
+            else:
+                self.send(202, start_job(payload))
         except (ValueError, TypeError) as error:
             self.send(400, {'error': str(error)})
         except Exception:
