@@ -28,7 +28,7 @@ chmod 0444 "$root/.homelab-torrent-volume"
 chown root:root "$root/.homelab-torrent-volume"
 line="UUID=$expected $root ext4 defaults,nofail,nodev,nosuid,noexec,x-systemd.device-timeout=10s 0 2"
 if ! grep -Fqx "$line" /etc/fstab; then
-    if grep -Eq "^[^#].*($expected|[[:space:]]$root[[:space:]])" /etc/fstab; then
+    if grep -Eq "^[^#].*(${expected}|[[:space:]]${root}[[:space:]])" /etc/fstab; then
         echo 'Conflicting fstab entry; refusing to overwrite it.' >&2; exit 1
     fi
     cp -a /etc/fstab "/etc/fstab.before-torrent-usb-$(date +%Y%m%d-%H%M%S)"
