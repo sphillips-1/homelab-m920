@@ -45,7 +45,8 @@ for container in \
     top-users \
     status-gateway \
     m920-qbittorrent \
-    qbittorrent-gateway; do
+    qbittorrent-gateway \
+    audiobook-importer; do
     wait_for_container "${container}"
 done
 

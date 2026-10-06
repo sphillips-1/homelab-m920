@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import audiobooks · ShelfGoblin</title>
+  <link rel="stylesheet" href="/imports/style.css"><script defer src="/imports/app.js"></script>
+</head>
+<body><main>
+  <nav><a href="https://auth.shelfgoblin.dev/if/user/">ShelfGoblin</a><a href="/">Downloads ↗</a></nav>
+  <p class="eyebrow">FROM DOWNLOAD TO LIBRARY</p>
+  <h1>Bring a book to the shelf.</h1>
+  <p class="intro">Choose a finished audiobook from your USB drive. We'll copy it to the library and refresh Audiobookshelf. Your download stays available for seeding.</p>
+  <section aria-labelledby="import-heading"><h2 id="import-heading">Import an audiobook</h2>
+  <form id="import-form">
+    <label for="source">Completed download</label><select id="source" required><option value="">Loading downloads…</option></select>
+    <p id="details" class="hint"></p>
+    <div class="fields"><div><label for="author">Author</label><input id="author" required maxlength="180" placeholder="e.g. Terry Pratchett"></div>
+    <div><label for="title">Book title</label><input id="title" required maxlength="180" placeholder="e.g. Small Gods"></div></div>
+    <button id="submit" type="submit" disabled>Import to Audiobookshelf</button>
+    <p id="message" role="status" aria-live="polite"></p>
+  </form></section>
+  <section aria-labelledby="recent-heading"><h2 id="recent-heading">Recent imports</h2><div id="jobs"><p class="hint">No imports yet.</p></div></section>
+  <footer><a href="https://audiobooks.shelfgoblin.dev/audiobookshelf/">Open Audiobookshelf ↗</a><span>One audiobook per folder · Existing books are never replaced</span></footer>
+</main></body></html>

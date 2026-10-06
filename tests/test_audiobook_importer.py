@@ -1,0 +1,100 @@
+"""Exercise import safety without touching real downloads or library data."""
+import importlib.util
+from pathlib import Path
+import tempfile
+import threading
+import urllib.request
+import urllib.error
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location('importer', ROOT / 'services/qbittorrent-m920/importer.py')
+app = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(app)
+
+class ImportTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.source = self.root / 'complete' / 'Book'
+        self.source.mkdir(parents=True)
+        (self.source / 'track.mp3').write_bytes(b'audio fixture')
+        (self.source / 'cover.jpg').write_bytes(b'cover fixture')
+        (self.source / 'unrelated.exe').write_bytes(b'do not copy')
+        self.library = self.root / 'library'
+        self.stage = self.root / 'staging'
+        self.library.mkdir()
+        self.stage.mkdir()
+        for name, value in [('LIBRARY', self.library), ('STAGING', self.stage),
+                            ('storage_ready', lambda: None), ('torrents', lambda: [])]:
+            p = patch.object(app, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_copy_preserves_usb_and_publishes_complete_book(self):
+        destination = app.destination('Author', 'Title')
+        app.copy_book(self.source, destination, self.stage / 'job')
+        self.assertEqual((destination / 'track.mp3').read_bytes(), b'audio fixture')
+        self.assertTrue((destination / 'cover.jpg').exists())
+        self.assertFalse((destination / 'unrelated.exe').exists())
+        self.assertTrue((self.source / 'track.mp3').exists())
+        self.assertFalse((self.stage / 'job').exists())
+        with self.assertRaises(ValueError):
+            app.destination('Author', 'Title')
+
+    def test_incomplete_or_checking_torrent_is_rejected(self):
+        for progress, state in [(0.5, 'downloading'), (1, 'checkingUP')]:
+            with self.assertRaises(ValueError):
+                app.ensure_complete(self.source, [{'content_path': str(self.source),
+                                                   'progress': progress, 'state': state}])
+
+    def test_failed_copy_never_publishes_partial_book(self):
+        destination = app.destination('Author', 'Title')
+        with patch.object(app.shutil, 'copyfileobj', side_effect=OSError('disk full')):
+            with self.assertRaises(OSError):
+                app.copy_book(self.source, destination, self.stage / 'job')
+        self.assertFalse(destination.exists())
+        self.assertFalse((self.stage / 'job').exists())
+        self.assertTrue((self.source / 'track.mp3').exists())
+
+    def test_symlink_and_traversal_rejected(self):
+        for value in ['../outside', 'Author/Other', '..', 'x\\y']:
+            with self.assertRaises(ValueError):
+                app.component(value)
+        (self.source / 'link.mp3').symlink_to(self.source / 'track.mp3')
+        with self.assertRaises(ValueError):
+            app.source_files(self.source)
+        (self.library / 'Author').symlink_to(self.stage, target_is_directory=True)
+        with self.assertRaises(ValueError):
+            app.destination('Author', 'Title')
+
+    def test_plain_audio_file_import(self):
+        source = self.source / 'track.mp3'
+        destination = app.destination('Author', 'Title')
+        app.copy_book(source, destination, self.stage / 'job')
+        self.assertEqual((destination / 'track.mp3').read_bytes(), source.read_bytes())
+
+    def test_http_requires_verified_identity_and_same_origin(self):
+        server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        base = f'http://127.0.0.1:{server.server_port}'
+        for path, headers, body in [
+            ('/imports/api/downloads', {}, None),
+            ('/imports/api/import', {'X-Authentik-Email': 'owner@example.invalid',
+                                    'X-Authentik-Groups': 'torrent-users',
+                                    'Content-Type': 'application/json',
+                                    'Origin': 'https://evil.example.invalid'}, b'{}'),
+            ('/imports/api/import', {'X-Authentik-Email': 'reader@example.invalid',
+                                    'X-Authentik-Groups': 'books-users'}, b'{}'),
+        ]:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                urllib.request.urlopen(urllib.request.Request(base + path, data=body,
+                                                             headers=headers))
+            self.assertEqual(error.exception.code, 403)
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

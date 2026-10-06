@@ -1,5 +1,33 @@
 # M920 qBittorrent
 
+## Import audiobooks
+
+Open the **Import audiobooks** Authentik tile or
+`https://torrents.shelfgoblin.dev/imports/`. Choose a completed audiobook,
+enter its author and title, and click **Import to Audiobookshelf**. The importer
+copies audio, covers and companion metadata into `Books/Author/Title` on the
+large library drive, then requests the existing Audiobookshelf library scan.
+Original USB files remain untouched for seeding. Imports run on the server
+even if the browser closes; the page shows recent results.
+
+Place one audiobook per top-level folder in the USB's `complete` directory,
+or use a standalone audio file. Extract ZIP/RAR archives first. Incomplete or
+checking torrents, symlinks and existing author/title destinations are refused.
+Only one copy runs at a time. Partial copies are staged outside the watched
+library in `/srv/homelab/storage/.audiobook-imports` and published after the
+copy finishes. Jobs persist under `/srv/homelab/appdata/audiobook-importer`.
+An interrupted import is flagged for review; source files are always preserved.
+
+The importer listens only on shared-container loopback. Its gateway checks
+Authentik and supplies verified email/group headers. Access requires the same
+`torrent-users` membership as qBittorrent, currently granted only to the owner.
+POST imports require a same-origin JSON request. USB access is read-only;
+destination and staging mounts refuse automatic directory creation. Runtime
+checks prevent copying to a missing library mount. The importer reuses the
+existing protected ABS integration credential from `.env.invitation`; no new
+credential is stored in Git. If scanning fails after a successful copy, the
+result tells the owner to run **Scan** in Audiobookshelf.
+
 ## Dedicated torrent USB
 
 The existing 116 GiB ext4 USB (UUID

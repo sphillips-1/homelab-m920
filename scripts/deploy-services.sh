@@ -179,6 +179,7 @@ deploy_service "homepage"
 log "Configuring M920 qBittorrent and SSO"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
 bash "${REPO_DIR}/scripts/setup-m920-torrent-storage.sh"
+bash "${REPO_DIR}/scripts/setup-audiobook-importer.sh"
 python3 "${REPO_DIR}/scripts/configure-m920-qbittorrent.py"
 docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-qbittorrent-sso.py"
@@ -187,7 +188,7 @@ docker exec -i authentik-worker ak shell \
 deploy_service "qbittorrent-m920"
 # A recreated application has a new network namespace; reattach its sidecar.
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" \
-    up -d --force-recreate gateway
+    up -d --force-recreate gateway audiobook-importer
 deploy_monitoring
 deploy_cloudflared
 

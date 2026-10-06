@@ -31,6 +31,51 @@ services:
       - qbittorrent
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  audiobook-importer:
+    image: python:3.13-alpine
+    container_name: audiobook-importer
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    network_mode: service:qbittorrent
+    depends_on:
+      - qbittorrent
+    env_file:
+      - ../authentik/.env.invitation
+    command: ["python", "-B", "/app/importer.py"]
+    volumes:
+      - ./importer.py:/app/importer.py:ro
+      - ./import.html:/app/import.html:ro
+      - ./import.js:/app/import.js:ro
+      - ./import.css:/app/import.css:ro
+      - type: bind
+        source: /srv/homelab/media/torrents-m920
+        target: /downloads
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/homelab/media/audiobooks/Books
+        target: /library
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/homelab/storage/.audiobook-imports
+        target: /staging
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/homelab/appdata/audiobook-importer
+        target: /state
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8092/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 networks:
   homelab:
     external: true

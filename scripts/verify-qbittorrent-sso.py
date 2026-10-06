@@ -18,7 +18,7 @@ group = Group.objects.get(name='torrent-users')
 factory = APIRequestFactory()
 view = ApplicationViewSet.as_view({'get': 'list'})
 
-def portal_contains(user, search):
+def portal_contains(user, search, slug='qbittorrent'):
     request = factory.get('/api/v3/core/applications/', {
         'search': search, 'only_with_launch_url': 'true', 'page_size': 100,
     })
@@ -26,14 +26,17 @@ def portal_contains(user, search):
     force_authenticate(request, user=user)
     response = view(request)
     assert response.status_code == 200, response.data
-    return any(item['slug'] == 'qbittorrent' for item in response.data['results'])
+    return any(item['slug'] == slug for item in response.data['results'])
 
 for user in group.users.filter(is_active=True):
     assert portal_contains(user, 'qBittorrent'), 'Uncached portal omitted tile'
     assert portal_contains(user, ''), 'Cached portal omitted tile'
+    assert portal_contains(user, 'Import audiobooks', 'audiobook-imports'), 'Import tile missing'
+    assert portal_contains(user, '', 'audiobook-imports'), 'Cached import tile missing'
 # Ordinary approved library users still have no torrent access.
 denied = User.objects.filter(is_active=True, groups__name='books-users').exclude(
     groups=group).first()
 if denied:
     assert not portal_contains(denied, 'qBittorrent'), 'Unapproved user saw tile'
+    assert not portal_contains(denied, 'Import audiobooks', 'audiobook-imports'), 'Import tile exposed'
 print('OAuth callback and grant type valid; approved portal tile visible; unapproved user denied.')
