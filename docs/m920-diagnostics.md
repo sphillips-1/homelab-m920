@@ -5,7 +5,9 @@ the existing runner with `self-hosted`, `linux`, `x64`, and `m920` labels and
 the `infrastructure` environment. The workflow must first be present on the
 default branch for GitHub to expose its manual dispatch button.
 
-The workflow shares Deploy's `production-deployment` concurrency group. It
+The workflow serializes diagnostic runs with its own `m920-diagnostics` group,
+so a deployment awaiting approval cannot block recovery inspection. Results
+are a point-in-time snapshot and may change during a concurrent deployment. It
 does not check out or update `/opt/homelab`, deploy containers, restart services,
 change networking, or repair storage. It publishes a selected diagnostic snapshot
 in the run summary and logs, without raw journals, container environments,
