@@ -1,0 +1,158 @@
+name: M920 Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 10
+    steps:
+      # No checkout or host mutations. Emit selected fields, never raw logs,
+      # container environment, SSH configuration, or application response bodies.
+      - name: Collect post-reboot diagnostics
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import collections
+          import datetime
+          import json
+          import os
+          import socket
+          import subprocess
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          rows = []
+          def emit(check, result):
+              row = {"check": check, "result": result}
+              rows.append(row)
+              print(json.dumps(row), flush=True)
+
+          def run(args):
+              try:
+                  return subprocess.run(args, text=True, capture_output=True, timeout=20)
+              except (OSError, subprocess.TimeoutExpired):
+                  return None
+
+          def probe(check, args, parser):
+              result = run(args)
+              if result is None or result.returncode:
+                  emit(check, "unavailable")
+                  return
+              try:
+                  emit(check, parser(result.stdout))
+              except (ValueError, KeyError, TypeError, IndexError):
+                  emit(check, "unexpected output")
+
+          emit("utc", datetime.datetime.now(datetime.timezone.utc).isoformat())
+          emit("hostname", socket.gethostname())
+          emit("uptime_seconds", float(Path('/proc/uptime').read_text().split()[0]))
+          emit("boot_id", Path('/proc/sys/kernel/random/boot_id').read_text().strip())
+          probe("addresses", ["ip", "-j", "address", "show"], lambda raw: [
+              {"interface": i['ifname'], "state": i.get('operstate'),
+               "addresses": [a['local'] for a in i.get('addr_info', [])]}
+              for i in json.loads(raw)])
+          probe("routes", ["ip", "-j", "route", "show"], lambda raw: [
+              {k: r[k] for k in ('dst', 'gateway', 'dev', 'prefsrc') if k in r}
+              for r in json.loads(raw)])
+          for unit in ('ssh.service', 'ssh.socket', 'docker.service', 'tailscaled.service'):
+              probe(unit, ["systemctl", "show", unit, "--property=LoadState,ActiveState,SubState,Result"],
+                    lambda raw: dict(line.split('=', 1) for line in raw.splitlines() if '=' in line))
+          probe("failed_units", ["systemctl", "list-units", "--failed", "--no-legend", "--plain", "--no-pager"],
+                lambda raw: [line.split()[0] for line in raw.splitlines() if line.strip()])
+          for host in ('127.0.0.1', '192.168.4.37'):
+              try:
+                  with socket.create_connection((host, 22), timeout=3):
+                      emit('ssh_tcp_' + host, 'reachable')
+              except OSError as exc:
+                  emit('ssh_tcp_' + host, type(exc).__name__)
+
+          for target in ('/srv/homelab/storage', '/srv/homelab/media/audiobooks',
+                         '/srv/homelab/media/movies', '/srv/homelab/media/tv',
+                         '/srv/homelab/media/torrents-m920'):
+              probe('mount_' + target, ["findmnt", "--json", "--mountpoint", target,
+                    "--output", "TARGET,FSTYPE,OPTIONS,UUID"], lambda raw: json.loads(raw)['filesystems'])
+              try:
+                  stats = os.statvfs(target)
+                  emit('capacity_' + target, {'free_bytes': stats.f_bavail * stats.f_frsize,
+                       'total_bytes': stats.f_blocks * stats.f_frsize})
+              except OSError:
+                  emit('capacity_' + target, 'unavailable')
+          probe("torrent_storage_guard", ["bash", "/opt/homelab/scripts/check-m920-torrent-storage.sh"],
+                lambda raw: "passed")
+
+          docker = None
+          for prefix in (["docker"], ["sudo", "-n", "docker"]):
+              result = run(prefix + ['ps', '--format', '{{.ID}}'])
+              if result is not None and result.returncode == 0:
+                  docker = prefix
+                  break
+          emit('docker_access', 'available' if docker else 'unavailable')
+          names = ('authentik-postgresql', 'authentik-server', 'authentik-worker',
+                   'authentik-invitation-provisioner', 'audiobookshelf', 'audiobookshelf-gateway',
+                   'calibre-web', 'jellyfin', 'beszel', 'beszel-agent', 'top-users',
+                   'status-gateway', 'm920-qbittorrent', 'qbittorrent-gateway',
+                   'audiobook-importer', 'cloudflared')
+          if docker:
+              for name in names:
+                  def container(raw):
+                      item = json.loads(raw)[0]
+                      state = item['State']
+                      return {'status': state['Status'], 'health': state.get('Health', {}).get('Status'),
+                              'restarts': item['RestartCount'], 'started_at': state['StartedAt']}
+                  probe('container_' + name, docker + ['inspect', name], container)
+
+          # No redirects, credentials, proxies, or response bodies in local probes.
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+          for url in ('http://127.0.0.1:13378/', 'http://127.0.0.1:8083/',
+                      'http://192.168.4.37:8096/health', 'http://127.0.0.1:9000/-/health/ready/',
+                      'http://127.0.0.1:8090/'):
+              try:
+                  with opener.open(url, timeout=5) as response:
+                      emit(url, {'http_status': response.status})
+              except urllib.error.HTTPError as exc:
+                  emit(url, {'http_status': exc.code})
+              except (OSError, urllib.error.URLError) as exc:
+                  emit(url, {'error_type': type(exc).__name__})
+
+          # Only publish counts of known boot-error markers; never journal text.
+          markers = ('I/O error', 'EXT4-fs error', 'Buffer I/O', 'Out of memory',
+                     'oom-kill', 'Failed to mount', 'UNEXPECTED INCONSISTENCY',
+                     'Read-only file system', 'Failed to start', 'sshd')
+          result = run(['journalctl', '-b', '-p', 'err', '--no-pager', '-o', 'json', '-n', '500'])
+          if result is None or result.returncode:
+              emit('boot_error_markers', 'unavailable')
+          else:
+              counts = collections.Counter()
+              entries = 0
+              for line in result.stdout.splitlines():
+                  try:
+                      message = json.loads(line).get('MESSAGE', '')
+                      if isinstance(message, str):
+                          entries += 1
+                          counts.update(marker for marker in markers if marker in message)
+                  except ValueError:
+                      pass
+              emit('boot_error_markers', {'visible_entries': entries, 'counts': dict(counts),
+                   'scope': 'runner journal permissions; latest 500 error entries'})
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## M920 post-reboot diagnostics\n\n')
+              summary.write('Read-only snapshot. Unavailable checks are not a health pass. '
+                            'Journal visibility depends on runner permissions.\n\n```json\n')
+              summary.write(json.dumps(rows, indent=2))
+              summary.write('\n```\n')
+          PY
