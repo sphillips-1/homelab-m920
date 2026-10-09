@@ -151,10 +151,17 @@ Authentik login; do not expose an unauthenticated OPDS bypass.
 
 ## Status access
 
-The normal service invitation grants `status-users` automatically; Beszel does
-not require a separate local account. For a manual grant, add `status-users` to
-the Authentik identity and test `https://status.shelfgoblin.dev/` in a fresh
-session.
+The normal service invitation grants `status-users` automatically; Beszel
+automatically creates an ordinary local account on the first Authentik OAuth
+login. Existing accounts match by verified Google email and retain their roles
+and system assignments. For a manual grant, add `status-users` to the Google-linked
+Authentik identity and test `https://status.shelfgoblin.dev/` in a fresh session,
+choosing **Authentik** on the Beszel login page. An existing Authentik session is
+reused without another password prompt. An administrator must explicitly share
+monitoring systems with new users; invitation access does not grant monitoring
+administration or access to all systems. The leaderboard remains available at
+`/top-users/`. Dashboard password authentication is disabled; private PocketBase
+superuser recovery is documented in `services/monitoring/README.md`.
 
 ## Existing Calibre-Web user
 

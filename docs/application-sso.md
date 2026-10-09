@@ -7,7 +7,8 @@ Public traffic uses Cloudflare Tunnel only; router ports 80/443 remain closed.
 OIDC with Authentik. In normal `sso` mode, `books.shelfgoblin.dev` routes
 through the Authentik embedded proxy before reaching Calibre-Web.
 `status.shelfgoblin.dev` also routes through the embedded proxy before reaching
-Beszel.
+Beszel. Beszel additionally uses native Authentik OIDC behind that proxy, with
+password login disabled and OAuth-only creation of ordinary dashboard users.
 `auth.shelfgoblin.dev` continues to route to Authentik.
 
 `torrents.shelfgoblin.dev` reaches the M920 qBittorrent gateway, which enforces
@@ -30,6 +31,11 @@ Authentik has separate applications and providers:
   to `audiobooks-users`.
 - `Books` / `books`: proxy provider, restricted to `books-users`.
 - `Status` / `status`: proxy provider, restricted to `status-users`.
+- `Beszel` / `beszel`: hidden confidential OIDC application behind Status,
+  restricted to `status-users` and Google-linked identities. The strict callback
+  is `https://status.shelfgoblin.dev/api/oauth2-redirect`. Deployment reconciles
+  both Authentik and PocketBase from repo scripts; credentials live only in their
+  databases. The existing Status application remains the visible portal tile.
 
 Google login establishes identity only. To grant access, add the existing
 Authentik user to the relevant group. The normal service invitation grants all

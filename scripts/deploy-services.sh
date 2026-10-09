@@ -190,6 +190,8 @@ deploy_service "qbittorrent-m920"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" \
     up -d --force-recreate gateway audiobook-importer
 deploy_monitoring
+log "Reconciling Beszel native Authentik SSO"
+python3 "${REPO_DIR}/scripts/configure-beszel-sso.py"
 deploy_cloudflared
 
 log "Service deployment complete"

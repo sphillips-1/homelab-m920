@@ -71,6 +71,9 @@ Beszel publishes host port 8090 for LAN and Tailscale clients. Public access at
 `status.shelfgoblin.dev` passes through the Authentik embedded proxy and an
 internal Status gateway, which routes `/top-users/` to a seven-day
 Audiobookshelf listening leaderboard and all other paths to Beszel. Beszel's
+dashboard uses native Authentik OIDC as well as proxy protection; approved Google
+identities match existing accounts by verified email or create ordinary users.
+Dashboard password login is disabled, and system sharing remains explicit. Its
 local agent reads the Docker socket read-only and communicates through a Unix
 socket; no agent port is exposed. The leaderboard uses a protected
 Audiobookshelf API credential and stores no separate activity history.
