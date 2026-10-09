@@ -132,11 +132,14 @@ def configure(credentials):
             raise RuntimeError("Create the first Beszel administrator with its Google email, then rerun this helper.")
         collection = request("GET", "/api/collections/users", token=token)
         oauth = desired_oauth(collection, credentials)
-        if collection.get("oauth2") != oauth:
-            request("PATCH", "/api/collections/users", {"oauth2": oauth}, token=token)
+        # PocketBase deliberately omits clientSecret from collection responses.
+        # Reassert it on every deployment (including rotations), but verify only
+        # readable fields. A successful PATCH validates and persists the secret.
+        request("PATCH", "/api/collections/users", {"oauth2": oauth}, token=token)
         saved = request("GET", "/api/collections/users", token=token)
         provider = saved.get("oauth2", {}).get("providers", [])
-        if len(provider) != 1 or any(provider[0].get(key) != value for key, value in oauth["providers"][0].items()):
+        readable = {key: value for key, value in oauth["providers"][0].items() if key != "clientSecret"}
+        if len(provider) != 1 or any(provider[0].get(key) != value for key, value in readable.items()):
             raise RuntimeError("Beszel OAuth settings did not persist as requested.")
         if saved.get("createRule") != "@request.context = 'oauth2'":
             raise RuntimeError("Beszel OAuth-only account creation is not configured.")

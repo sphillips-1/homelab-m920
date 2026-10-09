@@ -42,7 +42,11 @@ class BeszelSSOTest(unittest.TestCase):
         if method == "PATCH":
             self.patches.append(copy.deepcopy(data))
             self.collection.update(copy.deepcopy(data))
-        return copy.deepcopy(self.collection)
+        response = copy.deepcopy(self.collection)
+        # Match PocketBase's real API: credentials are write-only.
+        for provider in response["oauth2"]["providers"]:
+            provider.pop("clientSecret", None)
+        return response
 
     def run_configure(self):
         with patch.object(sso, "request", side_effect=self.api), patch.object(sso, "docker") as docker:
@@ -57,7 +61,9 @@ class BeszelSSOTest(unittest.TestCase):
         self.assertEqual(self.collection["fields"], self.original["fields"])
         self.assertEqual(self.collection["oauth2"]["mappedFields"], {"name": "name"})
         self.run_configure()
-        self.assertEqual(len(self.patches), 1)
+        self.assertEqual(len(self.patches), 2)
+        self.assertEqual(self.patches[0], self.patches[1])
+        self.assertEqual(self.collection["oauth2"]["providers"][0]["clientSecret"], CREDS["clientSecret"])
         self.assertEqual(docker.call_args_list[-1].args[3:5], ("superuser", "delete"))
         self.assertNotIn(CREDS["clientSecret"], output)
 
