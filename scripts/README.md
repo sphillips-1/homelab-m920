@@ -70,6 +70,12 @@ Access policies are in place.
   to idempotently add the `status-users` grant without submitting the full
   blueprint through Authentik's incompatible update validator.
 
+- `configure-beszel-sso.py` runs as root during deployment, captures the native
+  Authentik OIDC reconciler output, backs up Beszel, configures OAuth through its
+  REST API, verifies it, and removes its temporary superuser.
+- `reconcile-beszel-sso.py` runs only through that helper inside Authentik; its
+  stdout contains client credentials and must never be logged or run interactively.
+
 ## Container deployment
 
 - `deploy-release.sh` is installed as the root-owned CI entry point. It deploys

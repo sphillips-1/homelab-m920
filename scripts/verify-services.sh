@@ -68,4 +68,15 @@ curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:9000/-/health/ready/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8090/
 
+echo "==> Verifying Beszel native Authentik SSO"
+python3 - <<'PY'
+import importlib.util
+from pathlib import Path
+path = Path("/opt/homelab/scripts/configure-beszel-sso.py")
+spec = importlib.util.spec_from_file_location("beszel_sso", path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.verify_auth_methods()
+PY
+
 echo "Service verification passed."

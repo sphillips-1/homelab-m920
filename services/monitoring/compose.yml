@@ -3,6 +3,10 @@ services:
     image: ghcr.io/henrygd/beszel/beszel:0.18.8
     container_name: beszel
     restart: unless-stopped
+    environment:
+      APP_URL: https://status.shelfgoblin.dev
+      DISABLE_PASSWORD_AUTH: "true"
+      USER_CREATION: "true"
 
     ports:
       # Private dashboard access from the LAN and Tailscale.
