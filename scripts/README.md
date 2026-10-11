@@ -109,3 +109,7 @@ rollback limitations.
 
 See `docs/terraform-adoption.md` for the required review, secret handling, and
 rollback gates.
+
+## Pi-hole Discord webhook
+
+Run `.\scripts\configure-pihole-discord.ps1` from a Windows PowerShell terminal. It connects to M920Q, prompts for sudo if needed, then collects the webhook with hidden input. The URL is stored atomically at `/srv/homelab/appdata/monitoring/pihole/discord-webhook.url` with mode `0600` in a private directory. It can be rerun to rotate the URL. No Discord message is sent; monitoring deployment is separate.

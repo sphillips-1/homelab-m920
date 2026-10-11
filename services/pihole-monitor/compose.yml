@@ -1,0 +1,27 @@
+services:
+  pihole-monitor:
+    image: python:3.13.7-alpine
+    container_name: pihole-monitor
+    restart: unless-stopped
+    user: "${PIHOLE_MONITOR_UID:-1000}:${PIHOLE_MONITOR_GID:-1000}"
+    command: ["python", "-B", "/app/monitor.py"]
+    dns:
+      - 1.1.1.1
+      - 9.9.9.9
+    environment:
+      PIHOLE_IP: 192.168.4.75
+      CHECK_INTERVAL: "60"
+      FAILURE_THRESHOLD: "3"
+    volumes:
+      - ./monitor.py:/app/monitor.py:ro
+      - /srv/homelab/appdata/monitoring/pihole/discord-webhook.url:/run/secrets/discord-webhook.url:ro
+      - /srv/homelab/appdata/monitoring/pihole/state:/data
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "python", "-B", "-c", "import json,time; from pathlib import Path; assert time.time()-json.loads(Path('/data/state.json').read_text())['last_check'] < 150"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

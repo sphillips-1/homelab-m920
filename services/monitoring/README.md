@@ -136,3 +136,7 @@ docker compose --profile agent logs --tail 100 beszel beszel-agent status-gatewa
 
 To replace or rotate the agent credentials, run the same helper again. It
 atomically replaces the protected `.env` file and recreates only the agent.
+
+## Pi-hole DNS availability
+
+A separate [Pi-hole monitor](../pihole-monitor/README.md) sends DNS outage and recovery alerts to Discord. It runs independently of Beszel and uses its own DNS resolvers for alert delivery.

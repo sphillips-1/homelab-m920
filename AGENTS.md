@@ -27,3 +27,7 @@ Never commit application databases, media, generated metadata, credentials, or o
 - Document architectural changes.
 - Avoid hard-coding secrets.
 - Preserve existing deployment conventions unless there is a documented reason to change them.
+
+## Network addresses
+
+Consult [docs/network-inventory.md](docs/network-inventory.md) for known host IP addresses before asking the user or using addresses from older examples. Update that inventory when an address changes.

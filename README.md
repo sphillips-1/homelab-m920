@@ -38,6 +38,7 @@ Planned:
 - Homepage
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
+Known LAN addresses are maintained in [the network inventory](docs/network-inventory.md).
 For a clean-host build, including the complete manual script order and the
 automation performed for each service, see `docs/deployment-runbook.md`.
 Automatic container deployment from `main`, runner setup, verification, and
@@ -58,7 +59,7 @@ pending decommission and is not being expanded.
 
 - LAN: Audiobookshelf is available at `http://<m920q-lan-ip>:13378` and
   Calibre-Web at `http://<m920q-lan-ip>:8083`. Jellyfin is intentionally
-  LAN-only at `http://192.168.4.37:8096` and binds only to the LAN address.
+  LAN-only at `http://192.168.4.27:8096` and binds only to the LAN address.
 - Tailscale: use the same ports with the M920Q's Tailscale name or IP; SSH port
   forwarding is not required for normal private browser access.
 - Internet: only the Cloudflare Tunnel may route application hostnames.

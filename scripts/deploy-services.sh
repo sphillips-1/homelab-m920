@@ -190,6 +190,10 @@ deploy_service "qbittorrent-m920"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" \
     up -d --force-recreate gateway audiobook-importer
 deploy_monitoring
+if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
+    deploy_service "pihole-monitor"
+    docker compose -f "${SERVICES_DIR}/pihole-monitor/compose.yml" restart pihole-monitor
+fi
 log "Reconciling Beszel native Authentik SSO"
 python3 "${REPO_DIR}/scripts/configure-beszel-sso.py"
 deploy_cloudflared

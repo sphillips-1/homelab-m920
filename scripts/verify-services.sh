@@ -59,6 +59,10 @@ if [[ -f /srv/homelab/appdata/cloudflared/config.yml ]]; then
     docker exec cloudflared cloudflared tunnel --config /etc/cloudflared/config.yml ingress validate
 fi
 
+if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
+    wait_for_container pihole-monitor
+fi
+
 echo "==> Verifying local application endpoints"
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:13378/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8083/
