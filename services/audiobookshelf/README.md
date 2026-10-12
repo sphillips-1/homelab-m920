@@ -51,7 +51,3 @@ the cloudflared configuration using the updated template. Verify on actual
 Android Chrome and iOS Safari with and without the apps installed, then check
 browser sign-in, native OIDC, streaming/seeking and WebSockets. Run the local
 prompt regression checks with `node --test services/audiobookshelf/mobile-app.test.cjs`.
-# New-book push notifications
-
-See [notification service](../notifications/README.md) for new audiobook alerts
-through Apprise and self-hosted ntfy, including family phone subscriptions.

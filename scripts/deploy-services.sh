@@ -159,8 +159,13 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-authentik-branding.py"
 
 deploy_service "audiobookshelf"
-log "Reconciling new audiobook notifications"
-python3 "${REPO_DIR}/scripts/setup-book-notifications.py"
+# Retired external phone-notification stack. Preserve private appdata while
+# removing these rebuildable containers on upgrades from the former deployment.
+for retired_container in book-notifications homelab-apprise homelab-ntfy; do
+    if docker container inspect "${retired_container}" >/dev/null 2>&1; then
+        docker container rm -f "${retired_container}"
+    fi
+done
 log "Reconciling Audiobookshelf mobile clients"
 docker exec -i authentik-invitation-provisioner python - \
     < "${REPO_DIR}/scripts/reconcile-audiobookshelf-clients.py"

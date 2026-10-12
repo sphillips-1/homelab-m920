@@ -39,9 +39,6 @@ for container in \
     authentik-invitation-provisioner \
     audiobookshelf \
     audiobookshelf-gateway \
-    homelab-ntfy \
-    homelab-apprise \
-    book-notifications \
     calibre-web \
     jellyfin \
     beszel \

@@ -17,8 +17,6 @@ ingress:
     service: http://authentik-server:9000
   - hostname: torrents.__DOMAIN__
     service: http://m920-qbittorrent:8091
-  - hostname: notifications.__DOMAIN__
-    service: http://ntfy:80
   - hostname: auth.__DOMAIN__
     service: http://authentik-server:9000
   - service: http_status:404
