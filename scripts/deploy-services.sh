@@ -159,6 +159,8 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-authentik-branding.py"
 
 deploy_service "audiobookshelf"
+log "Reconciling new audiobook notifications"
+python3 "${REPO_DIR}/scripts/setup-book-notifications.py"
 log "Reconciling Audiobookshelf mobile clients"
 docker exec -i authentik-invitation-provisioner python - \
     < "${REPO_DIR}/scripts/reconcile-audiobookshelf-clients.py"

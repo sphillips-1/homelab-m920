@@ -1,0 +1,62 @@
+services:
+  ntfy:
+    image: binwiederhier/ntfy:v2.29.0
+    container_name: homelab-ntfy
+    command: [serve]
+    restart: unless-stopped
+    environment:
+      NTFY_BASE_URL: https://notifications.shelfgoblin.dev
+      NTFY_LISTEN_HTTP: :80
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_ENABLE_SIGNUP: "false"
+    volumes:
+      - /srv/homelab/appdata/notifications/ntfy:/var/lib/ntfy
+    networks: [homelab]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/v1/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  apprise:
+    image: caronc/apprise:2.0.0
+    container_name: homelab-apprise
+    restart: unless-stopped
+    environment:
+      APPRISE_STATEFUL_MODE: disabled
+      APPRISE_WORKER_COUNT: "1"
+      APPRISE_DEFAULT_FORMAT: text
+    networks: [homelab]
+
+  book-notifications:
+    image: python:3.13.7-alpine
+    container_name: book-notifications
+    restart: unless-stopped
+    command: [python, -B, /app/watch.py]
+    environment:
+      AUDIOBOOKSHELF_URL: http://audiobookshelf:80
+      APPRISE_URL: http://apprise:8000/notify/
+    volumes:
+      - ./watch.py:/app/watch.py:ro
+      - /srv/homelab/appdata/notifications/watcher:/state
+      - /srv/homelab/appdata/notifications/secrets:/secrets:ro
+    networks: [homelab]
+    depends_on:
+      ntfy:
+        condition: service_healthy
+      apprise:
+        condition: service_started
+    healthcheck:
+      test: [CMD, python, -c, "import pathlib,time; assert time.time()-pathlib.Path('/state/heartbeat').stat().st_mtime < 300"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+networks:
+  homelab:
+    external: true

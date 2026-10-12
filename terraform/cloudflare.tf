@@ -13,7 +13,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared" "homelab" {
 # These records MUST each be imported before apply. Their names intentionally
 # match the existing cloudflared templates.
 resource "cloudflare_dns_record" "public_hostnames" {
-  for_each = toset(concat(values(local.application_hostnames), ["auth.${var.zone_name}"]))
+  for_each = toset(concat(values(local.application_hostnames), ["auth.${var.zone_name}", "notifications.${var.zone_name}"]))
 
   zone_id = var.cloudflare_zone_id
   name    = each.value
