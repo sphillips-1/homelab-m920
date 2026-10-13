@@ -50,19 +50,29 @@ jobs:
       - name: Build installable debug APK
         env:
           DEBUG_KEYSTORE: ${{ (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/shelfgoblin-android')) && secrets.SHELFGOBLIN_DEBUG_KEYSTORE_BASE64 || '' }}
+          SIGNING_CERT_SHA256: ${{ vars.SHELFGOBLIN_SIGNING_CERT_SHA256 }}
         working-directory: clients/abs-android/upstream/android
         run: |
+          signing_args=()
           if [[ "$GITHUB_EVENT_NAME" != pull_request && ( "$GITHUB_REF" == refs/heads/main || "$GITHUB_REF" == refs/heads/codex/shelfgoblin-android ) ]]; then
             test -n "$DEBUG_KEYSTORE" || { echo 'Configure SHELFGOBLIN_DEBUG_KEYSTORE_BASE64 before publishing.' >&2; exit 1; }
             mkdir -p "$HOME/.android"
             printf '%s' "$DEBUG_KEYSTORE" | base64 --decode > "$HOME/.android/debug.keystore"
             chmod 600 "$HOME/.android/debug.keystore"
+            test -n "$SIGNING_CERT_SHA256" || { echo 'Configure SHELFGOBLIN_SIGNING_CERT_SHA256 before publishing.' >&2; exit 1; }
+            restored_cert=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey | sed -n 's/^[[:space:]]*SHA256: //p' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+            test "$restored_cert" = "$SIGNING_CERT_SHA256" || { echo 'Restored signing certificate mismatch.' >&2; exit 1; }
+            signing_args+=("-PshelfgoblinDebugKeystore=$HOME/.android/debug.keystore")
           fi
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon \
             -PshelfgoblinVersionCode=$((1000 + GITHUB_RUN_NUMBER)) \
-            -PshelfgoblinVersionName="0.14.2-shelfgoblin.${GITHUB_RUN_NUMBER}"
+            -PshelfgoblinVersionName="0.14.2-shelfgoblin.${GITHUB_RUN_NUMBER}" "${signing_args[@]}"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/debug/app-debug.apk
+          if (( ${#signing_args[@]} )); then
+            apk_cert=$("$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+            test "$apk_cert" = "$SIGNING_CERT_SHA256" || { echo 'Built APK signing certificate mismatch.' >&2; exit 1; }
+          fi
       - name: Assemble phone download and matching source
         run: |
           mkdir -p clients/abs-android/artifacts/release
