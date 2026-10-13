@@ -4,6 +4,8 @@ Custom Audiobookshelf Android client with Author → Series → Book and Series 
 Author → Book trees. The grouping toggle sits beside All books, Downloaded,
 and In progress. Search includes titles, authors and series; each book opens
 the inherited detail/playback/download screen. Podcasts retain the official UI.
+Named series are alphabetical, with the Standalone books bucket last in both
+Series grouping and each author's branches.
 
 **Settings → List font size** adjusts tree text from 14 to 24 px (default 16),
 with a live preview and reset button. Author/series headings, book titles and

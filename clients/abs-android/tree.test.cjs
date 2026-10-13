@@ -19,6 +19,19 @@ test('standalone and missing-author metadata produce valid branches', () => {
   const tree = buildTree([book('one', 'Solo', [], [])]);
   assert.equal(tree[0].name, 'Unknown author'); assert.equal(tree[0].branches[0].name, 'Standalone books');
 });
+test('named series sort alphabetically before the standalone bucket in both views', () => {
+  const items = [book('solo', 'Solo', [a], []), book('z', 'Z', [a], [{id:'z',name:'Zodiac',sequence:1}]), book('t', 'T', [a], [{id:'t',name:'The Stormlight Archive',sequence:1}])];
+  const expected = ['The Stormlight Archive', 'Zodiac', 'Standalone books'];
+  assert.deepEqual(buildTree(items, {groupBy:'series'}).map(g => g.name), expected);
+  assert.deepEqual(buildTree(items)[0].branches.map(g => g.name), expected);
+  assert.deepEqual(buildTree(items, {groupBy:'series',search:'solo'}).map(g => g.name), ['Standalone books']);
+});
+test('a named series called Standalone books stays separate from the fallback bucket', () => {
+  const tree = buildTree([book('solo','Solo',[a],[]),book('named','Named',[a],['Standalone books'])],{groupBy:'series'});
+  assert.equal(tree.length,2);
+  assert.equal(tree[0].standalone,false);
+  assert.equal(tree[1].standalone,true);
+});
 test('search matches titles, authors and series; filters remove empty branches', () => {
   const items = [book('one', 'First', [a], [s(1)]), book('two', 'Other', [b], [])];
   for (const search of ['first', 'author a', 'series']) assert.equal(buildTree(items, { search })[0].count, 1);
