@@ -69,6 +69,8 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
     assert.equal(await page.locator('.goblin-book').getAttribute('href'), '/localMedia/item/local_two');
     await page.getByRole('button', { name: 'Grouped by author. Switch grouping' }).click();
     assert.equal(await page.locator('.goblin-author > summary > span').textContent(), 'The Stormlight Archive');
+    assert.equal(await page.locator('.goblin-branch summary').count(), 0);
+    assert.equal(await page.locator('.goblin-book-text').first().textContent().then(text => text.includes('Brandon Sanderson')), false);
     assert.equal(await page.getByRole('button', { name:'Downloaded',exact:true }).getAttribute('aria-pressed'), 'true');
     await page.getByRole('button', { name:'All books',exact:true }).click();
     await page.getByRole('searchbox').fill('way');

@@ -76,3 +76,15 @@ test('reset or invalid progress cannot become recent and finished books can', ()
   assert.equal(buildTree(items,{progress:()=>({progress:.2,lastUpdate:'bad'})}).some(g=>g.recent),false);
   assert.equal(buildTree(items,{progress:item=>item.id==='b'?{isFinished:true,lastUpdate:900}:{}})[0].name,'Author B');
 });
+
+test('single-author series hides redundant authors but mixed series stays branched after filtering', () => {
+  const items=[book('one','One',[a],[s(1)]),book('two','Two',[a],[s(2)])];
+  assert.equal(buildTree(items,{groupBy:'series'})[0].flattenAuthor,true);
+  assert.equal(buildTree(items)[0].branches[0].hideBookAuthor,true);
+  items.push(book('three','Three',[b],[s(3)]));
+  const filtered=buildTree(items,{groupBy:'series',search:'One'});
+  assert.equal(filtered[0].flattenAuthor,false);
+  assert.equal(filtered[0].branches[0].hideBookAuthor,false);
+  assert.equal(buildTree([book('solo','Solo',[a],[])],{groupBy:'series'})[0].flattenAuthor,false);
+  assert.equal(buildTree([book('unknown','Unknown',[],[s(1)])],{groupBy:'series'})[0].flattenAuthor,false);
+});

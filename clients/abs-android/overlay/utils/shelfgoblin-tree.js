@@ -39,6 +39,7 @@ function compactReferences(text, catalog, isSeries) {
 function structuredReferences(value) { return Array.isArray(value) ? value : value?.name ? [value] : []; }
 function buildTree(items, { groupBy = 'author', filter = 'all', search = '', progress = () => null, downloaded = () => false, authorCatalog = [], seriesCatalog = [] } = {}) {
   const groups = new Map();
+  const seriesAuthors = new Map();
   // Choose from the whole library before filtering; hidden recent books do not
   // promote an older match. Ignore untouched/reset progress and invalid dates.
   const played = items.map(item => ({ item, p: progress(item) || {} })).filter(({p}) => (p.progress > 0 || p.currentTime > 0 || p.isFinished) && Number.isFinite(Number(p.lastUpdate)) && Number(p.lastUpdate) > 0).sort((a,b) => Number(b.p.lastUpdate) - Number(a.p.lastUpdate) || collator.compare(String(a.item.id), String(b.item.id)));
@@ -50,6 +51,11 @@ function buildTree(items, { groupBy = 'author', filter = 'all', search = '', pro
     const expandedAuthors = structuredReferences(m.authors), expandedSeries = structuredReferences(m.series);
     const authors = references(expandedAuthors.length ? expandedAuthors : compactReferences(m.authorName, authorNames, false), 'Unknown author');
     const series = references(expandedSeries.length ? expandedSeries : compactReferences(m.seriesName, seriesNames, true), 'Standalone books');
+    for (const reference of series) {
+      const seriesKey = String(reference.id || reference.name);
+      if (!seriesAuthors.has(seriesKey)) seriesAuthors.set(seriesKey, new Set());
+      for (const author of authors) seriesAuthors.get(seriesKey).add(author.fallback ? 'unknown:' + item.id : String(author.id || author.name));
+    }
     const p = progress(item) || {};
     if (filter === 'downloaded' && !downloaded(item)) continue;
     if (filter === 'progress' && (p.isFinished || !(p.progress > 0))) continue;
@@ -69,8 +75,8 @@ function buildTree(items, { groupBy = 'author', filter = 'all', search = '', pro
       }
     }
   }
-  return [...groups.values()].map(g => ({ key: g.key, name: g.name, standalone: g.standalone, recent: !!g.recent, count: g.ids.size,
-    branches: [...g.branches.values()].map(b => ({ ...b, books: b.books.sort((a, b) => {
+  return [...groups.values()].map(g => ({ key: g.key, name: g.name, standalone: g.standalone, recent: !!g.recent, flattenAuthor: groupBy === 'series' && !g.standalone && seriesAuthors.get(g.key)?.size === 1 && ![...seriesAuthors.get(g.key)][0].startsWith('unknown:'), count: g.ids.size,
+    branches: [...g.branches.values()].map(b => ({ ...b, hideBookAuthor: groupBy === 'author' ? !b.standalone && seriesAuthors.get(b.key)?.size === 1 && ![...seriesAuthors.get(b.key)][0].startsWith('unknown:') : !g.standalone && seriesAuthors.get(g.key)?.size === 1, books: b.books.sort((a, b) => {
       if (a.sequence == null && b.sequence != null) return 1;
       if (b.sequence == null && a.sequence != null) return -1;
       const numeric = a.sequence != null && b.sequence != null && Number.isFinite(Number(a.sequence)) && Number.isFinite(Number(b.sequence));

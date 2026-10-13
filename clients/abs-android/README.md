@@ -9,6 +9,9 @@ indicators. Podcasts retain the official UI.
 Named series are alphabetical, with the Standalone books bucket last in both
 Series grouping and each author's branches. The latest played book's author and
 series are pinned above that order and marked Recent; book sequence is preserved.
+Single-author series open directly to books in Series view and omit repeated
+author lines on book rows in both views. Mixed-author series retain author
+branches and labels; this is determined before search/download filters.
 Recency uses the newest local/server progress timestamp with listening progress
 or finished status. ABS progress edits can also update that timestamp. Filtering
 never substitutes an older book as recent.
