@@ -3,7 +3,9 @@
 Custom Audiobookshelf Android client with Author → Series → Book and Series →
 Author → Book trees. The grouping toggle sits beside All books, Downloaded,
 and In progress. Search includes titles, authors and series; each book opens
-the inherited detail/playback/download screen. Podcasts retain the official UI.
+the inherited detail/playback/download screen. Book rows are text-only, without
+cover thumbnails or row icons; expandable author/series nodes retain disclosure
+indicators. Podcasts retain the official UI.
 Named series are alphabetical, with the Standalone books bucket last in both
 Series grouping and each author's branches.
 The tree supports ABS 2.36's compact `authorName`/`seriesName` list fields as
@@ -88,6 +90,16 @@ build/test and upload Actions artifacts; they cannot publish releases or access
 the signing key. Open the repository's **Releases** page on your phone and tap
 **ShelfGoblin.apk** under the newest ShelfGoblin build. Assets also include
 SHA256SUMS and matching upstream/customization source archives.
+
+After successful publication, a separate Actions job posts the APK download,
+release notes/source and build links to Discord **#releases-mobile**. Create an
+incoming webhook in that channel and store its URL as the repository Actions
+secret `DISCORD_RELEASES_MOBILE_WEBHOOK`. Keep the URL out of Git and chat.
+PR builds, failed builds and failed publications do not send announcements.
+Discord must confirm delivery; missing configuration or delivery errors fail
+the notification job while leaving the published APK available. Rerun only the
+failed notification job to retry delivery; rerunning a successful notification
+can send a duplicate message. Notifications do not ping everyone or roles.
 
 Publishing requires the encrypted Actions secret
 `SHELFGOBLIN_DEBUG_KEYSTORE_BASE64`, containing the existing debug keystore.

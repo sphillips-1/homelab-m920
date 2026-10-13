@@ -18,9 +18,7 @@
           <summary><span>{{ branch.name }}</span><small>{{ branch.books.length }} books</small></summary>
           <div class="goblin-books">
             <nuxt-link v-for="row in branch.books" :key="row.item.id" :to="bookRoute(row.item)" class="goblin-book">
-              <img :src="cover(row.item)" alt="" loading="lazy" />
               <span class="goblin-book-text"><strong>{{ row.sequence != null ? row.sequence + '. ' : '' }}{{ title(row.item) }}</strong><small>{{ author(row.item) }}</small><small>{{ duration(row.item) }} · {{ status(row.item) }}{{ localFor(row.item) ? ' · Downloaded' : '' }}</small><progress v-if="progressFor(row.item).progress > 0" :value="progressFor(row.item).progress" max="1" aria-label="Listening progress" /></span>
-              <span class="material-symbols" aria-hidden="true">chevron_right</span>
             </nuxt-link>
           </div>
         </details>
@@ -29,7 +27,6 @@
   </section>
 </template>
 <script>
-import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 const { buildTree, metadata } = require('@/utils/shelfgoblin-tree')
 const { FONT_SIZE_KEY, DEFAULT_FONT_SIZE, normalizeFontSize } = require('@/utils/shelfgoblin-display')
@@ -51,7 +48,6 @@ export default {
     localFor(item) { return this.localItems.find(local => local.libraryItemId === item.id && local.serverConnectionConfigId === this.connectionId) },
     progressFor(item) { const local = this.localFor(item); return (local && this.$store.getters['globals/getLocalMediaProgressById'](local.id)) || this.$store.getters['user/getUserMediaProgress'](item.id) || {} },
     bookRoute(item) { const local = this.localFor(item); return local ? `/localMedia/item/${local.id}` : `/item/${item.id}` },
-    cover(item) { const local = this.localFor(item); return local?.coverContentUrl ? Capacitor.convertFileSrc(local.coverContentUrl) : this.$store.getters['globals/getLibraryItemCoverSrc'](item, '/book_placeholder.jpg') },
     title(item) { return metadata(item).title || 'Untitled' },
     author(item) { const m = metadata(item); return m.authors?.map(a => a.name).join(', ') || m.authorName || 'Unknown author' },
     duration(item) { const hours = (item.media?.duration || 0) / 3600; return hours ? `${Math.floor(hours)}h ${Math.floor((hours % 1) * 60)}m` : 'Ebook' },
@@ -90,7 +86,7 @@ export default {
 h1{font-size:26px;font-weight:500}header>p{opacity:.7;font-size:13px;margin:4px 0 16px}
 .goblin-search{display:flex;align-items:center;gap:8px;background:rgba(127,127,127,.15);border-radius:24px;padding:12px 16px}.goblin-search input{background:transparent;flex:1;min-width:0;font-size:16px}
 .goblin-filters{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}.goblin-filters button{border:1px solid rgba(127,127,127,.35);border-radius:10px;padding:10px 8px;min-height:44px;font-size:12px}.goblin-filters button[aria-pressed=true]{background:rgba(110,160,100,.3)}.goblin-group{margin-left:auto}
-summary{display:flex;align-items:center;gap:8px;min-height:60px;list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}summary:before{content:'›';font-size:24px}details[open]>summary:before{content:'⌄'}summary>span{font-weight:500;flex:1}small{font-size:12px;opacity:.75}.goblin-author{border-bottom:1px solid rgba(127,127,127,.25)}.goblin-author>summary>span{font-size:18px}.goblin-branch,.goblin-books{margin-left:10px;padding-left:12px;border-left:1px solid rgba(127,127,127,.3)}.goblin-book{display:flex;gap:10px;align-items:center;padding:12px 0;min-height:76px}.goblin-book img{width:38px;height:54px;object-fit:cover;border-radius:4px}.goblin-book-text{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}.goblin-book strong{font-weight:500}.goblin-book progress{height:4px;width:100%;accent-color:#7ca976}button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid #7ca976;outline-offset:3px}
+summary{display:flex;align-items:center;gap:8px;min-height:60px;list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}summary:before{content:'›';font-size:24px}details[open]>summary:before{content:'⌄'}summary>span{font-weight:500;flex:1}small{font-size:12px;opacity:.75}.goblin-author{border-bottom:1px solid rgba(127,127,127,.25)}.goblin-author>summary>span{font-size:18px}.goblin-branch,.goblin-books{margin-left:10px;padding-left:12px;border-left:1px solid rgba(127,127,127,.3)}.goblin-book{display:flex;gap:10px;align-items:center;padding:12px 0;min-height:64px}.goblin-book-text{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}.goblin-book strong{font-weight:500}.goblin-book progress{height:4px;width:100%;accent-color:#7ca976}button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid #7ca976;outline-offset:3px}
 </style>
 <style scoped>
 .goblin-author summary>span,.goblin-book strong{font-size:var(--goblin-list-font-size,16px);overflow-wrap:anywhere;min-width:0}
