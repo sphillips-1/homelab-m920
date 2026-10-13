@@ -1,0 +1,13 @@
+{
+  "name": "shelfgoblin-android-overlay",
+  "private": true,
+  "scripts": {
+    "prepare-client": "node prepare.cjs",
+    "test": "node --test tree.test.cjs auth.test.cjs",
+    "build-web": "npm --prefix upstream run generate",
+    "sync-android": "cd upstream && npx cap sync android"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
