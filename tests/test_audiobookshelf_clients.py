@@ -20,7 +20,7 @@ class ClientsTest(unittest.TestCase):
 
         def api(method="GET", payload=None):
             if method == "PATCH":
-                self.assertEqual(payload, {clients.FIELD: current + ["lissen://oauth"]})
+                self.assertEqual(payload, {clients.FIELD: current + list(clients.REQUIRED_URIS)})
                 state.update(payload)
             return dict(state)
 
@@ -32,7 +32,7 @@ class ClientsTest(unittest.TestCase):
         self.assertEqual(state["authActiveAuthMethods"], ["openid"])
 
     def test_existing_lissen_or_wildcard_does_not_write(self):
-        for current in (["lissen://oauth"], ["*"]):
+        for current in (list(clients.REQUIRED_URIS), ["*"]):
             with self.subTest(current=current), patch.object(
                 clients, "request_settings", return_value={clients.FIELD: current}
             ) as request:

@@ -1,0 +1,59 @@
+/* Matches services/authentik/branding/bookshelf.css. Local assets work offline. */
+html:not([data-theme]), html[data-theme='shelfgoblin'] {
+  color-scheme: light;
+  color: #2b1b12;
+  --shelf-ink: #2b1b12;
+  --shelf-ink-soft: #604633;
+  --shelf-paper: #f4ead7;
+  --shelf-paper-deep: #e4d2b5;
+  --shelf-walnut: #4b2d1f;
+  --shelf-walnut-dark: #24140f;
+  --shelf-brass: #b98a43;
+  --shelf-green: #405b4a;
+  --color-bg: 244 234 215;
+  --color-bg-hover: 228 210 181;
+  --color-fg: 43 27 18;
+  --color-fg-muted: 96 70 51;
+  --color-primary: 228 210 181;
+  --color-secondary: 238 224 201;
+  --color-border: 169 144 110;
+  --color-bg-toggle: 228 210 181;
+  --color-bg-toggle-selected: 255 250 239;
+  --color-track-cursor: 64 91 74;
+  --color-track: 189 169 137;
+  --color-track-buffered: 169 144 110;
+  --gradient-item-page: linear-gradient(169deg, rgba(244,234,215,.5), #f4ead7 80%);
+  --gradient-audio-player: linear-gradient(180deg, rgba(244,234,215,0), #f4ead7 80%);
+  --gradient-minimized-audio-player: linear-gradient(145deg, rgba(228,210,181,.9), #e4d2b5 60%);
+}
+html[data-theme='shelfgoblin'] body { background: #f4ead7; color: #2b1b12; }
+html[data-theme='shelfgoblin'] #appbar { border-bottom: 1px solid #b98a43; }
+html[data-theme='shelfgoblin'] #bookshelf-navbar { box-shadow: 0 3px 8px #24140f18; }
+html[data-theme='shelfgoblin'] .goblin-library h1,
+html[data-theme='shelfgoblin'] .goblin-author > summary > span { font-family: Georgia, 'Times New Roman', serif; }
+html[data-theme='shelfgoblin'] .goblin-library header { padding-bottom: 8px; border-bottom: 1px solid #b98a4360; margin-bottom: 8px; }
+html[data-theme='shelfgoblin'] .goblin-search { background: #fffcf4; border: 1px solid #a9906e; }
+html[data-theme='shelfgoblin'] .goblin-filters button { background: #fffaf073; border-color: #a9906e; }
+html[data-theme='shelfgoblin'] .goblin-filters button[aria-pressed='true'],
+html[data-theme='shelfgoblin'] .goblin-filters .goblin-group { color: #fffaf0; background: linear-gradient(180deg,#4e6957,#34483b); border-color: #28382e; }
+html[data-theme='shelfgoblin'] .goblin-author { border-bottom-color: #a9906e66; }
+html[data-theme='shelfgoblin'] .goblin-branch,
+html[data-theme='shelfgoblin'] .goblin-books { border-left-color: #b98a4370; }
+html[data-theme='shelfgoblin'] .goblin-book progress { accent-color: #405b4a; }
+html[data-theme='shelfgoblin'] .goblin-library :focus-visible { outline-color: #b98a43; }
+html[data-theme='shelfgoblin'] .default-style a { color: #405b4a; text-decoration: underline; }
+/* The illustrated walnut shelves frame login only, keeping browsing readable. */
+html[data-theme='shelfgoblin'] .shelfgoblin-connect {
+  background: linear-gradient(#24140f55,#24140f88), url('/branding/bookshelf-background.svg') center / cover;
+  color: #fffaf0;
+}
+html[data-theme='shelfgoblin'] .shelfgoblin-connect div.bg-primary {
+  background: linear-gradient(#ffffff29,#784c240a), #f4ead7;
+  color: #2b1b12;
+  border: 1px solid #9d8058;
+  border-radius: 12px;
+  box-shadow: 0 2px 0 #e4d2b5, 0 18px 55px #0f080580;
+}
+html[data-theme='shelfgoblin'] .shelfgoblin-connect button.btn {
+  color: #fffaf0; background: linear-gradient(180deg,#4e6957,#34483b); border: 1px solid #28382e;
+}

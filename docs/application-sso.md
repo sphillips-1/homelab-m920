@@ -58,6 +58,11 @@ browser/mobile setup, troubleshooting, and offboarding.
 
 ## Audiobookshelf clients
 
+The custom [ShelfGoblin Android client](../clients/abs-android/README.md) uses
+the same native OIDC flow and server base path with its own exact mobile callback,
+`shelfgoblin://oauth`. The existing client reconciler adds it alongside Lissen
+without changing Authentik redirects, password settings or group permissions.
+
 The deployed server is 2.36.0 and uses the persisted base path
 `/audiobookshelf`. Browser and mobile callbacks are therefore:
 

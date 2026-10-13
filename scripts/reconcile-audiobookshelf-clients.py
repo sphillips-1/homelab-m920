@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allow Lissen through the ABS API using the provisioner's existing credentials."""
+"""Allow mobile clients through ABS using the provisioner's existing credentials."""
 
 import json
 import os
@@ -9,7 +9,7 @@ import urllib.request
 
 
 FIELD = "authOpenIDMobileRedirectURIs"
-REQUIRED_URIS = ("lissen://oauth",)
+REQUIRED_URIS = ("lissen://oauth", "shelfgoblin://oauth")
 
 
 def request_settings(method="GET", payload=None):
@@ -53,7 +53,7 @@ def reconcile():
     current = redirect_uris(read_settings())
     # ABS accepts '*' only as the sole entry. Preserve an existing wildcard.
     if current == ["*"] or all(uri in current for uri in REQUIRED_URIS):
-        print("Audiobookshelf already allows Lissen.")
+        print("Audiobookshelf already allows the configured mobile clients.")
         return
     if "*" in current:
         raise RuntimeError("ABS has a malformed wildcard redirect list")
@@ -61,7 +61,7 @@ def reconcile():
     request_settings("PATCH", {FIELD: desired})
     if set(redirect_uris(read_settings())) != set(desired):
         raise RuntimeError("ABS mobile redirect URI verification failed")
-    print("Audiobookshelf now allows Lissen; existing mobile callbacks preserved.")
+    print("Audiobookshelf now allows the configured mobile clients; existing callbacks preserved.")
 
 
 if __name__ == "__main__":
