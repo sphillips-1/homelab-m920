@@ -76,5 +76,9 @@ fs.mkdirSync(brandOutput, { recursive: true });
 for (const asset of ['shelfgoblin-logo.svg', 'shelfgoblin-favicon.svg', 'bookshelf-background.svg']) {
   fs.copyFileSync(path.join(branding, asset), path.join(brandOutput, asset));
 }
+require('./launcher-icon.cjs')(fs.readFileSync(path.join(branding, 'shelfgoblin-favicon.svg'), 'utf8'), checkout);
+transform('android/app/src/main/AndroidManifest.xml', s => s
+  .replace('@mipmap/ic_launcher_round', '@mipmap/shelfgoblin_launcher')
+  .replace('@mipmap/ic_launcher', '@mipmap/shelfgoblin_launcher'));
 fs.cpSync(path.join(root, 'overlay'), checkout, { recursive: true });
 console.log(`ShelfGoblin prepared from ${revision}. Server: ${server}`);

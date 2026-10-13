@@ -23,7 +23,8 @@ the library opens; the rest of the app keeps its normal text sizes.
 ShelfGoblin's default theme matches the Authentik login branding: parchment,
 walnut, brass and forest green, with serif library headings. Login uses the
 same repository-owned bookshelf background and logo; the app bar uses the
-goblin mark. The preparer copies these SVG assets into the app for offline use.
+goblin mark. Android launcher icons use the same SVG artwork, converted to
+native vectors with adaptive and monochrome variants. The preparer copies these SVG assets into the app for offline use.
 Choose **Settings → Theme → ShelfGoblin** after upgrading if a previous theme
 was saved. Dark, Black and Light remain available. Theme changes are local
 to the app and do not change Authentik or the M920 server.
