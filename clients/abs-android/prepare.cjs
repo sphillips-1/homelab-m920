@@ -37,8 +37,8 @@ transform('capacitor.config.json', s => {
 // Keep the Java namespace so inherited native classes and resource imports work.
 transform('android/app/build.gradle', s => s
   .replace('applicationId "com.audiobookshelf.app"', 'applicationId "dev.shelfgoblin.abs"')
-  .replace('versionCode 121', "versionCode (project.findProperty('shelfgoblinVersionCode') ?: '122').toInteger()")
-  .replace('versionName "0.14.2-beta"', "versionName (project.findProperty('shelfgoblinVersionName') ?: '0.14.2-shelfgoblin.2')"));
+  .replace('versionCode 121', "versionCode = (project.findProperty('shelfgoblinVersionCode') ?: '122').toInteger()")
+  .replace('versionName "0.14.2-beta"', "versionName = (project.findProperty('shelfgoblinVersionName') ?: '0.14.2-shelfgoblin.2')"));
 for (const variant of ['main', 'debug']) transform(`android/app/src/${variant}/res/values/strings.xml`, s => s
   .replace('name="app_name">Audiobookshelf', 'name="app_name">ShelfGoblin')
   .replace('name="title_activity_main">Audiobookshelf', 'name="title_activity_main">ShelfGoblin')
