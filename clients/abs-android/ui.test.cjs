@@ -79,6 +79,12 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
     assert.equal(await page.locator('.goblin-book').count(), 1);
     for (const width of [320,390,720]) {
       await page.setViewportSize({width,height:844});
+      const buttonBounds = () => page.locator('.goblin-filters button').evaluateAll(buttons => buttons.map(button => { const {x,y,width,height}=button.getBoundingClientRect(); return {x,y,width,height} }));
+      const beforeToggle = await buttonBounds();
+      await page.locator('.goblin-group').click();
+      assert.deepEqual(await buttonBounds(), beforeToggle, 'Grouping toggle moves buttons at ' + width + 'px');
+      await page.locator('.goblin-group').click();
+      assert.deepEqual(await buttonBounds(), beforeToggle);
       const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => { const r=el.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 1 || r.left < -1) }).map(el => ({tag:el.tagName,class:el.className})).slice(0,8));
       assert.deepEqual(overflow, [], `Overflow at ${width}px`);
     }
