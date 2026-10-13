@@ -3,7 +3,9 @@
 Custom Audiobookshelf Android client with Author → Series → Book and Series →
 Author → Book trees. The grouping toggle sits beside All books, Downloaded,
 and In progress. Search includes titles, authors and series; each book opens
-the inherited detail/playback/download screen. Podcasts retain the official UI.
+the inherited detail/playback/download screen. Book rows are text-only, without
+cover thumbnails or row icons; expandable author/series nodes retain disclosure
+indicators. Podcasts retain the official UI.
 Named series are alphabetical, with the Standalone books bucket last in both
 Series grouping and each author's branches.
 The tree supports ABS 2.36's compact `authorName`/`seriesName` list fields as

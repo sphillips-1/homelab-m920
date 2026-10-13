@@ -20,7 +20,6 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   try {
-    await page.route('**/book_placeholder.jpg', route => route.abort());
     await page.setContent('<div id="app"></div>');
     await page.addStyleTag({ content: 'body{margin:0;background:#181b19;color:#ecf0e9;font:14px system-ui}*{box-sizing:border-box}button,input{font:inherit;color:inherit;background:transparent}a{color:inherit;text-decoration:none}h1,p{margin:0}:root{--color-fg:236 240 233}' + css });
     await page.addStyleTag({ path: path.join(root, 'overlay/assets/shelfgoblin-theme.css') });
@@ -29,8 +28,8 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
     await page.evaluate(({ template, script, treeScript, displayScript, settingTemplate, settingScript }) => {
       window.savedPreferences = {};
       const preferences = { get: async ({key}) => ({value:window.savedPreferences[key] ?? null}), set: async ({key,value}) => { window.savedPreferences[key] = value } };
-      const factory = new Function('Capacitor', 'Preferences', treeScript + '\n' + displayScript + '\n' + script);
-      const component = factory({ convertFileSrc: url => url }, preferences);
+      const factory = new Function('Preferences', treeScript + '\n' + displayScript + '\n' + script);
+      const component = factory(preferences);
       component.template = template;
       const books = [
         { id: 'one', media: { duration: 3600, metadata: { title: 'The Way of Kings', authors: [{id:'a',name:'Brandon Sanderson'}], series:[{id:'s',name:'The Stormlight Archive',sequence:1}] } } },
@@ -39,7 +38,7 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
       const store = { state: { libraries: { currentLibraryId: 'library' } }, getters: {
         'libraries/getCurrentLibraryName': 'Audiobooks · Homelab', 'libraries/getCurrentLibraryMediaType': 'book',
         'user/getServerConnectionConfigId': 'connection', 'user/getUserMediaProgress': id => id === 'two' ? { progress:.38 } : {},
-        'globals/getLocalMediaProgressById': () => null, 'globals/getLibraryItemCoverSrc': () => '/book_placeholder.jpg'
+        'globals/getLocalMediaProgressById': () => null
       } };
       Vue.prototype.$store = store;
       Vue.prototype.$db = { getLocalLibraryItems: async () => [{ id:'local_two', libraryItemId:'two', serverConnectionConfigId:'connection' }] };
@@ -56,6 +55,7 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
     await page.locator('.goblin-author > summary').click();
     await page.locator('.goblin-branch summary').click();
     assert.equal(await page.locator('.goblin-book').count(), 2);
+    assert.equal(await page.locator('.goblin-book img, .goblin-book .material-symbols').count(), 0);
     await page.getByRole('button', { name: 'Downloaded', exact: true }).click();
     assert.equal(await page.locator('.goblin-book').count(), 1);
     await page.waitForFunction(() => !document.getElementById('goblin-list-size').disabled);
