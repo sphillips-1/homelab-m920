@@ -81,6 +81,8 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
       await page.setViewportSize({width,height:844});
       const buttonBounds = () => page.locator('.goblin-filters button').evaluateAll(buttons => buttons.map(button => { const {x,y,width,height}=button.getBoundingClientRect(); return {x,y,width,height} }));
       const beforeToggle = await buttonBounds();
+      assert.equal(new Set(beforeToggle.map(button => button.y)).size, 1, 'Filter buttons wrap at ' + width + 'px');
+      assert.equal(new Set(beforeToggle.map(button => button.height)).size, 1, 'Filter button heights differ');
       await page.locator('.goblin-group').click();
       assert.deepEqual(await buttonBounds(), beforeToggle, 'Grouping toggle moves buttons at ' + width + 'px');
       await page.locator('.goblin-group').click();
