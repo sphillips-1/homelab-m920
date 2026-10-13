@@ -9,6 +9,9 @@ indicators. Podcasts retain the official UI.
 Named series are alphabetical, with the Standalone books bucket last in both
 Series grouping and each author's branches. The latest played book's author and
 series are pinned above that order and marked Recent; book sequence is preserved.
+Authors with only standalone books open directly to books in Author view.
+Authors with a mix of series and standalones retain the Standalone books branch,
+even when filtered.
 Single-author series open directly to books in Series view and omit repeated
 author lines on book rows in both views. Mixed-author series retain author
 branches and labels; this is determined before search/download filters.

@@ -14,8 +14,8 @@
     <details v-for="group in tree" :key="groupBy + group.key" class="goblin-author" :open="!!search">
       <summary><span>{{ group.name }}<span v-if="group.recent" class="goblin-recent">Recent</span></span><small>{{ group.count }} books</small></summary>
       <div class="goblin-branch">
-        <component :is="group.flattenAuthor ? 'div' : 'details'" v-for="branch in group.branches" :key="branch.key" :open="!!search">
-          <summary v-if="!group.flattenAuthor"><span>{{ branch.name }}<span v-if="branch.recent" class="goblin-recent">Recent</span></span><small>{{ branch.books.length }} books</small></summary>
+        <component :is="group.flattenBranch ? 'div' : 'details'" v-for="branch in group.branches" :key="branch.key" :open="!!search">
+          <summary v-if="!group.flattenBranch"><span>{{ branch.name }}<span v-if="branch.recent" class="goblin-recent">Recent</span></span><small>{{ branch.books.length }} books</small></summary>
           <div class="goblin-books">
             <nuxt-link v-for="row in branch.books" :key="row.item.id" :to="bookRoute(row.item)" class="goblin-book">
               <span class="goblin-book-text"><strong>{{ row.sequence != null ? row.sequence + '. ' : '' }}{{ title(row.item) }}</strong><small v-if="!branch.hideBookAuthor">{{ author(row.item) }}</small><small>{{ duration(row.item) }} · {{ status(row.item) }}{{ localFor(row.item) ? ' · Downloaded' : '' }}</small><progress v-if="progressFor(row.item).progress > 0" :value="progressFor(row.item).progress" max="1" aria-label="Listening progress" /></span>

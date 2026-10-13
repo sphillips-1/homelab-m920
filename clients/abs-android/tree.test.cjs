@@ -79,12 +79,21 @@ test('reset or invalid progress cannot become recent and finished books can', ()
 
 test('single-author series hides redundant authors but mixed series stays branched after filtering', () => {
   const items=[book('one','One',[a],[s(1)]),book('two','Two',[a],[s(2)])];
-  assert.equal(buildTree(items,{groupBy:'series'})[0].flattenAuthor,true);
+  assert.equal(buildTree(items,{groupBy:'series'})[0].flattenBranch,true);
   assert.equal(buildTree(items)[0].branches[0].hideBookAuthor,true);
   items.push(book('three','Three',[b],[s(3)]));
   const filtered=buildTree(items,{groupBy:'series',search:'One'});
-  assert.equal(filtered[0].flattenAuthor,false);
+  assert.equal(filtered[0].flattenBranch,false);
   assert.equal(filtered[0].branches[0].hideBookAuthor,false);
-  assert.equal(buildTree([book('solo','Solo',[a],[])],{groupBy:'series'})[0].flattenAuthor,false);
-  assert.equal(buildTree([book('unknown','Unknown',[],[s(1)])],{groupBy:'series'})[0].flattenAuthor,false);
+  assert.equal(buildTree([book('solo','Solo',[a],[])],{groupBy:'series'})[0].flattenBranch,false);
+  assert.equal(buildTree([book('unknown','Unknown',[],[s(1)])],{groupBy:'series'})[0].flattenBranch,false);
+});
+
+test('standalone-only authors open directly to books but mixed authors retain standalone branch', () => {
+  const items=[book('solo','Solo',[a],[]),book('other','Other',[a],[])];
+  assert.equal(buildTree(items)[0].flattenBranch,true);
+  items.push(book('series','Series book',[a],[s(1)]));
+  assert.equal(buildTree(items)[0].flattenBranch,false);
+  assert.equal(buildTree(items,{search:'Solo'})[0].flattenBranch,false);
+  assert.equal(buildTree([book('named','Named',[a],[{id:'named',name:'Standalone books'}])])[0].flattenBranch,false);
 });
