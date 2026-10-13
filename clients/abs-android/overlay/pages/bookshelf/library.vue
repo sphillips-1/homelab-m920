@@ -1,6 +1,6 @@
 <template>
   <bookshelf-lazy-bookshelf v-if="isPodcast" page="books" />
-  <section v-else class="goblin-library">
+  <section v-else class="goblin-library" :style="{ '--goblin-list-font-size': listFontSize + 'px' }">
     <header><h1>Library</h1><p>{{ libraryName }}</p>
       <label class="goblin-search"><span class="material-symbols" aria-hidden="true">search</span><input v-model="search" type="search" placeholder="Books, authors, series" aria-label="Search books, authors and series" /></label>
       <div class="goblin-filters" aria-label="Library filters">
@@ -30,9 +30,11 @@
 </template>
 <script>
 import { Capacitor } from '@capacitor/core'
+import { Preferences } from '@capacitor/preferences'
 const { buildTree, metadata } = require('@/utils/shelfgoblin-tree')
+const { FONT_SIZE_KEY, DEFAULT_FONT_SIZE, normalizeFontSize } = require('@/utils/shelfgoblin-display')
 export default {
-  data: () => ({ items: [], localItems: [], loading: false, error: '', search: '', filter: 'all', groupBy: 'author', loadVersion: 0,
+  data: () => ({ items: [], localItems: [], loading: false, error: '', search: '', filter: 'all', groupBy: 'author', loadVersion: 0, listFontSize: DEFAULT_FONT_SIZE,
     filters: [{ id: 'all', label: 'All books' }, { id: 'downloaded', label: 'Downloaded' }, { id: 'progress', label: 'In progress' }] }),
   computed: {
     libraryId() { return this.$store.state.libraries.currentLibraryId },
@@ -43,6 +45,8 @@ export default {
   },
   watch: { libraryId() { this.load() }, connectionId() { this.load() } },
   methods: {
+    applyFontSize(event) { this.listFontSize = normalizeFontSize(event.detail) },
+    async readFontSize() { try { const { value } = await Preferences.get({ key: FONT_SIZE_KEY }); this.listFontSize = normalizeFontSize(value) } catch (_) {} },
     toggleGrouping() { this.groupBy = this.groupBy === 'author' ? 'series' : 'author'; try { localStorage.setItem('shelfgoblin-grouping', this.groupBy) } catch (_) {} },
     localFor(item) { return this.localItems.find(local => local.libraryItemId === item.id && local.serverConnectionConfigId === this.connectionId) },
     progressFor(item) { const local = this.localFor(item); return (local && this.$store.getters['globals/getLocalMediaProgressById'](local.id)) || this.$store.getters['user/getUserMediaProgress'](item.id) || {} },
@@ -77,8 +81,8 @@ export default {
       } finally { if (version === this.loadVersion) this.loading = false }
     }
   },
-  mounted() { try { if (localStorage.getItem('shelfgoblin-grouping') === 'series') this.groupBy = 'series' } catch (_) {}; this.$eventBus.$on('new-local-library-item', this.refreshDownloads); this.load() },
-  beforeDestroy() { this.loadVersion++; this.$eventBus.$off('new-local-library-item', this.refreshDownloads) }
+  mounted() { try { if (localStorage.getItem('shelfgoblin-grouping') === 'series') this.groupBy = 'series' } catch (_) {}; window.addEventListener('shelfgoblin-font-size', this.applyFontSize); this.readFontSize(); this.$eventBus.$on('new-local-library-item', this.refreshDownloads); this.load() },
+  beforeDestroy() { this.loadVersion++; window.removeEventListener('shelfgoblin-font-size', this.applyFontSize); this.$eventBus.$off('new-local-library-item', this.refreshDownloads) }
 }
 </script>
 <style scoped>
@@ -87,4 +91,12 @@ h1{font-size:26px;font-weight:500}header>p{opacity:.7;font-size:13px;margin:4px 
 .goblin-search{display:flex;align-items:center;gap:8px;background:rgba(127,127,127,.15);border-radius:24px;padding:12px 16px}.goblin-search input{background:transparent;flex:1;min-width:0;font-size:16px}
 .goblin-filters{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}.goblin-filters button{border:1px solid rgba(127,127,127,.35);border-radius:10px;padding:10px 8px;min-height:44px;font-size:12px}.goblin-filters button[aria-pressed=true]{background:rgba(110,160,100,.3)}.goblin-group{margin-left:auto}
 summary{display:flex;align-items:center;gap:8px;min-height:60px;list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}summary:before{content:'›';font-size:24px}details[open]>summary:before{content:'⌄'}summary>span{font-weight:500;flex:1}small{font-size:12px;opacity:.75}.goblin-author{border-bottom:1px solid rgba(127,127,127,.25)}.goblin-author>summary>span{font-size:18px}.goblin-branch,.goblin-books{margin-left:10px;padding-left:12px;border-left:1px solid rgba(127,127,127,.3)}.goblin-book{display:flex;gap:10px;align-items:center;padding:12px 0;min-height:76px}.goblin-book img{width:38px;height:54px;object-fit:cover;border-radius:4px}.goblin-book-text{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}.goblin-book strong{font-weight:500}.goblin-book progress{height:4px;width:100%;accent-color:#7ca976}button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid #7ca976;outline-offset:3px}
+</style>
+<style scoped>
+.goblin-author summary>span,.goblin-book strong{font-size:var(--goblin-list-font-size,16px);overflow-wrap:anywhere;min-width:0}
+.goblin-author>summary>span{font-size:calc(var(--goblin-list-font-size,16px) + 2px)}
+.goblin-author small{font-size:max(12px,calc(var(--goblin-list-font-size,16px) * .75))}
+.goblin-author summary{gap:8px;padding:8px 0}
+.goblin-author summary small{flex-shrink:0}
+.goblin-book-text{overflow-wrap:anywhere}
 </style>

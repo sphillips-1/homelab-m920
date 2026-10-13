@@ -60,6 +60,7 @@ transform('nuxt.config.js', s => s
   .replace("'@/assets/app.css'", "'@/assets/app.css', '@/assets/shelfgoblin-theme.css'"));
 transform('plugins/init.client.js', s => s.replace('  // Set theme', "  // Default to ShelfGoblin; restore an explicitly saved theme below.\n  document.documentElement.dataset.theme = 'shelfgoblin'\n  // Set theme"));
 transform('pages/settings.vue', s => s
+  .replace('    <!-- Playback settings -->', '    <settings-list-font-size />\n\n    <!-- Playback settings -->')
   .replace("theme: 'dark'", "theme: 'shelfgoblin'")
   .replace(/(themeOptionItems\(\)\s*\{\s*return\s*\[)/, "$1\n          { text: 'ShelfGoblin', value: 'shelfgoblin' },")
   .replace("|| 'dark'", "|| 'shelfgoblin'"));

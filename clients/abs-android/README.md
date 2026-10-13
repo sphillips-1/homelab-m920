@@ -5,6 +5,11 @@ Author → Book trees. The grouping toggle sits beside All books, Downloaded,
 and In progress. Search includes titles, authors and series; each book opens
 the inherited detail/playback/download screen. Podcasts retain the official UI.
 
+**Settings → List font size** adjusts tree text from 14 to 24 px (default 16),
+with a live preview and reset button. Author/series headings, book titles and
+details scale together. The choice is stored on the device and restored when
+the library opens; the rest of the app keeps its normal text sizes.
+
 ## Architecture
 
 ShelfGoblin's default theme matches the Authentik login branding: parchment,

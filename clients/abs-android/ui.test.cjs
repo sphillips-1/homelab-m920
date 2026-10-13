@@ -7,9 +7,13 @@ const { chromium } = require('playwright');
 const root = __dirname;
 const screen = fs.readFileSync(path.join(root, 'overlay/pages/bookshelf/library.vue'), 'utf8');
 const template = screen.match(/<template>([\s\S]*?)<\/template>/)[1];
-const script = screen.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^import .*$/gm, '').replace(/^const \{ buildTree, metadata \}.*$/gm, '').replace('export default', 'return');
+const script = screen.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^import .*$/gm, '').replace(/^const \{.*\} = require\(.*$/gm, '').replace('export default', 'return');
 const treeScript = fs.readFileSync(path.join(root, 'overlay/utils/shelfgoblin-tree.js'), 'utf8').replace('module.exports = { buildTree, metadata };', '');
-const css = screen.match(/<style scoped>([\s\S]*?)<\/style>/)[1];
+const displayScript = fs.readFileSync(path.join(root, 'overlay/utils/shelfgoblin-display.js'), 'utf8').replace(/^module.exports.*$/gm, '');
+const setting = fs.readFileSync(path.join(root, 'overlay/components/settings/ListFontSize.vue'), 'utf8');
+const settingTemplate = setting.match(/<template>([\s\S]*?)<\/template>/)[1];
+const settingScript = setting.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^import .*$/gm, '').replace(/^const \{.*\} = require\(.*$/gm, '').replace('export default', 'return');
+const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n');
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || undefined });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -22,9 +26,11 @@ const css = screen.match(/<style scoped>([\s\S]*?)<\/style>/)[1];
     await page.addStyleTag({ path: path.join(root, 'overlay/assets/shelfgoblin-theme.css') });
     await page.evaluate(() => document.documentElement.dataset.theme = 'shelfgoblin');
     await page.addScriptTag({ path: path.join(root, 'upstream/node_modules/vue/dist/vue.js') });
-    await page.evaluate(({ template, script, treeScript }) => {
-      const factory = new Function('Capacitor', treeScript + '\n' + script);
-      const component = factory({ convertFileSrc: url => url });
+    await page.evaluate(({ template, script, treeScript, displayScript, settingTemplate, settingScript }) => {
+      window.savedPreferences = {};
+      const preferences = { get: async ({key}) => ({value:window.savedPreferences[key] ?? null}), set: async ({key,value}) => { window.savedPreferences[key] = value } };
+      const factory = new Function('Capacitor', 'Preferences', treeScript + '\n' + displayScript + '\n' + script);
+      const component = factory({ convertFileSrc: url => url }, preferences);
       component.template = template;
       const books = [
         { id: 'one', media: { duration: 3600, metadata: { title: 'The Way of Kings', authors: [{id:'a',name:'Brandon Sanderson'}], series:[{id:'s',name:'The Stormlight Archive',sequence:1}] } } },
@@ -41,13 +47,25 @@ const css = screen.match(/<style scoped>([\s\S]*?)<\/style>/)[1];
       Vue.prototype.$eventBus = { $on() {}, $off() {} };
       Vue.component('nuxt-link', { props:['to'], template:'<a :href="to"><slot /></a>' });
       window.vm = new Vue(component).$mount('#app');
-    }, { template, script, treeScript });
+      const settingsComponent = new Function('Preferences', displayScript + '\n' + settingScript)(preferences);
+      settingsComponent.template = settingTemplate;
+      window.fontSettings = new Vue(settingsComponent).$mount();
+      document.body.appendChild(window.fontSettings.$el);
+    }, { template, script, treeScript, displayScript, settingTemplate, settingScript });
     await page.getByText('Brandon Sanderson', { exact: true }).first().waitFor();
     await page.locator('.goblin-author > summary').click();
     await page.locator('.goblin-branch summary').click();
     assert.equal(await page.locator('.goblin-book').count(), 2);
     await page.getByRole('button', { name: 'Downloaded', exact: true }).click();
     assert.equal(await page.locator('.goblin-book').count(), 1);
+    await page.waitForFunction(() => !document.getElementById('goblin-list-size').disabled);
+    await page.getByRole('slider', {name:'List font size'}).evaluate(el => {
+      el.value = '24'; el.dispatchEvent(new Event('input', {bubbles:true})); el.dispatchEvent(new Event('change', {bubbles:true}));
+    });
+    await page.waitForFunction(() => window.savedPreferences['shelfgoblin-list-font-size'] === '24');
+    assert.equal(await page.locator('.goblin-book strong').evaluate(el => getComputedStyle(el).fontSize), '24px');
+    await page.evaluate(async () => { window.vm.listFontSize = 16; await window.vm.readFontSize(); await Vue.nextTick() });
+    assert.equal(await page.locator('.goblin-book strong').evaluate(el => getComputedStyle(el).fontSize), '24px');
     assert.equal(await page.locator('.goblin-book').getAttribute('href'), '/localMedia/item/local_two');
     await page.getByRole('button', { name: 'Grouped by author. Switch grouping' }).click();
     assert.equal(await page.locator('.goblin-author > summary > span').textContent(), 'The Stormlight Archive');
@@ -61,8 +79,12 @@ const css = screen.match(/<style scoped>([\s\S]*?)<\/style>/)[1];
     assert.equal(await page.locator('.goblin-book').count(), 1);
     for (const width of [320,390,720]) {
       await page.setViewportSize({width,height:844});
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `Overflow at ${width}px`);
+      const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => { const r=el.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 1 || r.left < -1) }).map(el => ({tag:el.tagName,class:el.className})).slice(0,8));
+      assert.deepEqual(overflow, [], `Overflow at ${width}px`);
     }
+    await page.getByRole('button', {name:'Reset to default'}).click();
+    await page.waitForFunction(() => window.savedPreferences['shelfgoblin-list-font-size'] === '16');
+    assert.equal(await page.locator('.goblin-book strong').evaluate(el => getComputedStyle(el).fontSize), '16px');
     assert.deepEqual(errors, []);
     assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(244, 234, 215)');
     assert.equal(await page.locator('.goblin-library').evaluate(el => getComputedStyle(el).color), 'rgb(43, 27, 18)');
