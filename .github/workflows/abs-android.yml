@@ -33,6 +33,7 @@ jobs:
         run: |
           node clients/abs-android/prepare.cjs
           node --test clients/abs-android/tree.test.cjs clients/abs-android/auth.test.cjs
+          python3 -B clients/abs-android/notify-release.test.py
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
       - name: Install web and browser test dependencies
@@ -111,3 +112,13 @@ jobs:
           printf 'Android test build with the Author/Series tree and Authentik-inspired theme.\n\nDownload ShelfGoblin.apk directly on your phone and install over the previous ShelfGoblin debug build.\n\nMatching source archives and SHA256SUMS are included. Full source: %s/tree/%s\nBuild: %s\n' "https://github.com/$GH_REPO" "$BUILD_SHA" "$RUN_URL" > release-notes.md
           gh release create "$tag" release/* --target "$BUILD_SHA" --prerelease --title "ShelfGoblin Android build ${BUILD_RUN}" --notes-file release-notes.md
           echo "[Download APK](https://github.com/$GH_REPO/releases/download/$tag/ShelfGoblin.apk)" >> "$GITHUB_STEP_SUMMARY"
+  notify-discord:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - name: Notify releases-mobile
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASES_MOBILE_WEBHOOK }}
+        run: python3 clients/abs-android/notify-release.py
