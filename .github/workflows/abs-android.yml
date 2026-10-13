@@ -26,6 +26,9 @@ jobs:
             17
             21
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - name: Prepare pinned client and test grouping
         run: |
           node clients/abs-android/prepare.cjs
