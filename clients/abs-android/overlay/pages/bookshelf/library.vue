@@ -41,7 +41,7 @@ export default {
     libraryName() { return this.$store.getters['libraries/getCurrentLibraryName'] },
     isPodcast() { return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast' },
     connectionId() { return this.$store.getters['user/getServerConnectionConfigId'] },
-    tree() { return buildTree(this.items, { groupBy: this.groupBy, filter: this.filter, search: this.search, progress: this.progressFor, downloaded: item => !!this.localFor(item) }) }
+    tree() { const catalog = this.$store.state.libraries.filterData || {}; return buildTree(this.items, { groupBy: this.groupBy, filter: this.filter, search: this.search, progress: this.progressFor, downloaded: item => !!this.localFor(item), authorCatalog: catalog.authors || [], seriesCatalog: catalog.series || [] }) }
   },
   watch: { libraryId() { this.load() }, connectionId() { this.load() } },
   methods: {
@@ -66,7 +66,7 @@ export default {
         await this.refreshDownloads();
         const results = []; let page = 0;
         while (true) {
-          const data = await this.$nativeHttp.get(`/api/libraries/${id}/items?limit=200&page=${page}&minified=0`);
+          const data = await this.$nativeHttp.get(`/api/libraries/${id}/items?limit=200&page=${page}`);
           if (version !== this.loadVersion) return;
           if (!Array.isArray(data.results)) throw new Error('Invalid library response');
           results.push(...data.results);

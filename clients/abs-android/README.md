@@ -6,6 +6,10 @@ and In progress. Search includes titles, authors and series; each book opens
 the inherited detail/playback/download screen. Podcasts retain the official UI.
 Named series are alphabetical, with the Standalone books bucket last in both
 Series grouping and each author's branches.
+The tree supports ABS 2.36's compact `authorName`/`seriesName` list fields as
+well as expanded relationships. The existing library filter catalog supplies
+canonical names and IDs, preserving multi-series membership, sequence numbers
+and names containing commas without fetching every book individually.
 
 **Settings → List font size** adjusts tree text from 14 to 24 px (default 16),
 with a live preview and reset button. Author/series headings, book titles and

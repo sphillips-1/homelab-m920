@@ -32,6 +32,24 @@ test('a named series called Standalone books stays separate from the fallback bu
   assert.equal(tree[0].standalone,false);
   assert.equal(tree[1].standalone,true);
 });
+test('ABS 2.36 compact list metadata creates real series with numeric sequence', () => {
+  const compact = (id,seriesName) => ({id,media:{metadata:{title:id,authorName:'Author A',seriesName}}});
+  const items = [compact('later','Stormlight #2.5'),compact('earlier','Stormlight #2.05'),compact('solo','')];
+  const tree = buildTree(items,{groupBy:'series',seriesCatalog:[{id:'s',name:'Stormlight'}],authorCatalog:[a]});
+  assert.deepEqual(tree.map(g=>g.name),['Stormlight','Standalone books']);
+  assert.equal(tree[0].key,'s');
+  assert.deepEqual(tree[0].branches[0].books.map(r=>[r.item.id,r.sequence]),[['earlier','2.05'],['later','2.5']]);
+  assert.deepEqual(buildTree(items,{groupBy:'series',search:'Stormlight'}).map(g=>g.name),['Stormlight']);
+});
+test('canonical names preserve commas and multiple relationships in compact metadata', () => {
+  const seriesCatalog = [{id:'c',name:'A Series, With Commas'},{id:'x',name:'Other Series'}];
+  const authorCatalog = [{id:'comma',name:'An Author, Jr.'},b];
+  const item = {id:'book',media:{metadata:{title:'Book',authorName:'An Author, Jr., Author B',seriesName:'A Series, With Commas #1, Other Series #4'}}};
+  const tree = buildTree([item],{groupBy:'series',seriesCatalog,authorCatalog});
+  assert.deepEqual(tree.map(g=>g.name),['A Series, With Commas','Other Series']);
+  assert.equal(tree[0].branches.length,2);
+  assert.equal(tree[1].branches[0].books[0].sequence,'4');
+});
 test('search matches titles, authors and series; filters remove empty branches', () => {
   const items = [book('one', 'First', [a], [s(1)]), book('two', 'Other', [b], [])];
   for (const search of ['first', 'author a', 'series']) assert.equal(buildTree(items, { search })[0].count, 1);
