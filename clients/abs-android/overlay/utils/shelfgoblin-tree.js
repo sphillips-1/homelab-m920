@@ -39,6 +39,10 @@ function compactReferences(text, catalog, isSeries) {
 function structuredReferences(value) { return Array.isArray(value) ? value : value?.name ? [value] : []; }
 function buildTree(items, { groupBy = 'author', filter = 'all', search = '', progress = () => null, downloaded = () => false, authorCatalog = [], seriesCatalog = [] } = {}) {
   const groups = new Map();
+  // Choose from the whole library before filtering; hidden recent books do not
+  // promote an older match. Ignore untouched/reset progress and invalid dates.
+  const played = items.map(item => ({ item, p: progress(item) || {} })).filter(({p}) => (p.progress > 0 || p.currentTime > 0 || p.isFinished) && Number.isFinite(Number(p.lastUpdate)) && Number(p.lastUpdate) > 0).sort((a,b) => Number(b.p.lastUpdate) - Number(a.p.lastUpdate) || collator.compare(String(a.item.id), String(b.item.id)));
+  const recentId = played[0]?.item.id;
   const term = search.trim().toLocaleLowerCase();
   const authorNames = catalogNames(authorCatalog), seriesNames = catalogNames(seriesCatalog);
   for (const item of items) {
@@ -55,21 +59,23 @@ function buildTree(items, { groupBy = 'author', filter = 'all', search = '', pro
       if (!groups.has(key)) groups.set(key, { key, name: outer.name, standalone: groupBy === 'series' && !!outer.fallback, branches: new Map(), ids: new Set() });
       const group = groups.get(key);
       group.ids.add(item.id);
+      if (item.id === recentId) group.recent = true;
       for (const inner of groupBy === 'author' ? series : authors) {
         const branchKey = String(inner.id || inner.name);
         if (!group.branches.has(branchKey)) group.branches.set(branchKey, { key: branchKey, name: inner.name, standalone: groupBy === 'author' && !!inner.fallback, books: [] });
         const sequence = groupBy === 'author' ? inner.sequence : outer.sequence;
+        if (item.id === recentId) group.branches.get(branchKey).recent = true;
         group.branches.get(branchKey).books.push({ item, sequence });
       }
     }
   }
-  return [...groups.values()].map(g => ({ key: g.key, name: g.name, standalone: g.standalone, count: g.ids.size,
+  return [...groups.values()].map(g => ({ key: g.key, name: g.name, standalone: g.standalone, recent: !!g.recent, count: g.ids.size,
     branches: [...g.branches.values()].map(b => ({ ...b, books: b.books.sort((a, b) => {
       if (a.sequence == null && b.sequence != null) return 1;
       if (b.sequence == null && a.sequence != null) return -1;
       const numeric = a.sequence != null && b.sequence != null && Number.isFinite(Number(a.sequence)) && Number.isFinite(Number(b.sequence));
       return (numeric ? Number(a.sequence) - Number(b.sequence) : collator.compare(String(a.sequence ?? ''), String(b.sequence ?? ''))) || collator.compare(metadata(a.item).title || '', metadata(b.item).title || '');
-    }) })).sort(groupOrder)
-  })).sort(groupOrder);
+    }) })).sort((a,b) => Number(!!b.recent) - Number(!!a.recent) || groupOrder(a,b))
+  })).sort((a,b) => Number(!!b.recent) - Number(!!a.recent) || groupOrder(a,b));
 }
 module.exports = { buildTree, metadata };

@@ -57,3 +57,22 @@ test('search matches titles, authors and series; filters remove empty branches',
   assert.equal(buildTree(items, { filter: 'downloaded', downloaded: i => i.id === 'two' })[0].name, 'Author B');
   assert.equal(buildTree(items, { filter: 'progress', progress: i => ({ progress: .4, isFinished: i.id === 'two' }) })[0].name, 'Author A');
 });
+
+test('recent author and series lead while other groups and book sequence stay sorted', () => {
+  const items = [book('old','Old',[a],[s(1)]), book('recent','Recent',[b],[{id:'z',name:'Zebra',sequence:2}]), book('first','First',[b],[{id:'z',name:'Zebra',sequence:1}]), book('solo','Solo',[a],[])];
+  const progress = item => item.id === 'recent' ? {progress:.3,lastUpdate:200} : item.id === 'old' ? {progress:.5,lastUpdate:100} : {};
+  for (const groupBy of ['author','series']) {
+    const tree = buildTree(items,{groupBy,progress});
+    assert.equal(tree[0].name,groupBy === 'author' ? 'Author B' : 'Zebra');
+    assert.equal(tree[0].recent,true); assert.equal(tree[0].branches[0].recent,true);
+    assert.deepEqual(tree[0].branches[0].books.map(r=>r.item.id),['first','recent']);
+    assert.equal(tree.slice(1).some(g=>g.recent),false);
+    assert.equal(buildTree(items,{groupBy,progress,search:'Old'}).some(g=>g.recent),false);
+  }
+});
+test('reset or invalid progress cannot become recent and finished books can', () => {
+  const items=[book('a','A',[a],[]),book('b','B',[b],[])];
+  assert.equal(buildTree(items,{progress:item=>item.id==='b'?{progress:0,lastUpdate:900}:{progress:.2,lastUpdate:100}})[0].name,'Author A');
+  assert.equal(buildTree(items,{progress:()=>({progress:.2,lastUpdate:'bad'})}).some(g=>g.recent),false);
+  assert.equal(buildTree(items,{progress:item=>item.id==='b'?{isFinished:true,lastUpdate:900}:{}})[0].name,'Author B');
+});

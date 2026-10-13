@@ -106,6 +106,15 @@ const css = [...(screen + setting).matchAll(/<style scoped>([\s\S]*?)<\/style>/g
     await page.getByRole('searchbox').fill('Sanderson');
     fs.mkdirSync(path.join(root,'artifacts'), {recursive:true});
     await page.screenshot({path:path.join(root,'artifacts/shelfgoblin-theme-preview.png'),fullPage:true});
+    await page.getByRole('searchbox').fill('');
+    await page.evaluate(() => {
+      window.vm.$store.getters['user/getUserMediaProgress'] = id => id === 'recent' ? {progress:.4,lastUpdate:200} : {};
+      window.vm.items = [...window.vm.items, {id:'recent',media:{metadata:{title:'Recent book',authors:[{id:'z',name:'Zelda Author'}],series:[{id:'z',name:'Zelda Series',sequence:1}]}}}];
+    });
+    assert.equal(await page.locator('.goblin-author > summary > span').first().textContent(), 'Zelda AuthorRecent');
+    assert.equal(await page.locator('.goblin-author > summary .goblin-recent').count(), 1);
+    await page.locator('.goblin-group').click();
+    assert.equal(await page.locator('.goblin-author > summary > span').first().textContent(), 'Zelda SeriesRecent');
     console.log('Browser checks passed: expand, grouping, retained filter, download route, search, progress and responsive widths.');
   } finally { await browser.close() }
 })().catch(e => { console.error(e); process.exitCode = 1 });

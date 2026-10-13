@@ -7,7 +7,11 @@ the inherited detail/playback/download screen. Book rows are text-only, without
 cover thumbnails or row icons; expandable author/series nodes retain disclosure
 indicators. Podcasts retain the official UI.
 Named series are alphabetical, with the Standalone books bucket last in both
-Series grouping and each author's branches.
+Series grouping and each author's branches. The latest played book's author and
+series are pinned above that order and marked Recent; book sequence is preserved.
+Recency uses the newest local/server progress timestamp with listening progress
+or finished status. ABS progress edits can also update that timestamp. Filtering
+never substitutes an older book as recent.
 The tree supports ABS 2.36's compact `authorName`/`seriesName` list fields as
 well as expanded relationships. The existing library filter catalog supplies
 canonical names and IDs, preserving multi-series membership, sequence numbers
