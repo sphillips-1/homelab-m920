@@ -3,14 +3,38 @@
 Custom Audiobookshelf Android client with Author → Series → Book and Series →
 Author → Book trees. The grouping toggle sits beside All books, Downloaded,
 and In progress. Search includes titles, authors and series; each book opens
-the inherited detail/playback/download screen. Podcasts retain the official UI.
+the inherited detail/playback/download screen. Book rows are text-only, without
+cover thumbnails or row icons; expandable author/series nodes retain disclosure
+indicators. Podcasts retain the official UI.
+Named series are alphabetical, with the Standalone books bucket last in both
+Series grouping and each author's branches. The latest played book's author and
+series are pinned above that order and marked Recent; book sequence is preserved.
+Authors with only standalone books open directly to books in Author view.
+Authors with a mix of series and standalones retain the Standalone books branch,
+even when filtered.
+Single-author series open directly to books in Series view and omit repeated
+author lines on book rows in both views. Mixed-author series retain author
+branches and labels; this is determined before search/download filters.
+Recency uses the newest local/server progress timestamp with listening progress
+or finished status. ABS progress edits can also update that timestamp. Filtering
+never substitutes an older book as recent.
+The tree supports ABS 2.36's compact `authorName`/`seriesName` list fields as
+well as expanded relationships. The existing library filter catalog supplies
+canonical names and IDs, preserving multi-series membership, sequence numbers
+and names containing commas without fetching every book individually.
+
+**Settings → List font size** adjusts tree text from 14 to 24 px (default 16),
+with a live preview and reset button. Author/series headings, book titles and
+details scale together. The choice is stored on the device and restored when
+the library opens; the rest of the app keeps its normal text sizes.
 
 ## Architecture
 
 ShelfGoblin's default theme matches the Authentik login branding: parchment,
 walnut, brass and forest green, with serif library headings. Login uses the
 same repository-owned bookshelf background and logo; the app bar uses the
-goblin mark. The preparer copies these SVG assets into the app for offline use.
+goblin mark. Android launcher icons use the same SVG artwork, converted to
+native vectors with adaptive and monochrome variants. The preparer copies these SVG assets into the app for offline use.
 Choose **Settings → Theme → ShelfGoblin** after upgrading if a previous theme
 was saved. Dark, Black and Light remain available. Theme changes are local
 to the app and do not change Authentik or the M920 server.
@@ -77,6 +101,16 @@ build/test and upload Actions artifacts; they cannot publish releases or access
 the signing key. Open the repository's **Releases** page on your phone and tap
 **ShelfGoblin.apk** under the newest ShelfGoblin build. Assets also include
 SHA256SUMS and matching upstream/customization source archives.
+
+After successful publication, a separate Actions job posts the APK download,
+release notes/source and build links to Discord **#releases-mobile**. Create an
+incoming webhook in that channel and store its URL as the repository Actions
+secret `DISCORD_RELEASES_MOBILE_WEBHOOK`. Keep the URL out of Git and chat.
+PR builds, failed builds and failed publications do not send announcements.
+Discord must confirm delivery; missing configuration or delivery errors fail
+the notification job while leaving the published APK available. Rerun only the
+failed notification job to retry delivery; rerunning a successful notification
+can send a duplicate message. Notifications do not ping everyone or roles.
 
 Publishing requires the encrypted Actions secret
 `SHELFGOBLIN_DEBUG_KEYSTORE_BASE64`, containing the existing debug keystore.

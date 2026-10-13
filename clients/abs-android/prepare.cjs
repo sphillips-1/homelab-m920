@@ -60,6 +60,7 @@ transform('nuxt.config.js', s => s
   .replace("'@/assets/app.css'", "'@/assets/app.css', '@/assets/shelfgoblin-theme.css'"));
 transform('plugins/init.client.js', s => s.replace('  // Set theme', "  // Default to ShelfGoblin; restore an explicitly saved theme below.\n  document.documentElement.dataset.theme = 'shelfgoblin'\n  // Set theme"));
 transform('pages/settings.vue', s => s
+  .replace('    <!-- Playback settings -->', '    <settings-list-font-size />\n\n    <!-- Playback settings -->')
   .replace("theme: 'dark'", "theme: 'shelfgoblin'")
   .replace(/(themeOptionItems\(\)\s*\{\s*return\s*\[)/, "$1\n          { text: 'ShelfGoblin', value: 'shelfgoblin' },")
   .replace("|| 'dark'", "|| 'shelfgoblin'"));
@@ -75,5 +76,9 @@ fs.mkdirSync(brandOutput, { recursive: true });
 for (const asset of ['shelfgoblin-logo.svg', 'shelfgoblin-favicon.svg', 'bookshelf-background.svg']) {
   fs.copyFileSync(path.join(branding, asset), path.join(brandOutput, asset));
 }
+require('./launcher-icon.cjs')(fs.readFileSync(path.join(branding, 'shelfgoblin-favicon.svg'), 'utf8'), checkout);
+transform('android/app/src/main/AndroidManifest.xml', s => s
+  .replace('@mipmap/ic_launcher_round', '@mipmap/shelfgoblin_launcher')
+  .replace('@mipmap/ic_launcher', '@mipmap/shelfgoblin_launcher'));
 fs.cpSync(path.join(root, 'overlay'), checkout, { recursive: true });
 console.log(`ShelfGoblin prepared from ${revision}. Server: ${server}`);
