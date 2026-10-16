@@ -5,7 +5,7 @@ version-pinned image. **Jellyfin is intentionally LAN-only.**
 
 ## Access and storage
 
-- LAN URL: `http://192.168.4.37:8096` (or the detected LAN address in `.env`)
+- LAN URL: `http://192.168.4.27:8096` (see `docs/network-inventory.md` and the selected address in `.env`)
 - Application state: `/srv/homelab/appdata/jellyfin` -> `/config`
 - Transcode cache: `/srv/homelab/cache/jellyfin` -> `/cache`
 - Movies: `/srv/homelab/media/movies` -> `/media/movies` (read-only)
@@ -22,7 +22,7 @@ router port forwarding, or exposed via Tailscale. It is not intended for
 Internet access. For a host with multiple LAN uplinks, select the address with:
 
 ```bash
-sudo env JELLYFIN_LAN_IP=192.168.4.37 bash /opt/homelab/scripts/configure-jellyfin-host.sh
+sudo env JELLYFIN_LAN_IP=192.168.4.27 bash /opt/homelab/scripts/configure-jellyfin-host.sh
 ```
 
 Normal deployment preserves a still-valid selected LAN address and regenerates
@@ -40,6 +40,31 @@ docker compose -f services/jellyfin/compose.yml start
 docker compose -f services/jellyfin/compose.yml restart
 docker compose -f services/jellyfin/compose.yml logs --tail 100 -f jellyfin
 ```
+
+## Boot network readiness
+
+Install the host guard once after generating Jellyfin's `.env`:
+
+```bash
+sudo bash /opt/homelab/scripts/install-docker-network-guard.sh
+sudo /usr/local/sbin/homelab-wait-for-jellyfin-address
+```
+
+The installer is safe to rerun and does not restart Docker. It installs a
+root-owned helper and Docker systemd drop-in. Before Docker starts, the helper
+waits up to 120 seconds for the exact configured Jellyfin IPv4 address. This
+prevents Docker's container restore from racing DHCP and failing the LAN-only
+port binding. No address is hard-coded in the helper. A missing `.env` skips
+the guard for initial provisioning; an invalid address fails explicitly.
+
+If the address never appears, Docker startup fails and its existing systemd
+restart policy retries. This delays all Docker applications, so maintain a
+DHCP reservation and regenerate Jellyfin's host configuration if its address
+changes. The guard does not repair a previously detached container network.
+
+To remove it, delete only
+`/etc/systemd/system/docker.service.d/homelab-network.conf` and run
+`sudo systemctl daemon-reload`. Changes take effect on the next Docker start.
 
 ## One-time application setup
 
