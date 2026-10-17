@@ -1,0 +1,3 @@
+services/readest/** text eol=lf
+scripts/*readest* text eol=lf
+tests/verify_readest_live.py text eol=lf

@@ -40,6 +40,14 @@ for container in \
     audiobookshelf \
     audiobookshelf-gateway \
     calibre-web \
+    readest-db \
+    readest-auth \
+    readest-rest \
+    readest-kong \
+    readest-storage \
+    readest-client \
+    readest-sso \
+    readest-gateway \
     jellyfin \
     beszel \
     top-users \
@@ -49,6 +57,9 @@ for container in \
     audiobook-importer; do
     wait_for_container "${container}"
 done
+
+docker exec -i authentik-worker ak shell \
+    < /opt/homelab/scripts/verify-readest-sso.py
 
 if [[ -f /opt/homelab/services/monitoring/.env ]]; then
     wait_for_container beszel-agent

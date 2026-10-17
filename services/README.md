@@ -8,6 +8,7 @@ Initial services:
 
 - `audiobookshelf`
 - `calibre-web`
+- `readest` — separate browser reader and per-user sync; see `readest/README.md`.
 - `homepage`
 - `monitoring`
 - `authentik`

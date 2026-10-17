@@ -13,6 +13,8 @@ ingress:
     service: http://audiobookshelf-gateway:80
   - hostname: books.__DOMAIN__
     service: http://authentik-server:9000
+  - hostname: readest.__DOMAIN__
+    service: http://authentik-server:9000
   - hostname: status.__DOMAIN__
     service: http://authentik-server:9000
   - hostname: torrents.__DOMAIN__
