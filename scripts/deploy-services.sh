@@ -191,6 +191,9 @@ else
 fi
 deploy_service "homepage"
 
+log "Deploying Bambu Studio browser trial and restricted SSO"
+bash "${REPO_DIR}/scripts/deploy-bambustudio.sh"
+
 log "Configuring M920 qBittorrent and SSO"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
 bash "${REPO_DIR}/scripts/setup-m920-torrent-storage.sh"

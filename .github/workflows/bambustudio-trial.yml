@@ -1,0 +1,53 @@
+name: Bambu Studio trial DNS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/bambu-trial]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    environment: infrastructure
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_cloudflare_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_zone_name: ${{ vars.CLOUDFLARE_ZONE_NAME }}
+      TF_VAR_tunnel_id: ${{ vars.CLOUDFLARE_TUNNEL_ID }}
+      TF_VAR_tunnel_name: ${{ vars.CLOUDFLARE_TUNNEL_NAME }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.8"
+      - name: Configure existing remote state
+        run: |
+          printf '%s\n' \
+            'hostname = "app.terraform.io"' \
+            'organization = "${{ vars.TF_CLOUD_ORGANIZATION }}"' \
+            'workspaces { name = "${{ vars.TF_WORKSPACE }}" }' \
+            > backend.ci.hcl
+          terraform init -backend-config=backend.ci.hcl -lockfile=readonly
+      - name: Plan Bambu DNS only
+        run: terraform plan -target='cloudflare_dns_record.public_hostnames["bambu.shelfgoblin.dev"]' -out=bambu.tfplan
+      - name: Verify narrowly scoped non-destructive plan
+        run: |
+          terraform show -json bambu.tfplan > bambu-plan.json
+          jq -e '[.resource_changes[]? | select(.change.actions != ["no-op"])] | all(.address == "cloudflare_dns_record.public_hostnames[\"bambu.shelfgoblin.dev\"]" and (.change.actions == ["create"] or .change.actions == ["update"]))' bambu-plan.json
+      - name: Apply reviewed DNS plan
+        run: terraform apply bambu.tfplan
