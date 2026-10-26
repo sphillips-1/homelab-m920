@@ -1,5 +1,9 @@
 # Audiobookshelf
 
+The Nginx gateway reserves larger upstream header buffers for OIDC session
+cookies and redirects, preventing large successful login responses from being
+rejected before they reach the browser.
+
 Audiobookshelf deployment configuration lives here.
 
 Persistent state:

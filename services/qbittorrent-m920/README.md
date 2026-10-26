@@ -79,6 +79,13 @@ configuration on shutdown. Recreate both application and gateway together.
 Terraform manages the new tunnel DNS CNAME; SSO mode routes it to the gateway.
 Other tunnel modes return the catch-all 404 for this hostname.
 
+The importer mounts `/srv/homelab/media/audiobooks` at `/audiobooks` so its
+staging directory and final library live on the same filesystem. It publishes
+completed books into `Books` and lets Audiobookshelf's enabled watcher detect
+them; a full scan is requested only when that watcher is disabled. Successfully
+imported download sources disappear from the selection list, while failed jobs
+remain retryable. The source downloads are preserved.
+
 Before upgrades, stop this stack and archive appdata to
 `/srv/homelab/backups/qbittorrent-m920`, then restart it. Back up payloads
 separately. To revoke access, remove the user's `torrent-users` membership.
