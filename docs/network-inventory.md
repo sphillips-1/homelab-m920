@@ -7,6 +7,14 @@ Use this document as the reference for homelab LAN addresses. These are document
 | Lenovo ThinkCentre M920Q | Primary homelab server; hostname `homelab` | `192.168.4.27` | SSH: `sean@192.168.4.27` |
 | Raspberry Pi Zero 2 | Pi-hole DNS server | `192.168.4.75` | DNS: TCP/UDP 53; admin: `http://192.168.4.75/admin/` |
 
+## Kids intranet
+
+- Curiosity Club: `http://192.168.4.27:8092/`, deployed 2026-10-26.
+- TCP 8092 binds only to the M920Q LAN address. No Cloudflare route is configured.
+- Optional DNS name `kids.home.arpa` is planned, not yet installed in Pi-hole.
+  If added, use `http://kids.home.arpa:8092/`; Jellyfin still owns port 80.
+- Offline Vikidia is proxied through the portal; its container has no host port.
+
 ## Evidence and maintenance
 
 Addresses recovered on 2026-10-11 from the previous chat **Check Pi-hole health**, with successful checks performed on 2026-10-09:
