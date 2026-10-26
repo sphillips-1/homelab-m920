@@ -1,11 +1,8 @@
 # Bambu Studio browser trial
 
-The initial trial is deployed separately because the canonical server checkout
-has unrelated live changes. `Bambu Studio trial DNS` uses the existing GitHub
-infrastructure environment and Terraform state, targets only this DNS record,
-and rejects deletion, replacement, or changes to any other resource. Normal
-deployment includes the service once this release is merged; it retains the
-canonical checkout's clean-tree guard.
+The normal deployment pipeline manages the Terraform DNS record, deploys the
+container, reconciles Authentik, and checks service health and access policies.
+It retains the canonical checkout's clean-tree guard.
 
 Shared desktop at https://bambu.shelfgoblin.dev, protected by the Authentik
 embedded proxy and explicit `bambu-users` membership. Google login alone and

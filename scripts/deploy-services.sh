@@ -194,6 +194,11 @@ deploy_service "homepage"
 log "Deploying Bambu Studio browser trial and restricted SSO"
 bash "${REPO_DIR}/scripts/deploy-bambustudio.sh"
 
+# Initial offline-content provisioning is explicit; do not download on every release.
+if [[ -f "${SERVICES_DIR}/kids/.env" ]]; then
+    deploy_service "kids"
+fi
+
 log "Configuring M920 qBittorrent and SSO"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
 bash "${REPO_DIR}/scripts/setup-m920-torrent-storage.sh"

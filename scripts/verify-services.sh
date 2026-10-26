@@ -79,6 +79,13 @@ if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
 fi
 
 echo "==> Verifying local application endpoints"
+if [[ -f /opt/homelab/services/kids/.env ]]; then
+    wait_for_container kids
+    wait_for_container kids-encyclopedia
+    KIDS_LAN_IP="$(sed -n 's/^KIDS_LAN_IP=//p' /opt/homelab/services/kids/.env)"
+    curl --fail --silent --show-error --output /dev/null "http://${KIDS_LAN_IP}:8092/"
+    curl --fail --silent --show-error --location --output /dev/null "http://${KIDS_LAN_IP}:8092/discover/"
+fi
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:13378/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8083/
 JELLYFIN_LAN_IP="$(sed -n 's/^JELLYFIN_LAN_IP=//p' /opt/homelab/services/jellyfin/.env)"
