@@ -9,6 +9,6 @@ for directory in "$root/storage" "$root/media/audiobooks/Books"; do
         echo 'Audiobook library filesystem is unavailable.' >&2; exit 1;
     }
 done
-[[ ! -L "$root/storage/.audiobook-imports" ]]
-install -d -o 1000 -g 1000 -m 0750 "$root/storage/.audiobook-imports" \
+[[ ! -L "$root/media/audiobooks/.audiobook-imports" ]]
+install -d -o 1000 -g 1000 -m 0750 "$root/media/audiobooks/.audiobook-imports" \
     "$root/appdata/audiobook-importer"

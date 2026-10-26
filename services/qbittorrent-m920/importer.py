@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Owner-only audiobook copies from completed USB downloads into the library."""
 import json
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -96,9 +97,12 @@ def ensure_complete(source, current):
 def catalog():
     storage_ready()
     current = torrents()  # Fail closed if completion cannot be checked.
+    with database() as db:
+        imported = {row['source'] for row in db.execute(
+            "SELECT DISTINCT source FROM jobs WHERE status='done'")}
     result = []
     for source in sorted((DOWNLOADS / 'complete').iterdir()):
-        if source.name.startswith('.'):
+        if source.name.startswith('.') or source.name in imported:
             continue
         try:
             ensure_complete(source, current)
@@ -131,10 +135,14 @@ def scan_library():
         for folder in item.get('folders', []))), None)
     if not library:
         raise ValueError('Imported. Run Scan in Audiobookshelf; the library was not found.')
+    # Do not race the ABS watcher with a full-library scan.
+    if not library.get('settings', {}).get('disableWatcher', False):
+        return 'Imported. Audiobookshelf will detect the book automatically; the USB copy is preserved.'
     with urllib.request.urlopen(urllib.request.Request(
         base + '/api/libraries/' + library['id'] + '/scan', data=b'{}',
         headers=headers, method='POST'), timeout=15) as response:
         response.read()
+    return 'Imported. Audiobookshelf scan requested; the USB copy is preserved.'
 
 def update_job(job, status, message):
     with database() as db:
@@ -198,12 +206,12 @@ def run_job(job, source, target, metadata=None):
     try:
         copy_book(source, target, STAGING / job, metadata)
     except Exception as error:
+        logging.exception('Audiobook import %s failed', job)
         update_job(job, 'failed', str(error) if isinstance(error, ValueError)
                    else 'Import failed. Check server logs and library storage.')
     else:
         try:
-            scan_library()
-            message = 'Imported. Audiobookshelf scan requested; the USB copy is preserved.'
+            message = scan_library()
         except Exception:
             message = 'Imported. Open Audiobookshelf and run Scan to refresh the library.'
         update_job(job, 'done', message)
