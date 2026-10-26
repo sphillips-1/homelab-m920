@@ -11,8 +11,8 @@ Use this document as the reference for homelab LAN addresses. These are document
 
 - Curiosity Club: `http://192.168.4.27:8092/`, deployed 2026-10-26.
 - TCP 8092 binds only to the M920Q LAN address. No Cloudflare route is configured.
-- Optional DNS name `kids.home.arpa` is planned, not yet installed in Pi-hole.
-  If added, use `http://kids.home.arpa:8092/`; Jellyfin still owns port 80.
+- Pi-hole local A record `kids.home.arpa` points to `192.168.4.27` (added 2026-10-26).
+  Use `http://kids.home.arpa/`; the LAN proxy shares port 80 with `jellyfin.home.arpa`.
 - Offline Vikidia is proxied through the portal; its container has no host port.
 
 ## Evidence and maintenance

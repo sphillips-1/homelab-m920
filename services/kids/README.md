@@ -24,11 +24,11 @@ fully disconnected rebuild. The encyclopedia uses a dedicated internal network;
 the portal also joins a dedicated ingress bridge for its LAN-bound port. Neither
 joins Cloudflare's `homelab` network. Only the portal publishes a host port.
 
-Open **http://192.168.4.27:8092/**. Port 80 already belongs to Jellyfin.
-An optional Pi-hole A record `kids.home.arpa` → `192.168.4.27` gives
-**http://kids.home.arpa:8092/**; DNS alone cannot remove the port. Do not change
-Jellyfin's port mapping to obtain a portless kids URL without planning a shared proxy.
-The record is not automatically installed. No router or Cloudflare changes are needed.
+Open **http://kids.home.arpa/** using Pi-hole DNS. A local A record maps
+`kids.home.arpa` to `192.168.4.27`. The shared LAN proxy owns port 80 and routes
+Jellyfin's hostname separately. Direct fallback: **http://192.168.4.27:8092/**.
+See [LAN proxy deployment and rollback](../lan-proxy/README.md).
+No router or Cloudflare changes are needed.
 
 ## Encyclopedia
 

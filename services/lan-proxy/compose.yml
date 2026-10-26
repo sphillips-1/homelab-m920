@@ -1,0 +1,22 @@
+services:
+  lan-proxy:
+    image: nginx:1.29.1-alpine
+    container_name: lan-proxy
+    restart: unless-stopped
+    environment:
+      LAN_HTTP_IP: "${LAN_HTTP_IP:?Set LAN_HTTP_IP in .env}"
+    ports:
+      - "${LAN_HTTP_IP}:80:8080"
+    volumes:
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - kids-ingress
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+networks:
+  kids-ingress:
+    external: true
+    name: kids_ingress

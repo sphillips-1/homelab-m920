@@ -78,6 +78,13 @@ if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
     wait_for_container pihole-monitor
 fi
 
+if [[ -f /opt/homelab/services/lan-proxy/.env ]]; then
+    wait_for_container lan-proxy
+    LAN_HTTP_IP="$(sed -n 's/^LAN_HTTP_IP=//p' /opt/homelab/services/lan-proxy/.env)"
+    curl --fail --silent --show-error --output /dev/null --resolve "kids.home.arpa:80:${LAN_HTTP_IP}" http://kids.home.arpa/
+    curl --fail --silent --show-error --output /dev/null --resolve "jellyfin.home.arpa:80:${LAN_HTTP_IP}" http://jellyfin.home.arpa/health
+fi
+
 echo "==> Verifying local application endpoints"
 if [[ -f /opt/homelab/services/kids/.env ]]; then
     wait_for_container kids

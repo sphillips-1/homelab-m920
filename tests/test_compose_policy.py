@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # Existing private-access host ports. Any new publication requires review here.
 PORTS = {"audiobookshelf-gateway": (13378, 80), "authentik-server": (9000, 9000),
          "calibre-web": (8083, 8083), "jellyfin": (8096, 8096), "beszel": (8090, 8090),
-         "kids": (8092, 8080)}
+         "kids": (8092, 8080), "lan-proxy": (80, 8080)}
 
 
 class ComposePolicyTest(unittest.TestCase):
@@ -36,7 +36,7 @@ class ComposePolicyTest(unittest.TestCase):
                     self.assertEqual(actual, expected)
                     for port in service.get("ports", []):
                         self.assertEqual(port.get("protocol", "tcp"), "tcp")
-                        if name in ("jellyfin", "kids"):
+                        if name in ("jellyfin", "kids", "lan-proxy"):
                             self.assertNotIn(port.get("host_ip", ""), ("", "0.0.0.0", "::"))
                     for volume in service.get("volumes", []):
                         self.assertEqual(volume["type"], "bind", "Persistent volumes must have explicit host paths")

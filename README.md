@@ -33,7 +33,7 @@ Deployed and managed by this repository:
 - Beszel container status and resource monitoring
 - Tailscale-based private access
 - Curiosity Club kids intranet: offline games, drawing, and Vikidia at
-  `http://192.168.4.27:8092/` (see `services/kids/README.md`)
+  `http://kids.home.arpa/` (see `services/kids/README.md`)
 
 Planned:
 

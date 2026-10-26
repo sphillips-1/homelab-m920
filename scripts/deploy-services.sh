@@ -199,6 +199,10 @@ if [[ -f "${SERVICES_DIR}/kids/.env" ]]; then
     deploy_service "kids"
 fi
 
+if [[ -f "${SERVICES_DIR}/lan-proxy/.env" ]]; then
+    deploy_service "lan-proxy"
+fi
+
 log "Configuring M920 qBittorrent and SSO"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop
 bash "${REPO_DIR}/scripts/setup-m920-torrent-storage.sh"

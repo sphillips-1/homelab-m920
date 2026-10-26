@@ -94,7 +94,10 @@ Tailscale Serve/Funnel configuration, or router port forward.
 The [Curiosity Club](../services/kids/README.md) serves keyboard browser games,
 a drawing pad, matching puzzles, and offline English Vikidia through Kiwix.
 Its dedicated internal Docker network has no Cloudflare connection; only the
-portal publishes TCP 8092 on the selected LAN address. Jellyfin retains port 80.
+portal publishes TCP 8092 on the selected LAN address. A dedicated LAN Nginx
+proxy owns TCP 80, serving `kids.home.arpa` and `jellyfin.home.arpa` by Host
+header. It joins `kids_ingress`, outside the public tunnel network, and forwards
+Jellyfin to its existing LAN-bound port 8096. Pi-hole supplies both local names.
 Rebuildable sources live in `services/kids`; downloaded encyclopedia archives,
 optional emulator assets, the parent-managed game catalog, and ROMs stay under
 `/srv/homelab/media/kids`, mounted read-only by the serving containers.
