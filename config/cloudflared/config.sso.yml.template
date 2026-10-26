@@ -6,6 +6,8 @@ tunnel: __TUNNEL_ID__
 credentials-file: __CREDENTIALS_FILE__
 
 ingress:
+  - hostname: bambu.__DOMAIN__
+    service: http://authentik-server:9000
   - hostname: auth.__DOMAIN__
     path: ^/invite/.*$
     service: http://invitation-provisioner:8080

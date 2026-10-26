@@ -191,6 +191,9 @@ else
 fi
 deploy_service "homepage"
 
+log "Deploying Bambu Studio browser trial and restricted SSO"
+bash "${REPO_DIR}/scripts/deploy-bambustudio.sh"
+
 # Initial offline-content provisioning is explicit; do not download on every release.
 if [[ -f "${SERVICES_DIR}/kids/.env" ]]; then
     deploy_service "kids"

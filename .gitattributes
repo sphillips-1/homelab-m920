@@ -3,3 +3,5 @@ scripts/*readest* text eol=lf
 tests/verify_readest_live.py text eol=lf
 services/kids/** text eol=lf
 scripts/deploy-kids.sh text eol=lf
+services/bambustudio/** text eol=lf
+scripts/*bambustudio* text eol=lf

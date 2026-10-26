@@ -49,6 +49,7 @@ for container in \
     readest-sso \
     readest-gateway \
     jellyfin \
+    bambustudio \
     beszel \
     top-users \
     status-gateway \
@@ -60,6 +61,9 @@ done
 
 docker exec -i authentik-worker ak shell \
     < /opt/homelab/scripts/verify-readest-sso.py
+
+docker exec -i authentik-worker ak shell \
+    < /opt/homelab/scripts/verify-bambustudio-sso.py
 
 if [[ -f /opt/homelab/services/monitoring/.env ]]; then
     wait_for_container beszel-agent
