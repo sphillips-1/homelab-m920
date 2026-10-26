@@ -91,3 +91,31 @@ Use keyboard navigation to open a game, move with arrows, pause with P, and
 restart with Enter. Breakout relaunches with Space without a lives limit. Snake
 wraps at the edges. Switch away from a game to pause it automatically. Review
 the encyclopedia, drawing export, and games from an actual child PC before use.
+
+## Maker encyclopedia
+
+`http://kids.home.arpa/makers.html` provides 15 original, child-friendly articles
+on 3D printing, CAD, slicing, filament, Arduino, Raspberry Pi, Pico, ESP32,
+circuits, sensors, motors/robots, coding, networks, servers, and troubleshooting.
+Each has a short introduction, expandable deeper reading, vocabulary, a paper
+or pretend-play activity, a quiz, and related-topic links. Local demonstrations
+show layers, a button/light controller, and a home-network request. They do not
+connect to real hardware. Hardware notes direct children to adult supervision.
+
+This is an additional local reference collection alongside Vikidia. It does not
+modify the downloaded ZIM or its checksum. Maker search filters this collection;
+Vikidia keeps its own full-text search. Both are linked from the discovery room,
+and the maker collection also has a home-page tile.
+
+The editable sources are `web/maker-data.json`, `web/makers.html`,
+`web/makers.js`, and `web/makers.css`. All runtime resources are local. Articles
+were reviewed on 2026-10-26 against the official references linked in each
+article's collapsed grown-up section; those optional source websites require
+Internet access and are not mirrored or loaded in the background. Text is
+original explanatory material rather than copied vendor documentation. The guide
+should be reviewed again when adding board-specific electrical instructions.
+
+Run `node --test tests/test_kids_activities.cjs` to check topic references, quizzes,
+local runtime assets, and existing activities. Static edits are served from the
+read-only bind mount immediately; no encyclopedia download or database migration
+is needed. Refresh the browser after deployment. No reading history is stored.

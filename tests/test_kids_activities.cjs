@@ -34,3 +34,27 @@ test('Drawing exports a named PNG using the canvas data',()=>{
   nodes['#save'].onclick();
   assert.equal(saved.download,'my-masterpiece.png');assert.equal(saved.href,'data:image/png;base64,test');
 });
+test('Maker encyclopedia has connected, usable learning topics and quizzes',()=>{
+  const articles=JSON.parse(fs.readFileSync(path.join(source,'maker-data.json'),'utf8'));
+  const ids=new Set(articles.map(a=>a.id));
+  assert.equal(ids.size,articles.length,'Topic IDs must be unique');
+  for(const id of ['3d-printing','arduino','raspberry-pi','pico','esp32','circuits','sensors','motors','networks'])assert.ok(ids.has(id),id);
+  for(const article of articles){
+    assert.ok(article.simple.length>40,article.id+' needs an introduction');
+    assert.ok(article.more.length>=2,article.id+' needs deeper reading');
+    assert.ok(article.mission.length>30,article.id+' needs an activity');
+    assert.ok(article.quiz.answer>=0&&article.quiz.answer<article.quiz.options.length,article.id+' quiz answer');
+    for(const id of article.related){assert.ok(ids.has(id),article.id+' has broken related topic '+id);assert.notEqual(id,article.id);}
+    for(const reference of article.sources)assert.equal(new URL(reference.url).protocol,'https:');
+  }
+});
+test('Maker reader requires only local scripts, styles, and content',()=>{
+  const html=fs.readFileSync(path.join(source,'makers.html'),'utf8');
+  for(const match of html.matchAll(/(?:src|href)="([^"]+)"/g)){
+    assert.ok(!/^(https?:)?\/\//.test(match[1]),'External runtime asset: '+match[1]);
+    if(!match[1].startsWith('/'))assert.ok(fs.existsSync(path.join(source,match[1])),match[1]);
+  }
+  const script=fs.readFileSync(path.join(source,'makers.js'),'utf8');
+  assert.match(script,/fetch\('maker-data.json'\)/);
+  assert.doesNotMatch(script,/innerHTML|eval\(/,'Render encyclopedia text as text, not executable HTML');
+});
