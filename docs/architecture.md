@@ -88,3 +88,20 @@ Jellyfin is intentionally outside that ingress model. Bridge networking
 publishes port 8096 only on the detected physical LAN address. Jellyfin has no
 Cloudflare route, public DNS record, Access policy, Authentik dependency,
 Tailscale Serve/Funnel configuration, or router port forward.
+
+## Kids intranet
+
+The [Curiosity Club](../services/kids/README.md) serves keyboard browser games,
+a drawing pad, matching puzzles, and offline English Vikidia through Kiwix.
+Its dedicated internal Docker network has no Cloudflare connection; only the
+portal publishes TCP 8092 on the selected LAN address. A dedicated LAN Nginx
+proxy owns TCP 80, serving `kids.home.arpa` and `jellyfin.home.arpa` by Host
+header. It joins `kids_ingress`, outside the public tunnel network, and forwards
+Jellyfin to its existing LAN-bound port 8096. Pi-hole supplies both local names.
+Rebuildable sources live in `services/kids`; downloaded encyclopedia archives,
+optional emulator assets, the parent-managed game catalog, and ROMs stay under
+`/srv/homelab/media/kids`, mounted read-only by the serving containers.
+Initial provisioning uses `bash scripts/deploy-kids.sh`; ordinary deployments
+reapply it after provisioning. Child PCs need no application installation.
+The portal is not a network parental-control boundary.
+

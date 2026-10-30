@@ -32,6 +32,8 @@ Deployed and managed by this repository:
 - Cloudflare Tunnel
 - Beszel container status and resource monitoring
 - Tailscale-based private access
+- Curiosity Club kids intranet: offline games, drawing, and Vikidia at
+  `http://kids.home.arpa/` (see `services/kids/README.md`)
 
 Planned:
 

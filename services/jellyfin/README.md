@@ -3,6 +3,12 @@
 Jellyfin provides movie and TV streaming from the M920Q using the official,
 version-pinned image. **Jellyfin is intentionally LAN-only.**
 
+## LAN hostname routing
+
+The shared [LAN proxy](../lan-proxy/README.md) owns LAN port 80 and routes
+`jellyfin.home.arpa` to Jellyfin's unchanged LAN-bound port 8096. Kids' pages
+use the same proxy with a separate Host route. No public Jellyfin route is added.
+
 ## Access and storage
 
 - LAN URL: `http://192.168.4.37:8096` (or the detected LAN address in `.env`)

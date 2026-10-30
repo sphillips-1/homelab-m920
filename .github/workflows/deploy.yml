@@ -26,7 +26,10 @@ jobs:
             'AUTHENTIK_SECRET_KEY=ci-not-a-secret' \
             > services/authentik/.env
           : > services/authentik/.env.invitation
+          cp services/kids/.env.example services/kids/.env
+          cp services/lan-proxy/.env.example services/lan-proxy/.env
           cp services/jellyfin/.env.example services/jellyfin/.env
+          cp services/readest/.env.example services/readest/.env
           sed -i 's/REPLACE_WITH_DETECTED_GID/109/' services/jellyfin/.env
       - name: Validate Compose files
         run: |
@@ -43,6 +46,8 @@ jobs:
         run: sudo python3 -B tests/test_cloudflare.py
       - name: Check Audiobookshelf mobile prompt
         run: node --test services/audiobookshelf/mobile-app.test.cjs
+      - name: Check kids activities
+        run: node --test tests/test_kids_activities.cjs
       - name: Validate Audiobookshelf gateway
         run: docker run --rm -v "$PWD/services/audiobookshelf/gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.29.1-alpine nginx -t
 
@@ -73,6 +78,8 @@ jobs:
         run: python3 -B tests/test_pihole_monitor.py
       - name: Test torrent boot recovery
         run: python3 -B tests/test_torrent_recovery.py
+      - name: Test kids offline content integrity
+        run: python3 -B tests/test_kids_content.py
       - name: Test audiobook imports
         run: python3 -B tests/test_audiobook_importer.py
       - name: Test deployment and rollback in an isolated container

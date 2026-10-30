@@ -23,3 +23,6 @@ trap - EXIT
 
 echo "Application backup created at ${DEST}."
 echo "Copy it to encrypted off-host storage."
+if docker inspect -f '{{.State.Running}}' readest-db 2>/dev/null | grep -qx true; then
+    bash /opt/homelab/scripts/backup-readest.sh
+fi

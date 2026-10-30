@@ -1,0 +1,161 @@
+[
+  {
+    "id":"3d-printing","title":"3D printers","icon":"🖨️","category":"3D printing",
+    "simple":"A 3D printer builds a real object from a computer design. Many home printers stack thin lines of softened plastic, one layer at a time.",
+    "analogy":"Imagine drawing a square with a tiny icing bag, then drawing another square on top. Keep stacking the shapes and a little wall grows!",
+    "more":["The kind of printer that uses a spool of plastic is often called an FDM or FFF printer. A motor pushes filament into a heated nozzle. The printer moves the nozzle or the bed to put the plastic where it belongs.","The layers join as the material cools. A computer model must be prepared before printing. Different printers use other methods, including liquid resin; this guide's layer picture is about filament printers."],
+    "words":{"Layer":"One thin level of a printed object.","Nozzle":"The small opening where softened plastic comes out.","Build plate":"The surface where the print begins."},
+    "mission":"Stack ten pieces of paper or building blocks. Look at the side. Can you spot the layers? Sketch a small object you would like to build.",
+    "care":"Watch a real printer with a grown-up. Keep hands away from hot parts and moving pieces, including after a print finishes.","demo":"layers",
+    "quiz":{"question":"How does a filament printer usually build an object?","options":["One layer at a time","All at once"],"answer":0,"explanation":"Each layer adds a little more height.","hint":"Think about your stack of paper."},
+    "related":["design","slicing","filament"],"sources":[{"title":"Prusa: layers and perimeters","url":"https://help.prusa3d.com/article/layers-and-perimeters_1748"}]
+  },
+  {
+    "id":"design","title":"Designing in 3D","icon":"📐","category":"3D printing",
+    "simple":"A 3D design has width, height, and depth. You can combine simple shapes to invent a useful object.",
+    "analogy":"A drawing of a house is flat. A model house has room from side to side, bottom to top, and front to back.",
+    "more":["CAD means computer-aided design. A designer can start with a box, add a cylinder, or cut a hole through a shape. Measurements help the finished object fit the thing it is made for.","A screen model and a printable object are not always the same. Very thin walls, floating pieces, and shapes that are too large can cause trouble. Makers test a small version and improve it."],
+    "words":{"Dimension":"A direction you can measure, such as width.","Millimeter":"A small unit of length; ten millimeters make one centimeter.","Prototype":"A first version made to try an idea."},
+    "mission":"Design a pencil holder on paper. Draw its front and top. Choose how tall it should be, and leave room for the pencils!",
+    "quiz":{"question":"Which description gives three dimensions?","options":["Red and shiny","Width, height, and depth"],"answer":1,"explanation":"Together, those measurements describe space in three directions.","hint":"Color does not tell you how much space something takes up."},
+    "related":["3d-printing","slicing","troubleshooting"],"sources":[{"title":"Prusa: creating your own 3D models","url":"https://help.prusa3d.com/article/creating-your-own-3d-models_2209"}]
+  },
+  {
+    "id":"slicing","title":"Slicers & print paths","icon":"🥞","category":"3D printing",
+    "simple":"A slicer turns a 3D model into layer-by-layer instructions for a printer. It plans where the printer will move.",
+    "analogy":"Think of a loaf of bread. Looking at each slice helps you understand the whole loaf. A slicer plans thin levels of a model instead of bread.",
+    "more":["The slicer plans outer walls, top and bottom surfaces, and a pattern inside called infill. Many objects do not need to be solid plastic all the way through.","Some shapes need temporary supports below overhanging parts. Layer height, material, and the correct printer profile matter. A grown-up should check the preview and printer settings before starting a real print."],
+    "words":{"Infill":"The pattern inside a print.","Support":"A temporary structure that helps hold up part of a print.","G-code":"A common format for machine instructions."},
+    "mission":"Draw a square. Fill one copy with stripes, another with a grid, and another completely. Which uses the most pencil?",
+    "quiz":{"question":"What does a slicer prepare?","options":["Instructions for printer movements","A new spool of plastic"],"answer":0,"explanation":"It makes a plan for the machine to follow.","hint":"A slicer is a computer program."},
+    "related":["3d-printing","filament","design"],"sources":[{"title":"Prusa: infill","url":"https://help.prusa3d.com/article/infill_42"}]
+  },
+  {
+    "id":"filament","title":"Filament & materials","icon":"🧵","category":"3D printing",
+    "simple":"Filament is the long strand of material on a spool that feeds many home 3D printers. Different materials behave differently.",
+    "analogy":"A spool of filament looks a little like a reel of thick string. The printer uses that long strand to make a new shape.",
+    "more":["PLA and PETG are names for two common printing plastics. They need suitable settings and can differ in flexibility, toughness, and how they respond to warmth.","A printed object is not automatically safe for food, hot drinks, or heavy loads. The material, printer, design, and use all matter. Keep material labels so a grown-up can choose the right settings."],
+    "words":{"Spool":"A reel that holds a wound-up strand.","Material":"The substance an object is made from.","Property":"A feature such as stiffness or flexibility."},
+    "mission":"Compare paper, cardboard, and a building block. Which bends most easily? Pick a material for a pretend bridge and explain why.",
+    "care":"Ask before handling spools or printed pieces. Do not taste printing materials or use a print as a food container without a grown-up checking it.",
+    "quiz":{"question":"Should every material use exactly the same print settings?","options":["Yes","No"],"answer":1,"explanation":"Materials can need different settings.","hint":"Different substances behave differently."},
+    "related":["3d-printing","slicing","troubleshooting"],"sources":[{"title":"Prusa: material guide","url":"https://help.prusa3d.com/materials"}]
+  },
+  {
+    "id":"arduino","title":"Arduino boards","icon":"💡","category":"Coding boards",
+    "simple":"Many Arduino boards are small electronics controllers. You give one instructions so it can notice an input and control an output.",
+    "analogy":"Imagine a tiny helper with a recipe: if someone presses a button, turn on a light. The helper follows the instructions you wrote.",
+    "more":["A microcontroller is a small computer chip suited to controlling a project. A board adds useful connections around it. Common Arduino projects read buttons or sensors and control lights or other devices.","An Arduino program is often called a sketch. After it is uploaded, the board can repeat its instructions while powered. Arduino is also a family of tools and boards, so check the exact board rather than assuming they are all alike."],
+    "words":{"Input":"Information going into a system, such as a button press.","Output":"Something the system does, such as lighting an LED.","Sketch":"A name used for an Arduino program."},
+    "mission":"Be a pretend controller: when a partner holds up a circle, clap once; when they hold up a square, stay still. Then swap jobs.",
+    "care":"Build real circuits with a grown-up using the correct board guide. Turn power off before changing wires.","demo":"lamp",
+    "quiz":{"question":"In a button-controlled lamp, which is the input?","options":["The button press","The light shining"],"answer":0,"explanation":"The button provides information to the controller.","hint":"Input is what the controller notices."},
+    "related":["circuits","sensors","coding","pico"],"sources":[{"title":"Arduino: what is Arduino?","url":"https://docs.arduino.cc/learn/starting-guide/whats-arduino/"}]
+  },
+  {
+    "id":"raspberry-pi","title":"Raspberry Pi computers","icon":"🍓","category":"Coding boards",
+    "simple":"A Raspberry Pi computer is a small computer on a board. Many models can run a desktop, programs, and local services.",
+    "analogy":"A normal computer has several useful parts inside a case. A Raspberry Pi puts many of those jobs on one small board.",
+    "more":["A Raspberry Pi computer needs an operating system and suitable power. Many use a microSD card for storage. Some can also use other kinds of storage. With suitable equipment, you can connect a screen, keyboard, and mouse.","A Pi can also work without its own screen, serving other computers over a network. Our Pi-hole runs on a Raspberry Pi Zero 2. A Raspberry Pi Pico is a different kind of board: it is a microcontroller, not a little Linux desktop."],
+    "words":{"Operating system":"Software that manages a computer and helps programs run.","Storage":"Where programs and files are kept.","Headless":"Running without a directly attached screen."},
+    "mission":"Draw a small computer and label the things you would connect: power, screen, keyboard, and storage. Which could a server do without?",
+    "care":"Ask a grown-up to check power supplies and connections. Shut the computer down properly before disconnecting its power.",
+    "quiz":{"question":"Can a Raspberry Pi serve pages without its own screen?","options":["Yes","No"],"answer":0,"explanation":"Another computer can use its network services.","hint":"A headless computer still works."},
+    "related":["pico","servers","networks","coding"],"sources":[{"title":"Raspberry Pi: getting started","url":"https://www.raspberrypi.com/documentation/computers/getting-started.html"}]
+  },
+  {
+    "id":"pico","title":"Raspberry Pi Pico","icon":"🔌","category":"Coding boards",
+    "simple":"A Pico is a microcontroller board made by Raspberry Pi. It is useful for projects that read inputs and control outputs.",
+    "analogy":"A Raspberry Pi computer is like a small workshop with many tools. A Pico is more like a helper that follows a particular set of project instructions.",
+    "more":["Pico boards can be programmed with languages such as MicroPython, C, or C++. They store their programs on the board. Unlike Raspberry Pi computers, they do not normally run a Linux desktop.","Pico models have different features. A W in the model name identifies a wireless version. Pins can connect to suitable circuits, but their electrical limits must be checked for the exact board."],
+    "words":{"MicroPython":"A version of Python made for small controllers.","GPIO":"General-purpose input/output: connections that programs can use.","Flash memory":"Memory that can keep a program when power is off."},
+    "mission":"Invent a controller for a pretend plant-water reminder. What could it measure? How could it tell you that something needs attention?",
+    "care":"A grown-up should check wiring and voltage compatibility. GPIO pins are not places to connect household electricity.",
+    "quiz":{"question":"Is a Pico the same thing as a Raspberry Pi desktop computer?","options":["Yes","No"],"answer":1,"explanation":"They are different kinds of boards for different jobs.","hint":"The Pico is a microcontroller board."},
+    "related":["raspberry-pi","arduino","sensors","coding"],"sources":[{"title":"Raspberry Pi: Pico boards","url":"https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html"}]
+  },
+  {
+    "id":"esp32","title":"ESP32 & connected gadgets","icon":"📡","category":"Coding boards",
+    "simple":"ESP32 chips are small controllers used in electronic gadgets. Many development boards in this family can communicate wirelessly.",
+    "analogy":"Picture a tiny project helper that can also send a message across the room. It might report a temperature to another device.",
+    "more":["An ESP32 board can combine a program, electronic inputs and outputs, and wireless communication. Features differ across the chip family, so not every board has the same radio or connections.","Our homelab's little desk display uses an ESP32 to show server information. It requests information from another computer and draws it on its screen. Wireless does not mean a gadget must use the public Internet: devices can talk within a home network."],
+    "words":{"Wireless":"Sending information without a connecting data cable.","Development board":"A board made to help people build and test projects.","Display":"A screen that shows information."},
+    "mission":"Design a tiny display for your room. Draw three useful things it could show, such as a timer or a pretend weather reading.",
+    "care":"Ask a grown-up before connecting electronics or joining a device to a network. Keep passwords private.",
+    "quiz":{"question":"Must a wireless gadget use the public Internet?","options":["Always","Not always"],"answer":1,"explanation":"It can communicate on a local network.","hint":"Local devices can talk to each other."},
+    "related":["sensors","networks","servers","arduino"],"sources":[{"title":"Espressif: ESP32 family","url":"https://www.espressif.com/en/products/socs/esp32"}]
+  },
+  {
+    "id":"circuits","title":"Circuits, LEDs & breadboards","icon":"🔋","category":"Electronics",
+    "simple":"A circuit gives electric current a path to follow. Components in the path can do useful jobs, such as making light.",
+    "analogy":"Imagine a complete walking trail that returns to the start. A broken section stops the journey. This is a useful picture for a simple circuit, though electricity is not a person walking!",
+    "more":["An LED is a small electronic light. Its direction matters, and it usually needs a correctly chosen resistor or other current-limiting circuit. Too much current can damage it.","A breadboard holds parts and connects certain holes together, so you can try a circuit without soldering. The hidden connections are not the same in every row or section. A grown-up can help you follow a board-specific beginner diagram."],
+    "words":{"Current":"The flow of electric charge.","Resistor":"A part that resists current flow.","Short circuit":"An unintended low-resistance path that can cause damage or heat."},
+    "mission":"Draw a pretend light circuit on paper. Add a switch and mark where the path opens when the light is off. No wires or batteries needed.",
+    "care":"Use only a grown-up-approved low-voltage kit. Never experiment with wall outlets, loose mains wires, or damaged batteries.",
+    "quiz":{"question":"Can you connect any LED directly to any power source?","options":["Yes","No"],"answer":1,"explanation":"Direction, voltage, and current limits matter.","hint":"Electronic parts have limits."},
+    "related":["arduino","sensors","motors","troubleshooting"],"sources":[{"title":"Arduino: electronics learning guides","url":"https://docs.arduino.cc/learn/"}]
+  },
+  {
+    "id":"sensors","title":"Sensors: noticing the world","icon":"🌡️","category":"Electronics",
+    "simple":"A sensor measures something around it and turns that measurement into a signal a system can use.",
+    "analogy":"Your eyes notice light and your ears notice sound. A machine can use sensors to notice parts of its surroundings too.",
+    "more":["Different sensors measure different things: brightness, temperature, distance, or movement. Their readings can help a program decide what to do next.","Measurements are not perfect. A sensor can be affected by its position, its environment, or its limits. Makers compare readings and test what happens when conditions change, instead of assuming every number is exactly right."],
+    "words":{"Measurement":"A value describing how much of something there is.","Signal":"Information passed from one part to another.","Threshold":"A chosen value where a program changes its behavior."},
+    "mission":"Make a paper chart with bright, medium, and dim boxes. Sort three places in your room by brightness. Design a pretend night-light that turns on in the dim box.",
+    "quiz":{"question":"Which part notices the brightness for an automatic night-light?","options":["A light sensor","A wheel"],"answer":0,"explanation":"The sensor supplies information about light.","hint":"Choose the part that measures."},
+    "related":["arduino","pico","esp32","motors"],"sources":[{"title":"Arduino: analog input example","url":"https://docs.arduino.cc/built-in-examples/analog/AnalogInput/"}]
+  },
+  {
+    "id":"motors","title":"Motors, servos & robots","icon":"🤖","category":"Electronics",
+    "simple":"A motor turns electrical energy into movement. Robots can combine movement, sensors, and programs to carry out a task.",
+    "analogy":"A toy car needs something to make its wheels turn. A robot arm needs a way to move its joints. Motors can help with both jobs.",
+    "more":["A simple DC motor can spin continuously. A common hobby servo moves toward a requested position. A stepper motor moves in controlled steps and is often used in 3D printers. The right choice depends on the job.","Controllers need suitable motor drivers and power supplies; a motor should not simply be connected to a GPIO pin. A robot also needs instructions: sense what is happening, make a decision, and act."],
+    "words":{"Actuator":"A device that makes something happen physically.","Servo":"A motor system that controls motion using feedback.","Feedback":"Information about what actually happened."},
+    "mission":"Make a paper robot arm with folded paper joints. Give a partner three clear instructions to move it toward a paper target.",
+    "care":"Real motors can pinch fingers or move unexpectedly. Let a grown-up handle power, drivers, and moving hardware.",
+    "quiz":{"question":"Which part is an output that makes a robot move?","options":["A distance reading","A motor"],"answer":1,"explanation":"A motor creates movement.","hint":"A reading is information; an actuator does something."},
+    "related":["sensors","coding","3d-printing","circuits"],"sources":[{"title":"Arduino: servo motor basics","url":"https://docs.arduino.cc/learn/electronics/servo-motors/"}]
+  },
+  {
+    "id":"coding","title":"Coding & clear instructions","icon":"🧩","category":"Computers & networks",
+    "simple":"Code is a set of instructions for a computer. You can build useful programs from sequences, choices, and repetition.",
+    "analogy":"A recipe tells a cook what to do in order. A program tells a computer what steps to follow, but computers need especially clear instructions.",
+    "more":["A sequence puts steps in order. A condition makes a choice, such as 'if the button is pressed, turn on the light'. A loop repeats steps. Variables hold information a program can use and change.","Scratch uses blocks you join together. Python and many other languages use written instructions. Different languages can express similar ideas. Trying a small change and checking the result helps you understand a program."],
+    "words":{"Algorithm":"A set of steps for solving a task.","Loop":"Instructions that repeat.","Variable":"A named place to keep a value."},
+    "mission":"Write directions for a pretend robot to draw a square. Can you replace four repeated pairs of steps with one repeat instruction?",
+    "quiz":{"question":"Which instruction uses a loop?","options":["Repeat these steps four times","Choose a color once"],"answer":0,"explanation":"A loop repeats a set of steps.","hint":"Look for repetition."},
+    "related":["arduino","raspberry-pi","troubleshooting","motors"],"sources":[{"title":"Raspberry Pi Foundation: coding projects","url":"https://projects.raspberrypi.org/"}]
+  },
+  {
+    "id":"networks","title":"Wi-Fi, networks & the Internet","icon":"🌐","category":"Computers & networks",
+    "simple":"A network connects devices so they can share information. Your home network can work even when its connection to the wider Internet is down.",
+    "analogy":"Your home network is like paths between houses in one village. The Internet connects many villages and cities together.",
+    "more":["Wi-Fi is one way for devices to join a network using radio signals. Ethernet uses a cable. A router helps move information between networks. Having Wi-Fi does not automatically mean the Internet connection is working.","A device has a network address. DNS helps turn a name such as kids.home.arpa into an address. Our Pi-hole knows that local name so your browser can ask the homelab for the club pages."],
+    "words":{"LAN":"Local area network: nearby connected devices.","IP address":"An address used to reach a device on an IP network.","DNS":"A system that helps look up the address for a name."},
+    "mission":"Draw your PC, home network, and homelab server. Trace the route to this page. Where would a request for a far-away website need to go next?","demo":"network",
+    "quiz":{"question":"Does a working Wi-Fi connection always prove the Internet works?","options":["Yes","No"],"answer":1,"explanation":"Wi-Fi can connect you locally while the wider connection is unavailable.","hint":"The village paths can work when the road out is closed."},
+    "related":["servers","raspberry-pi","esp32","troubleshooting"],"sources":[{"title":"Raspberry Pi: remote access and networking","url":"https://www.raspberrypi.com/documentation/computers/remote-access.html"}]
+  },
+  {
+    "id":"servers","title":"Servers & our homelab","icon":"🏠","category":"Computers & networks",
+    "simple":"A server is a computer or program that provides something another device asks for. Our homelab serves these pages to your PC.",
+    "analogy":"At a library, you ask for a book and a librarian helps you find it. A web server responds to a browser's request for a page.",
+    "more":["The browser is a client. It requests a page, picture, or encyclopedia article, and the server sends the data. One computer can provide several different services.","Our Lenovo homelab hosts the club, offline encyclopedia, and media services. A Raspberry Pi runs Pi-hole for DNS. These devices have different jobs, even though they help the same household. Locally stored content still needs the home network and server to be running."],
+    "words":{"Client":"A program or device asking for a service.","Service":"A useful job a program provides.","Offline content":"Content already stored locally, so fetching it does not need the public Internet."},
+    "mission":"Play a paper web server game. One person requests 'a cat picture'; another hands over a drawing. Swap roles and try a missing page.",
+    "quiz":{"question":"Which program asks the server for a web page?","options":["The browser","A filament spool"],"answer":0,"explanation":"The browser acts as a web client.","hint":"Think about the app you are using to read this."},
+    "related":["networks","raspberry-pi","esp32","troubleshooting"],"sources":[{"title":"MDN: what is a web server?","url":"https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_web_server"}]
+  },
+  {
+    "id":"troubleshooting","title":"Think like a maker","icon":"🔎","category":"Computers & networks",
+    "simple":"Troubleshooting means finding out why something is not working. Makers ask questions, test one idea, and learn from what happens.",
+    "analogy":"Be a detective. Collect clues before deciding what caused the mystery. A good test helps you rule an idea in or out.",
+    "more":["First, say what you expected and what happened instead. Check the simple things, then change one thing at a time. Write down the result so you can compare it with the next try.","A code mistake is often called a bug; looking for it is debugging. A printer problem could involve design, material, or settings. A missing page could involve the address, network, or server. Different clues lead to different tests."],
+    "words":{"Bug":"A mistake or problem in a program.","Test":"A check with an expected result.","Evidence":"What you observed that helps explain a problem."},
+    "mission":"Ask a partner to give you drawing instructions with one missing step. Describe the result, find the missing instruction, and try again.",
+    "care":"If hardware is hot, smoking, damaged, or moving unexpectedly, stop and get a grown-up. Troubleshooting never means touching dangerous parts.",
+    "quiz":{"question":"Why change one thing at a time?","options":["To help tell what made the difference","To make every test slower"],"answer":0,"explanation":"A clear test gives more useful clues.","hint":"Think about how you would know which change helped."},
+    "related":["coding","3d-printing","circuits","networks"],"sources":[{"title":"Raspberry Pi Foundation: learning through projects","url":"https://projects.raspberrypi.org/"}]
+  }
+]

@@ -25,6 +25,12 @@ retains its own permissions behind the proxy.
 
 ## Authorization
 
+Bambu Studio's browser trial at `bambu.shelfgoblin.dev` uses the embedded
+Authentik proxy and explicit `bambu-users` membership. Its shared desktop has
+no per-user workspace isolation; authorized users share all Studio state and
+any signed-in Bambu account. Standard invitations grant no access. No direct
+host port is published. See `services/bambustudio/README.md`.
+
 Authentik has separate applications and providers:
 
 - `Audiobookshelf` / `audiobookshelf`: confidential OIDC provider, restricted

@@ -57,6 +57,9 @@ services:
         restart: true
     env_file:
       - ../authentik/.env.invitation
+    environment:
+      IMPORT_LIBRARY: /audiobooks/Books
+      IMPORT_STAGING: /audiobooks/.audiobook-imports
     command: ["python", "-B", "/app/importer.py"]
     volumes:
       - ./importer.py:/app/importer.py:ro
@@ -70,13 +73,8 @@ services:
         bind:
           create_host_path: false
       - type: bind
-        source: /srv/homelab/media/audiobooks/Books
-        target: /library
-        bind:
-          create_host_path: false
-      - type: bind
-        source: /srv/homelab/storage/.audiobook-imports
-        target: /staging
+        source: /srv/homelab/media/audiobooks
+        target: /audiobooks
         bind:
           create_host_path: false
       - type: bind

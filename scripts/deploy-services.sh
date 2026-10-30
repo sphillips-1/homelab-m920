@@ -170,6 +170,14 @@ log "Reconciling Audiobookshelf mobile clients"
 docker exec -i authentik-invitation-provisioner python - \
     < "${REPO_DIR}/scripts/reconcile-audiobookshelf-clients.py"
 deploy_service "calibre-web"
+log "Preparing Readest persistent state"
+python3 "${REPO_DIR}/scripts/setup-readest.py"
+deploy_service "readest"
+docker compose -f "${SERVICES_DIR}/readest/compose.yml" up -d --wait db
+docker exec readest-db sh /docker-entrypoint-initdb.d/zz-readest-migrations.sh
+docker compose -f "${SERVICES_DIR}/readest/compose.yml" restart gateway
+docker exec -i authentik-worker ak shell \
+    < "${REPO_DIR}/scripts/reconcile-readest-sso.py"
 log "Configuring Jellyfin host-specific LAN and GPU values"
 bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
 deploy_service "jellyfin"
@@ -182,6 +190,18 @@ else
     echo "Intro Skipper reconciliation skipped: services/jellyfin/.intro-skipper.env is not configured."
 fi
 deploy_service "homepage"
+
+log "Deploying Bambu Studio browser trial and restricted SSO"
+bash "${REPO_DIR}/scripts/deploy-bambustudio.sh"
+
+# Initial offline-content provisioning is explicit; do not download on every release.
+if [[ -f "${SERVICES_DIR}/kids/.env" ]]; then
+    deploy_service "kids"
+fi
+
+if [[ -f "${SERVICES_DIR}/lan-proxy/.env" ]]; then
+    deploy_service "lan-proxy"
+fi
 
 log "Configuring M920 qBittorrent and SSO"
 docker compose -f "${SERVICES_DIR}/qbittorrent-m920/compose.yml" stop

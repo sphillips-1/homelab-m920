@@ -40,7 +40,16 @@ for container in \
     audiobookshelf \
     audiobookshelf-gateway \
     calibre-web \
+    readest-db \
+    readest-auth \
+    readest-rest \
+    readest-kong \
+    readest-storage \
+    readest-client \
+    readest-sso \
+    readest-gateway \
     jellyfin \
+    bambustudio \
     beszel \
     top-users \
     status-gateway \
@@ -49,6 +58,12 @@ for container in \
     audiobook-importer; do
     wait_for_container "${container}"
 done
+
+docker exec -i authentik-worker ak shell \
+    < /opt/homelab/scripts/verify-readest-sso.py
+
+docker exec -i authentik-worker ak shell \
+    < /opt/homelab/scripts/verify-bambustudio-sso.py
 
 if [[ -f /opt/homelab/services/monitoring/.env ]]; then
     wait_for_container beszel-agent
@@ -63,7 +78,21 @@ if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
     wait_for_container pihole-monitor
 fi
 
+if [[ -f /opt/homelab/services/lan-proxy/.env ]]; then
+    wait_for_container lan-proxy
+    LAN_HTTP_IP="$(sed -n 's/^LAN_HTTP_IP=//p' /opt/homelab/services/lan-proxy/.env)"
+    curl --fail --silent --show-error --output /dev/null --resolve "kids.home.arpa:80:${LAN_HTTP_IP}" http://kids.home.arpa/
+    curl --fail --silent --show-error --output /dev/null --resolve "jellyfin.home.arpa:80:${LAN_HTTP_IP}" http://jellyfin.home.arpa/health
+fi
+
 echo "==> Verifying local application endpoints"
+if [[ -f /opt/homelab/services/kids/.env ]]; then
+    wait_for_container kids
+    wait_for_container kids-encyclopedia
+    KIDS_LAN_IP="$(sed -n 's/^KIDS_LAN_IP=//p' /opt/homelab/services/kids/.env)"
+    curl --fail --silent --show-error --output /dev/null "http://${KIDS_LAN_IP}:8092/"
+    curl --fail --silent --show-error --location --output /dev/null "http://${KIDS_LAN_IP}:8092/discover/"
+fi
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:13378/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8083/
 JELLYFIN_LAN_IP="$(sed -n 's/^JELLYFIN_LAN_IP=//p' /opt/homelab/services/jellyfin/.env)"

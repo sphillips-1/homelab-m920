@@ -1,0 +1,24 @@
+services:
+  bambustudio:
+    image: lscr.io/linuxserver/bambustudio@sha256:857e937fe1c3451244cb178952e0e7a00241ab48c32cb1ce9ea6b27e4fd729e5
+    container_name: bambustudio
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/New_York
+    shm_size: "1gb"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - /srv/homelab/appdata/bambustudio:/config
+    networks:
+      - homelab
+    # Browser access is exclusively through Authentik; publish no host ports.
+networks:
+  homelab:
+    external: true

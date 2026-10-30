@@ -80,6 +80,23 @@ class ImportTests(unittest.TestCase):
         app.copy_book(source, destination, self.stage / 'job')
         self.assertEqual((destination / 'track.mp3').read_bytes(), source.read_bytes())
 
+    def test_successful_sources_hidden_but_failed_sources_remain_retryable(self):
+        with patch.object(app, 'DOWNLOADS', self.root):
+            self.assertEqual([item['source'] for item in app.catalog()], ['Book'])
+            with app.database() as db:
+                db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           ('failed', 'Book', 'Author', 'Title', 'failed', 'Failed', 1))
+            self.assertEqual([item['source'] for item in app.catalog()], ['Book'])
+            with app.database() as db:
+                db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           ('success', 'Book', 'Author', 'Title', 'done', 'Imported', 2))
+            self.assertEqual(app.catalog(), [])
+            # Changing the proposed title cannot bypass the catalog restriction.
+            with self.assertRaisesRegex(ValueError, 'Choose a completed audiobook'):
+                app.start_job({'source': 'Book', 'author': 'Other',
+                               'title': 'Different', 'manual': True})
+        self.assertTrue((self.source / 'track.mp3').exists())
+
     def test_http_requires_verified_identity_and_same_origin(self):
         server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -135,6 +152,28 @@ class ImportTests(unittest.TestCase):
         self.assertFalse((self.library / 'Author').exists())
         self.assertEqual(app.reviewed_metadata({'review': result[0]['id']}, 'Author', 'Title')['asin'],
                          'B000000001')
+
+    def test_watcher_enabled_does_not_start_competing_full_scan(self):
+        for settings in ({'disableWatcher': False}, {}):
+            payload = {'libraries': [{'id': 'library', 'settings': settings,
+                                     'folders': [{'fullPath': '/audiobooks'}]}]}
+            with patch.dict(app.os.environ, {'AUDIOBOOKSHELF_API_TOKEN': 'test'}), \
+                 patch.object(app.urllib.request, 'urlopen',
+                              return_value=io.BytesIO(json.dumps(payload).encode())) as request:
+                self.assertIn('automatically', app.scan_library())
+                self.assertEqual(request.call_count, 1)
+                self.assertTrue(request.call_args.args[0].full_url.endswith('/api/libraries'))
+
+    def test_watcher_disabled_requests_full_scan(self):
+        payload = {'libraries': [{'id': 'library', 'settings': {'disableWatcher': True},
+                                 'folders': [{'fullPath': '/audiobooks/Books'}]}]}
+        with patch.dict(app.os.environ, {'AUDIOBOOKSHELF_API_TOKEN': 'test'}), \
+             patch.object(app.urllib.request, 'urlopen', side_effect=[
+                 io.BytesIO(json.dumps(payload).encode()), io.BytesIO(b'')]) as request:
+            self.assertIn('scan requested', app.scan_library())
+            self.assertEqual(request.call_count, 2)
+            self.assertTrue(request.call_args.args[0].full_url.endswith('/api/libraries/library/scan'))
+            self.assertEqual(request.call_args.args[0].method, 'POST')
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

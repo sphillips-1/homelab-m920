@@ -7,6 +7,7 @@ let downloads = [];
 let busy = false;
 let review = null;
 let revision = 0;
+let completedImports = '';
 const author = document.querySelector('#author');
 const manual = document.querySelector('#manual');
 const reviewStatus = document.querySelector('#review-status');
@@ -28,10 +29,14 @@ async function api(path, options) {
   return data;
 }
 async function loadDownloads() {
+  const selected = source.value;
   downloads = await api('downloads');
-  source.replaceChildren(new Option(downloads.length ? 'Choose an audiobook…' : 'No completed audiobooks yet', ''));
+  source.replaceChildren(new Option(downloads.length ? 'Choose an audiobook…' : 'No audiobooks awaiting import', ''));
   for (const item of downloads) source.add(new Option(item.source, item.source));
-  document.querySelector('#details').textContent = downloads.length ? 'MP3, M4B and other audio files. Extract ZIP or RAR archives before importing.' : 'Completed audiobook downloads will appear here. Refresh after a download finishes.';
+  if (downloads.some(item => item.source === selected)) source.value = selected;
+  else if (selected) invalidateReview();
+  updateButton();
+  document.querySelector('#details').textContent = downloads.length ? 'MP3, M4B and other audio files. Extract ZIP or RAR archives before importing.' : 'Successfully imported downloads are hidden. New completed audiobooks will appear here after refreshing.';
 }
 source.addEventListener('change', () => {
   const item = downloads.find(item => item.source === source.value);
@@ -44,6 +49,11 @@ source.addEventListener('change', () => {
 async function loadJobs() {
   const jobs = await api('jobs');
   busy = jobs.some(job => job.status === 'copying');
+  const completed = jobs.filter(job => job.status === 'done').map(job => job.id).join(',');
+  if (completed !== completedImports) {
+    await loadDownloads();
+    completedImports = completed;
+  }
   updateButton();
   const container = document.querySelector('#jobs');
   container.replaceChildren();

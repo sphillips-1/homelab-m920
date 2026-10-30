@@ -1,0 +1,32 @@
+services:
+  kids:
+    image: nginx:1.29.1-alpine
+    container_name: kids
+    restart: unless-stopped
+    ports:
+      - "${KIDS_LAN_IP:?Set KIDS_LAN_IP in .env}:8092:8080"
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /srv/homelab/media/kids/arcade:/usr/share/nginx/html/arcade:ro
+    networks:
+      - kids
+      - ingress
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  encyclopedia:
+    image: ghcr.io/kiwix/kiwix-serve:3.8.2
+    container_name: kids-encyclopedia
+    restart: unless-stopped
+    command: ["--urlRootLocation=/discover", "/data/vikidia_en_all_maxi_2026-09.zim"]
+    volumes:
+      - /srv/homelab/media/kids/encyclopedia:/data:ro
+    networks:
+      - kids
+networks:
+  ingress: {}
+  kids:
+    internal: true

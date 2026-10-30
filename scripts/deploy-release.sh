@@ -96,11 +96,23 @@ fi
 
 log "Validating Compose configuration"
 while IFS= read -r compose_file; do
+    if [[ "${compose_file}" == "${REPO_DIR}/services/kids/compose.yml" && ! -f "${REPO_DIR}/services/kids/.env" ]]; then
+        continue # Optional service: provision once with deploy-kids.sh first.
+    fi
+    if [[ "${compose_file}" == "${REPO_DIR}/services/lan-proxy/compose.yml" && ! -f "${REPO_DIR}/services/lan-proxy/.env" ]]; then
+        continue
+    fi
     docker compose -f "${compose_file}" config --quiet
 done < <(find "${REPO_DIR}/services" -name compose.yml -type f -print | sort)
 
 log "Pulling declared container images"
 while IFS= read -r compose_file; do
+    if [[ "${compose_file}" == "${REPO_DIR}/services/kids/compose.yml" && ! -f "${REPO_DIR}/services/kids/.env" ]]; then
+        continue
+    fi
+    if [[ "${compose_file}" == "${REPO_DIR}/services/lan-proxy/compose.yml" && ! -f "${REPO_DIR}/services/lan-proxy/.env" ]]; then
+        continue
+    fi
     docker compose -f "${compose_file}" pull
 done < <(find "${REPO_DIR}/services" -name compose.yml -type f -print | sort)
 
