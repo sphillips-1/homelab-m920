@@ -113,3 +113,4 @@ module.verify_auth_methods()
 PY
 
 echo "Service verification passed."
+bash /opt/homelab/scripts/verify-torrent-connectivity.sh
