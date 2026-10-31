@@ -159,6 +159,8 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-authentik-branding.py"
 
 deploy_service "audiobookshelf"
+# Git replaces bind-mounted files; recreate nginx to pick up the new inodes.
+docker compose -f "${SERVICES_DIR}/audiobookshelf/compose.yml" up -d --no-deps --force-recreate --wait --wait-timeout 120 audiobookshelf-gateway
 # Retired external phone-notification stack. Preserve private appdata while
 # removing these rebuildable containers on upgrades from the former deployment.
 for retired_container in book-notifications homelab-apprise homelab-ntfy; do

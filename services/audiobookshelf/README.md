@@ -62,3 +62,7 @@ the cloudflared configuration using the updated template. Verify on actual
 Android Chrome and iOS Safari with and without the apps installed, then check
 browser sign-in, native OIDC, streaming/seeking and WebSockets. Run the local
 prompt regression checks with `node --test services/audiobookshelf/mobile-app.test.cjs`.
+
+The release pipeline recreates the gateway after deploying Audiobookshelf so
+Git replacements of the bind-mounted JavaScript and nginx configuration become
+visible inside the container. Restarting alone retains the previous file mounts.
