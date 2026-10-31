@@ -18,8 +18,12 @@
   const store = android
     ? 'https://play.google.com/store/apps/details?id=com.audiobookshelf.app'
     : 'https://apps.apple.com/app/id6753017503';
-  // Launch only: do not pass browser credentials or pretend both clients
-  // support opening arbitrary server/book URLs.
+  // Connection import follows AudioBooth's ExportConnection format. Omit
+  // credentials so the app presents its own sign-in flow.
+  const setup = ios ? 'audiobooth://connection/' + encodeURIComponent(btoa(JSON.stringify({
+    url: 'https://audiobooks.shelfgoblin.dev/audiobookshelf', headers: {}, alias: 'ShelfGoblin'
+  }))) : null;
+  // Keep ordinary launch separate so returning listeners need not import again.
   const launch = android ? 'audiobookshelf://' : 'audiobooth://';
   const host = document.createElement('div');
   const shadow = host.attachShadow({ mode: 'open' });
@@ -41,6 +45,7 @@
       <h2 id="title">Open in ${name}?</h2>
       <p id="description">Listen in the app on your ${android ? 'Android device' : 'iPhone or iPad'}. Sign in to your server in the app if you haven’t already.</p>
       <a href="${launch}">Open ${name}</a>
+      ${ios ? `<a href="${setup}">Set up AudioBooth</a><p>First time? Tap Set up AudioBooth to fill in the server address, then sign in in the app.</p>` : ''}
       <a class="store" href="${store}" target="_blank" rel="noopener noreferrer">Get the app</a>
       <button type="button">Continue in browser</button>
     </dialog>`;

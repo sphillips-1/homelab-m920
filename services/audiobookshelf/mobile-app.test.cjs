@@ -16,7 +16,7 @@ function run({ ua = 'Android Chrome', path = '/audiobookshelf/', search = '',
     }; } };
   const window = { matchMedia: () => ({ matches: standalone }) };
   window.self = window.top = window;
-  vm.runInNewContext(source, { window,
+  vm.runInNewContext(source, { window, btoa: value => Buffer.from(value, 'binary').toString('base64'),
     navigator: { userAgent: ua, platform, maxTouchPoints: touch },
     location: { pathname: path, search },
     sessionStorage: {
@@ -46,6 +46,20 @@ test('does not interrupt desktop, auth, shares, webviews or dismissed sessions',
     { ua: 'Android; wv) Chrome' }]) {
     assert.equal(run(options).result.shown, false, JSON.stringify(options));
   }
+});
+
+test('iOS setup imports the full server path without credentials', () => {
+  for (const options of [{ ua: 'iPhone Safari' },
+    { ua: 'Macintosh Safari', platform: 'MacIntel', touch: 5 }]) {
+    const { result } = run(options);
+    const encoded = result.html.match(/href="audiobooth:\/\/connection\/([^"]+)"/)[1];
+    const connection = JSON.parse(Buffer.from(decodeURIComponent(encoded), 'base64').toString('utf8'));
+    assert.deepEqual(connection, {
+      url: 'https://audiobooks.shelfgoblin.dev/audiobookshelf', headers: {}, alias: 'ShelfGoblin'
+    });
+    assert.ok(result.html.includes('href="audiobooth://"'));
+  }
+  assert.ok(!run().result.html.includes('audiobooth://connection/'));
 });
 test('continue and Escape dismiss; blocked storage still permits prompt', () => {
   for (const event of ['click', 'cancel']) {

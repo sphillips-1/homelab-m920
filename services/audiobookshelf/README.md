@@ -42,12 +42,19 @@ the current tab session. Desktop, installed web apps, embedded Android
 WebViews, sign-in/callback paths and public shares skip the prompt.
 
 The launch opens the app, not a specific book or an authenticated connection.
-Configure `https://audiobooks.shelfgoblin.dev/audiobookshelf` in the app first.
+On iPhone/iPad, **Set up AudioBooth** imports
+`https://audiobooks.shelfgoblin.dev/audiobookshelf` using AudioBooth's
+`audiobooth://connection/<percent-encoded-base64-json>` link. The payload contains
+only `url`, empty `headers`, and the `ShelfGoblin` alias; users still sign in
+inside AudioBooth. Ordinary **Open AudioBooth** remains available for returning
+listeners. Android users configure the server in their app first.
 Browsers cannot reliably detect installation; if opening fails, the store and
 browser options remain available. No OAuth tokens are passed to launch URLs.
 
 Schemes were checked against upstream [Audiobookshelf Android manifest](https://github.com/advplyr/audiobookshelf-app/blob/master/android/app/src/main/AndroidManifest.xml)
 and [AudioBooth URL registration](https://github.com/AudioBooth/AudioBooth/blob/main/AudioBooth/AudioBooth/Info.plist).
+Connection import follows upstream
+[DeepLinkManager.swift](https://github.com/AudioBooth/AudioBooth/blob/main/AudioBooth/AudioBooth/Services/DeepLinkManager.swift).
 
 Deploy through the normal container release workflow. It must recreate the
 Audiobookshelf service to transfer port 13378 to the gateway and regenerate
