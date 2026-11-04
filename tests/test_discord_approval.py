@@ -48,6 +48,9 @@ class ApprovalTests(unittest.TestCase):
         self.app.component = lambda value: value
         self.app.existing_book = Mock(return_value=None)
         self.app.source_identity = Mock(return_value={})
+        self.app.media_kind = Mock(return_value='audiobook')
+        self.app.media_name = Mock(return_value='Title')
+        self.app.media_year = Mock(return_value=None)
         self.config = {'channel_id': '123', 'notify_user_id': '456',
                        'approver_ids': ['456'], 'bot_token': 'fixture'}
         self.discord = Mock()
@@ -215,6 +218,19 @@ class ApprovalTests(unittest.TestCase):
         self.queue.tick()  # final metadata duplicate check
         self.assertEqual(self.row()['status'], 'already_in_library')
         self.app.start_job.assert_not_called()
+
+    def test_video_review_uses_jellyfin_and_discloses_move_policy(self):
+        self.app.media_kind.return_value = 'movie'
+        self.app.metadata_search.return_value = [dict(self.match, author='Movie', metadata={
+            'kind':'movie', 'title':'Title', 'year':2024, 'provider_ids':{'Tmdb':'1'}, 'authors':[]})]
+        row = self.prepare()
+        self.assertEqual(row['media_kind'], 'movie')
+        self.assertEqual(self.app.metadata_search.call_args.args[0]['kind'], 'movie')
+        self.assertIn('removes verified source files', self.queue.content(row))
+        self.vote(module.REJECT, {'456'})
+        self.queue.tick()
+        self.app.start_job.assert_not_called()
+        self.assertEqual(self.row()['status'], 'rejected')
 
     def test_missing_approvers_fail_closed(self):
         with self.assertRaises(ValueError):

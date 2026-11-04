@@ -24,7 +24,8 @@ STATE = Path(os.getenv('IMPORT_STATE', '/state'))
 ASSETS = Path(__file__).parent
 USB_UUID = 'e440863e-34ce-4c29-b05a-c5dfda01a743'
 AUDIO = {'.mp3', '.m4b', '.m4a', '.aac', '.flac', '.ogg', '.opus', '.wav', '.wma'}
-SUPPORT = {'.jpg', '.jpeg', '.png', '.webp', '.cue', '.txt', '.nfo', '.opf', '.json'}
+VIDEO = {'.mkv', '.mp4', '.avi', '.mov', '.m4v', '.webm', '.ts', '.mpg', '.mpeg'}
+SUPPORT = {'.srt', '.ass', '.ssa', '.vtt', '.sub', '.idx', '.sup', '.jpg', '.jpeg', '.png', '.webp', '.cue', '.txt', '.nfo', '.opf', '.json'}
 lock = threading.Lock()
 
 def database():
@@ -76,10 +77,10 @@ def source_files(source):
             continue
         if not stat.S_ISREG(info.st_mode):
             raise ValueError('Only ordinary audio files can be imported.')
-        if path.suffix.lower() in AUDIO | SUPPORT:
+        if path.suffix.lower() in AUDIO | VIDEO | SUPPORT:
             files.append((path, info.st_size, info.st_mtime_ns))
-    if not any(path.suffix.lower() in AUDIO for path, _, _ in files):
-        raise ValueError('No audiobook audio files found. Extract archives first.')
+    if not any(path.suffix.lower() in AUDIO | VIDEO for path, _, _ in files):
+        raise ValueError('No supported audio or video files found. Extract archives first.')
     return files
 
 def torrents():
@@ -96,6 +97,31 @@ def ensure_complete(source, current):
             if (torrent.get('progress', 0) < 1 or state.endswith('DL')
                     or state.startswith('checking') or state in ('error', 'missingFiles')):
                 raise ValueError('This torrent is still downloading or being checked.')
+
+def media_kind(source, files=None):
+    files = files if files is not None else source_files(source)
+    videos = [p for p, _, _ in files if p.suffix.lower() in VIDEO]
+    if not videos:
+        return 'audiobook'
+    if any(p.suffix.lower() in AUDIO for p, _, _ in files):
+        raise ValueError('Separate audio and video into individual completed-download folders.')
+    return 'tv' if any(re.search(r'(?i)S\d{1,2}E\d{1,3}', p.stem) for p in videos) else 'movie'
+
+
+def media_year(source):
+    if media_kind(source) == 'audiobook':
+        return None
+    from video_import import release_match
+    match = release_match(source.name)
+    return int(match[1]) if match else None
+
+
+def media_name(source):
+    if media_kind(source) != 'audiobook':
+        from video_import import guess
+        return guess(source, source_files(source))[1]
+    return source.stem if source.is_file() else source.name
+
 
 def identity_text(value, title=False):
     if not isinstance(value, str):
@@ -197,6 +223,9 @@ def library_identities(refresh=False):
 
 
 def existing_book(source, metadata=None):
+    if media_kind(source) != 'audiobook':
+        from video_import import existing
+        return existing(sys.modules[__name__], source, metadata)
     identity = metadata if metadata is not None else source_identity(source)
     title = identity_text(identity.get('title'), title=True)
     authors = identity.get('authors', [])
@@ -224,7 +253,7 @@ def catalog():
     current = torrents()  # Fail closed if completion cannot be checked.
     with database() as db:
         imported = {row['source'] for row in db.execute(
-            "SELECT DISTINCT source FROM jobs WHERE status='done'")}
+            "SELECT DISTINCT source FROM jobs WHERE status IN ('done','cleanup_required')")}
     result = []
     for source in sorted((DOWNLOADS / 'complete').iterdir()):
         if source.name.startswith('.') or source.name in imported:
@@ -232,12 +261,19 @@ def catalog():
         try:
             ensure_complete(source, current)
             files = source_files(source)
-            if existing_book(source):
+            if media_kind(source, files) == 'audiobook':
+                duplicate = existing_book(source)
+            else:
+                try:
+                    duplicate = existing_book(source)
+                except Exception as error:
+                    logging.warning('Jellyfin duplicate lookup deferred (%s)', type(error).__name__)
+                    duplicate = None
+            if duplicate:
                 continue
         except ValueError:
             continue
-        result.append({'source': source.name, 'title': source.stem if source.is_file()
-                       else source.name, 'bytes': sum(size for _, size, _ in files)})
+        result.append({'source': source.name, 'title': media_name(source), 'bytes': sum(size for _, size, _ in files), 'kind': media_kind(source, files), 'year': media_year(source)})
     return result
 
 def destination(author, title):
@@ -347,6 +383,9 @@ def run_job(job, source, target, metadata=None):
         lock.release()
 
 def metadata_search(payload):
+    if payload.get('kind', 'audiobook') in ('movie', 'tv'):
+        from video_import import search
+        return search(sys.modules[__name__], payload)
     author = component(payload['author']) if payload.get('author') else ''
     title = component(payload.get('title'))
     provider = payload.get('provider', 'audible')
@@ -401,6 +440,12 @@ def metadata_search(payload):
 
 def reviewed_metadata(payload, author, title):
     if payload.get('manual') is True:
+        kind = payload.get('kind', 'audiobook')
+        if kind in ('movie', 'tv'):
+            year = int(payload['year']) if payload.get('year') else None
+            if year is not None and not 1800 <= year <= 2200:
+                raise ValueError('Enter a valid release year.')
+            return {'kind': kind, 'title': title, 'year': year, 'provider_ids': {}, 'authors': []}
         return {'title': title, 'authors': [author]}
     with database() as db:
         review = db.execute('SELECT * FROM reviews WHERE id=? AND expires>?',
@@ -414,27 +459,36 @@ def start_job(payload):
     available = {item['source'] for item in catalog()}
     if source_name not in available:
         raise ValueError('Choose a completed audiobook from the list.')
-    author, title = component(payload.get('author')), component(payload.get('title'))
+    source = DOWNLOADS / 'complete' / source_name
+    kind = media_kind(source)
+    author = component(payload.get('author')) if kind == 'audiobook' else ('Movie' if kind == 'movie' else 'TV series')
+    title = component(payload.get('title'))
     metadata = reviewed_metadata(payload, author, title)
+    if metadata.get('kind', 'audiobook') != kind:
+        raise ValueError('Review metadata for the detected media type.')
     approval_id = payload.get('approval_id')
     if approval_id:
         from discord_approval import manual_job
         manual_job(sys.modules[__name__], approval_id, source_name)
-    target = destination(author, title)
+    target = destination(author, title) if kind == 'audiobook' else None
     if not lock.acquire(blocking=False):
         raise ValueError('An import is already running. Wait for it to finish.')
     job = secrets.token_hex(16)
     try:
         duplicate = existing_book(DOWNLOADS / 'complete' / source_name, metadata)
         if duplicate:
-            raise ValueError('Already in the audiobook library: ' + duplicate)
+            raise ValueError('Already in the ' + ('audiobook' if kind == 'audiobook' else 'Jellyfin') + ' library: ' + duplicate)
         with database() as db:
             db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)',
-                       (job, source_name, author, title, 'copying', 'Copying audiobook…', time.time()))
+                       (job, source_name, author, title, 'copying', 'Preparing media transfer…', time.time()))
         if approval_id:
             manual_job(sys.modules[__name__], approval_id, source_name, job)
-        threading.Thread(target=run_job, args=(job, DOWNLOADS / 'complete' / source_name,
-                                              target, metadata), daemon=True).start()
+        if kind == 'audiobook':
+            worker, args = run_job, (job, source, target, metadata)
+        else:
+            from video_import import run_job as run_video_job
+            worker, args = run_video_job, (sys.modules[__name__], job, source, metadata)
+        threading.Thread(target=worker, args=args, daemon=True).start()
     except Exception:
         lock.release()
         raise
@@ -497,7 +551,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             self.send(403, {'error': 'Sign in with your approved account.'})
             return
-        if (self.path not in ('/imports/api/import', '/imports/api/metadata') or
+        if (self.path not in ('/imports/api/import', '/imports/api/metadata', '/imports/api/finish-move') or
                 self.headers.get('Origin') != 'https://torrents.shelfgoblin.dev' or
                 self.headers.get('Content-Type') != 'application/json'):
             self.send(403, {'error': 'Invalid import request.'})
@@ -509,7 +563,16 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
                 raise ValueError('Invalid import request.')
-            if self.path == '/imports/api/metadata':
+            if self.path == '/imports/api/finish-move':
+                from video_import import finish_move
+                if not lock.acquire(blocking=False):
+                    raise ValueError('An import is already running.')
+                try:
+                    finish_move(sys.modules[__name__], payload.get('job'))
+                    self.send(200, {'ok': True})
+                finally:
+                    lock.release()
+            elif self.path == '/imports/api/metadata':
                 self.send(200, metadata_search(payload))
             else:
                 self.send(202, start_job(payload))

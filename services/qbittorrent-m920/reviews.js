@@ -6,7 +6,7 @@ async function loadReviews() {
   const rows = await response.json();
   const list = document.querySelector('#review-list');
   list.replaceChildren();
-  if (!rows.length) list.textContent = 'No audiobooks awaiting manual review.';
+  if (!rows.length) list.textContent = 'No media awaiting manual review.';
   for (const row of rows) {
     const article = document.createElement('article'); article.className = 'job';
     const link = document.createElement('a');

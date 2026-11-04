@@ -13,6 +13,21 @@ let completedImports = '';
 const author = document.querySelector('#author');
 const manual = document.querySelector('#manual');
 const reviewStatus = document.querySelector('#review-status');
+const kind = document.querySelector('#kind');
+const year = document.querySelector('#year');
+function applyKind(value) {
+  kind.value = value || 'audiobook';
+  const video = kind.value !== 'audiobook';
+  document.querySelector('#author-field').hidden = video;
+  document.querySelector('#year-field').hidden = !video;
+  const provider = document.querySelector('#provider');
+  provider.replaceChildren(...(video ? [new Option('Jellyfin', 'jellyfin')] : [new Option('Audible', 'audible'), new Option('Google Books', 'google'), new Option('Open Library', 'openlibrary')]));
+  document.querySelector('#transfer-policy').textContent = video ? 'Approval moves video/subtitles to Jellyfin, stops seeding and removes verified source files after publication. Rejection leaves the download untouched.' : 'Approval copies the audiobook to Audiobookshelf; the USB original stays available for seeding.';
+  document.querySelector('#lookup-hint').textContent = video ? 'Search by title and optional release year, select the matching movie or series, then approve the move.' : 'Search by title, optionally narrow by author, and select the matching narrator and edition. A manual import requires an author.';
+  document.querySelector('#manual-label').textContent = video ? 'I reviewed the title, year and episode naming; move without a provider match.' : 'I reviewed the entered author and title; import without a provider match.';
+  button.textContent = video ? 'Approve and move to Jellyfin' : 'Approve and import';
+}
+year.addEventListener('input', prepareReview);
 const approvalId = new URLSearchParams(location.search).get('review');
 function updateButton() { button.disabled = !source.value || busy || (!review && !manual.checked); }
 function invalidateReview() {
@@ -48,12 +63,12 @@ async function api(path, options) {
 async function loadDownloads() {
   const selected = source.value;
   downloads = await api('downloads');
-  source.replaceChildren(new Option(downloads.length ? 'Choose an audiobook…' : 'No audiobooks awaiting import', ''));
+  source.replaceChildren(new Option(downloads.length ? 'Choose media…' : 'No media awaiting import', ''));
   for (const item of downloads) source.add(new Option(item.source, item.source));
   if (downloads.some(item => item.source === selected)) source.value = selected;
   else if (selected) invalidateReview();
   updateButton();
-  document.querySelector('#details').textContent = downloads.length ? 'MP3, M4B and other audio files. Extract ZIP or RAR archives before importing.' : 'Successfully imported downloads are hidden. New completed audiobooks will appear here after refreshing.';
+  document.querySelector('#details').textContent = downloads.length ? 'Audio, movies and TV episodes. Extract archives and split movie packs first.' : 'Successfully imported downloads are hidden. New completed audiobooks will appear here after refreshing.';
 }
 source.addEventListener('change', () => {
   if (approvalId) {
@@ -62,8 +77,10 @@ source.addEventListener('change', () => {
   }
   const item = downloads.find(item => item.source === source.value);
   if (item) {
+    applyKind(item.kind);
+    year.value = item.year || '';
     title.value = item.title;
-    document.querySelector('#details').textContent = (item.bytes / 1024 ** 3).toFixed(2) + ' GB · The original files stay on the USB.';
+    document.querySelector('#details').textContent = (item.bytes / 1024 ** 3).toFixed(2) + ' GB · ' + (kind.value === 'audiobook' ? 'Original stays on USB.' : 'Original video/subtitles are removed after the approved move.');
   }
   prepareReview();
 });
@@ -83,31 +100,42 @@ async function loadJobs() {
     const row = document.createElement('div'); row.className = 'job';
     const heading = document.createElement('strong'); heading.textContent = job.author + ' — ' + job.title;
     const detail = document.createElement('p'); detail.textContent = job.message;
-    row.append(heading, detail); container.append(row);
+    row.append(heading, detail);
+    if (job.status === 'cleanup_required') {
+      const finish = document.createElement('button'); finish.type = 'button'; finish.textContent = 'Finish move';
+      finish.addEventListener('click', async () => {
+        finish.disabled = true;
+        try { await api('finish-move', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job:job.id})}); await loadJobs(); }
+        catch (error) { message.textContent = error.message; finish.disabled = false; }
+      });
+      row.append(finish);
+    }
+    container.append(row);
   }
 }
 async function searchMetadata() {
-  if (!author.reportValidity() || !title.reportValidity()) return;
+  if ((kind.value === 'audiobook' && !author.reportValidity()) || !title.reportValidity() || !year.reportValidity()) return;
   invalidateReview();
   const requestRevision = revision;
   searchController = new AbortController();
   const signal = searchController.signal;
-  reviewStatus.textContent = 'Searching Audiobookshelf metadata…';
+  reviewStatus.textContent = kind.value === 'audiobook' ? 'Searching Audiobookshelf metadata…' : 'Searching Jellyfin metadata…';
   try {
-    const matches = await api('metadata', {signal,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({author:author.value.trim(),title:title.value,provider:document.querySelector('#provider').value})});
+    const matches = await api('metadata', {signal,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:kind.value,year:year.value,author:author.value.trim(),title:title.value,provider:document.querySelector('#provider').value})});
     if (revision !== requestRevision) return;
-    reviewStatus.textContent = matches.length ? 'Choose the edition that matches your audio.' : 'No matches found. Try another provider or explicitly confirm manual metadata.';
+    reviewStatus.textContent = matches.length ? 'Choose the metadata that matches this download.' : 'No matches found. Try another provider or explicitly confirm manual metadata.';
     const container = document.querySelector('#matches'); container.replaceChildren();
     for (const match of matches) {
       const card = document.createElement('article'); card.className = 'match';
       const heading = document.createElement('h3'); heading.textContent = match.metadata.title + (match.metadata.subtitle ? ' — ' + match.metadata.subtitle : '');
       const detail = document.createElement('p');
-      detail.textContent = ['Author: ' + match.metadata.authors.join(', '), 'Narrator: ' + (match.metadata.narrators?.join(', ') || 'Not supplied'), 'Series: ' + (match.metadata.series?.join(', ') || 'Not supplied'), 'Edition: ' + [match.metadata.publishedYear,match.metadata.publisher,match.metadata.language].filter(Boolean).join(' · '), match.metadata.asin ? 'ASIN: ' + match.metadata.asin : '', match.metadata.abridged === true ? 'Abridged' : match.metadata.abridged === false ? 'Unabridged' : ''].filter(Boolean).join(' | ');
+      detail.textContent = match.metadata.kind ? 'Year: ' + (match.metadata.year || 'Unknown') + ' | Provider IDs: ' + JSON.stringify(match.metadata.provider_ids) : ['Author: ' + match.metadata.authors.join(', '), 'Narrator: ' + (match.metadata.narrators?.join(', ') || 'Not supplied'), 'Series: ' + (match.metadata.series?.join(', ') || 'Not supplied'), 'Edition: ' + [match.metadata.publishedYear,match.metadata.publisher,match.metadata.language].filter(Boolean).join(' · '), match.metadata.asin ? 'ASIN: ' + match.metadata.asin : '', match.metadata.abridged === true ? 'Abridged' : match.metadata.abridged === false ? 'Unabridged' : ''].filter(Boolean).join(' | ');
       const description = document.createElement('p'); description.textContent = (match.metadata.description || '').slice(0,700);
       const choose = document.createElement('button'); choose.type = 'button'; choose.textContent = 'Use this metadata';
       choose.addEventListener('click', () => {
         review = match.id; manual.checked = false; author.value = match.author; title.value = match.title;
-        reviewStatus.textContent = 'Reviewed: ' + match.metadata.title + ' — ' + match.metadata.authors.join(', ') + '. This metadata will be saved with the imported copy.';
+        if (match.metadata.kind) year.value = match.metadata.year || '';
+        reviewStatus.textContent = 'Reviewed: ' + match.metadata.title + ' — ' + (match.metadata.kind ? 'Jellyfin ' + kind.value : match.metadata.authors.join(', ')) + '. This metadata will be saved with the imported copy.';
         container.replaceChildren(); updateButton();
       });
       card.append(heading,detail,description,choose); container.append(card);
@@ -119,14 +147,14 @@ async function searchMetadata() {
 document.querySelector('#lookup').addEventListener('click', searchMetadata);
 document.querySelector('#import-form').addEventListener('submit', async event => {
   event.preventDefault();
-  if (!author.value.trim()) {
+  if (kind.value === 'audiobook' && !author.value.trim()) {
     message.textContent = 'Choose a metadata match or enter an author before importing.';
     return;
   }
   button.disabled = true;
   try {
-    await api('import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:source.value,author:author.value,title:title.value,review,manual:manual.checked,approval_id:approvalId})});
-    message.textContent = 'Import started. You can leave this page; the copy continues on the server.';
+    await api('import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:source.value,kind:kind.value,year:year.value,author:author.value,title:title.value,review,manual:manual.checked,approval_id:approvalId})});
+    message.textContent = 'Transfer started. You can leave this page; it continues on the server.';
     await loadJobs();
   } catch (error) { message.textContent = error.message; updateButton(); }
 });
@@ -140,9 +168,12 @@ async function openReview() {
     throw new Error('This download is no longer available for import. Check recent imports and source storage.');
   }
   source.value = item.source; source.disabled = true;
+  applyKind(item.media_kind);
+  year.value = item.matches[0]?.metadata?.year || '';
   author.value = item.matches[0]?.author || '';
   title.value = item.matches[0]?.title || item.source;
   prepareReview();
 }
+applyKind('audiobook');
 Promise.all([loadDownloads(),loadJobs()]).then(openReview).catch(error => { message.textContent = error.message; });
 setInterval(() => loadJobs().catch(error => { message.textContent = error.message; }), 5000);

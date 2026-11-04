@@ -39,7 +39,7 @@ with transaction.atomic():
     })
     Outpost.objects.get(name='authentik Embedded Outpost').providers.add(provider)
     imports, _ = Application.objects.update_or_create(slug='audiobook-imports', defaults={
-        'name': 'Import audiobooks', 'provider': None, 'group': 'Administration',
+        'name': 'Import media', 'provider': None, 'group': 'Administration',
         'meta_launch_url': 'https://torrents.shelfgoblin.dev/imports/',
         'meta_icon': 'fa://fa-book', 'meta_hide': False, 'policy_engine_mode': 'all',
     })

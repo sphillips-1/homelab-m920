@@ -1,5 +1,14 @@
 # M920 qBittorrent
 
+## Move approved movies and TV to Jellyfin
+
+The **Import media** tile detects movies and `S01E01` TV episodes, searches
+Jellyfin metadata, and uses the existing Discord approvals. Approval moves
+verified video/subtitles to the movie or TV library, stops seeding, and removes
+the corresponding torrent records and verified source files. Rejection leaves
+the source untouched and links to manual review. Audiobooks still copy and seed.
+See [transfer rules, storage and recovery](../../docs/jellyfin-media-approval.md).
+
 ## Discord metadata approval
 
 Completed audiobook downloads can be automatically prepared for Anna's approval
@@ -44,7 +53,9 @@ An interrupted import is flagged for review; source files are always preserved.
 The importer listens only on shared-container loopback. Its gateway checks
 Authentik and supplies verified email/group headers. Access requires the same
 `torrent-users` membership as qBittorrent, currently granted only to the owner.
-POST imports require a same-origin JSON request. USB access is read-only;
+POST imports require a same-origin JSON request. USB access is writable only
+so the approved video workflow can remove verified source files; audiobook
+imports continue to preserve originals. Library
 destination and staging mounts refuse automatic directory creation. Runtime
 checks prevent copying to a missing library mount. The importer reuses the
 existing protected ABS integration credential from `.env.invitation`; no new

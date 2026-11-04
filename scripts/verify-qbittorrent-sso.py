@@ -31,7 +31,7 @@ def portal_contains(user, search, slug='qbittorrent'):
 for user in group.users.filter(is_active=True):
     assert portal_contains(user, 'qBittorrent'), 'Uncached portal omitted tile'
     assert portal_contains(user, ''), 'Cached portal omitted tile'
-    assert portal_contains(user, 'Import audiobooks', 'audiobook-imports'), 'Import tile missing'
+    assert portal_contains(user, 'Import media', 'audiobook-imports'), 'Import tile missing'
     assert portal_contains(user, '', 'audiobook-imports'), 'Cached import tile missing'
     assert portal_contains(user, 'Metadata review', 'audiobook-metadata-review'), 'Review tile missing'
     assert portal_contains(user, '', 'audiobook-metadata-review'), 'Cached review tile missing'
@@ -40,6 +40,6 @@ denied = User.objects.filter(is_active=True, groups__name='books-users').exclude
     groups=group).first()
 if denied:
     assert not portal_contains(denied, 'qBittorrent'), 'Unapproved user saw tile'
-    assert not portal_contains(denied, 'Import audiobooks', 'audiobook-imports'), 'Import tile exposed'
+    assert not portal_contains(denied, 'Import media', 'audiobook-imports'), 'Import tile exposed'
     assert not portal_contains(denied, 'Metadata review', 'audiobook-metadata-review'), 'Review tile exposed'
 print('OAuth callback and grant type valid; approved portal tile visible; unapproved user denied.')

@@ -9,6 +9,14 @@ The shared [LAN proxy](../lan-proxy/README.md) owns LAN port 80 and routes
 `jellyfin.home.arpa` to Jellyfin's unchanged LAN-bound port 8096. Kids' pages
 use the same proxy with a separate Host route. No public Jellyfin route is added.
 
+## Approved torrent imports
+
+The shared [Discord metadata review process](../../docs/jellyfin-media-approval.md)
+can move approved movies and TV from completed torrents into these libraries.
+It verifies staged files before source cleanup, stops seeding after approval,
+and supports adding episodes to an existing series. Jellyfin itself retains
+read-only media mounts and LAN-only access.
+
 ## Access and storage
 
 - LAN URL: `http://192.168.4.37:8096` (or the detected LAN address in `.env`)

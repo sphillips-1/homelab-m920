@@ -1,5 +1,9 @@
 # Audiobook metadata approval
 
+Movies and TV now share this Discord/manual-review process. See
+[Jellyfin approvals and moves](jellyfin-media-approval.md) for their explicit
+move-and-stop-seeding policy; audiobook originals remain available for seeding.
+
 ## Review flow
 
 The existing `audiobook-importer` polls completed USB downloads every 30 seconds.

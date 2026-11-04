@@ -39,14 +39,17 @@ M920Q
 
 ## Service model
 
-The audiobook importer also hosts a persistent Discord metadata approval queue.
+The media importer also hosts a persistent Discord metadata approval queue.
 It polls completed torrent downloads, gathers Audiobookshelf provider candidates,
 and accepts edition approval or rejection from explicitly allowed Discord user
 IDs. Rejections enter an Authentik-protected manual review list and receive a
 direct-link Discord reply. The worker shares the existing importer process,
 copy lock and storage checks; it adds no inbound port or callback route.
 State and private bot configuration remain in the importer's `/srv/homelab`
-appdata directory. See [metadata approvals](audiobook-metadata-approval.md).
+appdata directory. See [metadata approvals](audiobook-metadata-approval.md). Approved video also
+uses Jellyfin metadata and a staged, verified move into the existing movie/TV
+libraries, followed by stopped seeding and source cleanup. The same worker and
+copy lock serialize audio and video jobs. See [Jellyfin moves](jellyfin-media-approval.md).
 
 Services are kept logically separate so individual applications can be deployed, updated, or recovered without turning the host into one monolithic configuration.
 

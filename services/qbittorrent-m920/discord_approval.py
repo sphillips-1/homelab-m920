@@ -35,7 +35,7 @@ def reviews(app, key=None):
         return []
     with closing(sqlite3.connect(path)) as db:
         db.row_factory = sqlite3.Row
-        fields = 'id,source,status,matches,actor,seen,job'
+        fields = 'id,source,status,matches,actor,seen,job,media_kind'
         if key:
             row = db.execute('SELECT ' + fields + ' FROM queue WHERE id=?', (key,)).fetchone()
             if not row:
@@ -56,7 +56,7 @@ def reviews(app, key=None):
             return result
         return [dict(row) for row in db.execute(
             "SELECT id,source,status,seen FROM queue WHERE status IN "
-            "('rejected','needs_review','source_changed','failed','interrupted') ORDER BY seen")]
+            "('rejected','needs_review','source_changed','failed','interrupted','cleanup_required') ORDER BY seen")]
 
 
 def manual_job(app, key, source, job=None):
@@ -126,6 +126,8 @@ class ReviewQueue:
                 db.execute('ALTER TABLE queue ADD COLUMN reply TEXT')
             if 'library_path' not in columns:
                 db.execute('ALTER TABLE queue ADD COLUMN library_path TEXT')
+            if 'media_kind' not in columns:
+                db.execute("ALTER TABLE queue ADD COLUMN media_kind TEXT DEFAULT 'audiobook'")
             # A crash between job creation and queue association must never retry a copy.
             db.execute("UPDATE queue SET status='needs_review', dirty=1 WHERE status='starting'")
             db.commit()
@@ -163,6 +165,11 @@ class ReviewQueue:
 
     def gather(self, row):
         source = self.app.DOWNLOADS / 'complete' / row['source']
+        kind = self.app.media_kind(source)
+        if kind != 'audiobook':
+            matches = self.app.metadata_search({'kind': kind, 'title': self.app.media_name(source), 'year': self.app.media_year(source)})[:3]
+            self.update(row['id'], media_kind=kind, matches=json.dumps(matches), status='pending', dirty=1)
+            return
         author, title = '', source.stem if source.is_file() else source.name
         sidecar = source / 'metadata.json' if source.is_dir() else None
         if sidecar and sidecar.is_file() and not sidecar.is_symlink() and sidecar.stat().st_size < 1048576:
@@ -186,16 +193,18 @@ class ReviewQueue:
         self.update(row['id'], matches=json.dumps(matches), status='pending', dirty=1)
 
     def content(self, row):
-        lines = [f"<@{self.config['notify_user_id']}> Audiobook review `{row['id']}`",
+        lines = [f"<@{self.config['notify_user_id']}> Media review `{row['id']}`",
                  'Download: ' + row['source'][:200]]
         for emoji, match in zip(CHOICES, json.loads(row['matches'] or '[]')):
             meta = match['metadata']
-            detail = ' | '.join(filter(None, [', '.join(meta.get('narrators', [])),
+            detail = ('Jellyfin · ' + str(meta.get('year') or 'Year not supplied') + ' | ' + str(meta.get('provider_ids', {}))) if meta.get('kind') in ('movie', 'tv') else ' | '.join(filter(None, [', '.join(meta.get('narrators', [])),
                        ', '.join(meta.get('series', [])), meta.get('publishedYear'),
                        meta.get('publisher'), meta.get('language'), meta.get('asin'),
                        'Abridged' if meta.get('abridged') else
                        'Unabridged' if meta.get('abridged') is False else '']))
             lines.append(f"{emoji} {match['author']} — {match['title']}\n{detail}"[:430])
+        if row['media_kind'] in ('movie', 'tv'):
+            lines.append('Approval moves video/subtitles to Jellyfin, stops seeding and removes verified source files. Rejection keeps the source unchanged.')
         if row['status'] == 'pending':
             lines.append('React with a number to APPROVE that edition, or ❌ to REJECT. '
                          'One choice only; conflicting votes stay pending.')
@@ -203,7 +212,7 @@ class ReviewQueue:
                 lines.append('No usable metadata match. Review manually on the import page; only rejection is available here.')
         else:
             if row['status'] == 'already_in_library':
-                lines.append('Already in the audiobook library: ' + row['library_path'] + '. No import needed.')
+                lines.append('Already in the media library: ' + row['library_path'] + '. No import needed.')
             lines.append('Status: ' + row['status'] +
                          (' | decided by ' + row['actor'] if row['actor'] else ''))
             if row['job']:
@@ -231,7 +240,7 @@ class ReviewQueue:
                                      urllib.parse.quote(emoji, safe='') + '/@me')
         if row['status'] == 'already_in_library' and row['reply']:
             self.discord.request('PATCH', route + '/' + row['reply'], {
-                'content': 'Resolved: already in the audiobook library: ' + row['library_path'] +
+                'content': 'Resolved: already in the media library: ' + row['library_path'] +
                            '. Removed from manual review; files remain available for seeding.',
                 'allowed_mentions': {'parse': []}})
         self.update(row['id'], dirty=0)
@@ -255,7 +264,7 @@ class ReviewQueue:
 
     def rejected_reply(self, row):
         message = self.discord.request('POST', '/channels/' + self.config['channel_id'] + '/messages', {
-            'content': 'Rejected metadata — queued for manual validation. Files remain available for seeding.\n'
+            'content': 'Rejected metadata — queued for manual validation. Source files are unchanged.\n'
                        'https://torrents.shelfgoblin.dev/imports/?review=' + row['id'],
             'message_reference': {'message_id': row['message'], 'fail_if_not_exists': False},
             'allowed_mentions': {'parse': [], 'replied_user': False},
@@ -290,7 +299,7 @@ class ReviewQueue:
                             json.dumps(match['metadata']), time.time() + 60))
                 db.commit()
             job = self.app.start_job({'source': row['source'], 'author': match['author'],
-                                      'title': match['title'], 'review': review})
+                                      'title': match['title'], 'review': review, 'kind': match['metadata'].get('kind', 'audiobook')})
             self.update(row['id'], status='importing', job=job['id'], dirty=1)
         except Exception:
             self.update(row['id'], status='needs_review', dirty=1)
@@ -325,10 +334,10 @@ class ReviewQueue:
                     self.decide(row)
                 elif row['status'] == 'approved':
                     self.import_approved(row)
-                elif row['status'] == 'importing':
+                elif row['status'] in ('importing', 'cleanup_required'):
                     with closing(self.app.database()) as db:
                         job = db.execute('SELECT * FROM jobs WHERE id=?', (row['job'],)).fetchone()
-                    if job and job['status'] != 'copying':
+                    if job and job['status'] != 'copying' and job['status'] != row['status']:
                         self.update(row['id'], status=job['status'], dirty=1)
             except Exception as error:
                 logging.warning('Discord review %s deferred (%s)', row['id'], type(error).__name__)

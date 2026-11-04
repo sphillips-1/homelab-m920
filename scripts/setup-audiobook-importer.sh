@@ -3,7 +3,7 @@ set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
 root=/srv/homelab
 expected=4c746df8-53bf-4717-a4ce-40b3b7e90ed2
-for directory in "$root/storage" "$root/media/audiobooks/Books"; do
+for directory in "$root/storage" "$root/media/audiobooks/Books" "$root/storage/movies" "$root/storage/tv"; do
     [[ -d "$directory" && ! -L "$directory" ]]
     [[ $(findmnt -n -o UUID -T "$directory") == "$expected" ]] || {
         echo 'Audiobook library filesystem is unavailable.' >&2; exit 1;
@@ -12,3 +12,6 @@ done
 [[ ! -L "$root/media/audiobooks/.audiobook-imports" ]]
 install -d -o 1000 -g 1000 -m 0750 "$root/media/audiobooks/.audiobook-imports" \
     "$root/appdata/audiobook-importer"
+
+[[ ! -L "$root/storage/.jellyfin-imports" ]]
+install -d -o 1000 -g 1000 -m 0750 "$root/storage/.jellyfin-imports"
