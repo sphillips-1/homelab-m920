@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # Existing private-access host ports. Any new publication requires review here.
 PORTS = {"audiobookshelf-gateway": (13378, 80), "authentik-server": (9000, 9000),
          "calibre-web": (8083, 8083), "jellyfin": (8096, 8096), "beszel": (8090, 8090),
-         "kids": (8092, 8080), "lan-proxy": (80, 8080)}
+         "kids": (8092, 8080), "lan-proxy": (80, 8080), "local-ai-ollama": (11434, 11434),
+         "local-ai-webui": (3000, 8080)}
 
 
 class ComposePolicyTest(unittest.TestCase):
@@ -35,6 +36,8 @@ class ComposePolicyTest(unittest.TestCase):
                     actual = [(int(p["published"]), int(p["target"])) for p in service.get("ports", [])]
                     self.assertEqual(actual, expected)
                     for port in service.get("ports", []):
+                        if name in ("local-ai-ollama", "local-ai-webui"):
+                            self.assertEqual(port.get("host_ip"), "127.0.0.1")
                         self.assertEqual(port.get("protocol", "tcp"), "tcp")
                         if name in ("jellyfin", "kids", "lan-proxy"):
                             self.assertNotIn(port.get("host_ip", ""), ("", "0.0.0.0", "::"))
@@ -61,6 +64,18 @@ class ComposePolicyTest(unittest.TestCase):
         mounts = {v["target"]: v["source"] for v in agent["volumes"]}
         hub_mounts = {v["target"]: v["source"] for v in model["services"]["beszel"]["volumes"]}
         self.assertEqual(mounts["/beszel_socket"], hub_mounts["/beszel_socket"])
+
+    def test_local_ai_resource_budget(self):
+        services = self.models["services/local-ai/compose.yml"]["services"]
+        self.assertEqual(sum(s["mem_limit"] for s in services.values()), 8 * 1024**3)
+        for service in services.values():
+            self.assertEqual(service["memswap_limit"], service["mem_limit"])
+            self.assertLessEqual(float(service["cpus"]), 3)
+            self.assertLessEqual(service["cpu_shares"], 256)
+        env = services["ollama"]["environment"]
+        self.assertEqual(env["OLLAMA_MAX_LOADED_MODELS"], "1")
+        self.assertEqual(env["OLLAMA_NUM_PARALLEL"], "1")
+        self.assertEqual(env["OLLAMA_CONTEXT_LENGTH"], "4096")
 
 
 if __name__ == "__main__":

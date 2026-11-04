@@ -8,3 +8,6 @@ services/kids/** text eol=lf
 scripts/deploy-kids.sh text eol=lf
 services/bambustudio/** text eol=lf
 scripts/*bambustudio* text eol=lf
+
+services/local-ai/** text eol=lf
+scripts/init-local-ai.sh text eol=lf

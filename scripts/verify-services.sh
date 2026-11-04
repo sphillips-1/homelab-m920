@@ -112,5 +112,13 @@ spec.loader.exec_module(module)
 module.verify_auth_methods()
 PY
 
+wait_for_container local-ai-ollama
+wait_for_container local-ai-webui
+curl --fail --silent --show-error --output /dev/null http://127.0.0.1:11434/api/tags
+curl --fail --silent --show-error --output /dev/null http://127.0.0.1:3000/health
+for model in qwen2.5-coder:3b deepseek-coder:1.3b; do
+    docker exec local-ai-ollama ollama show "${model}" >/dev/null
+done
+
 echo "Service verification passed."
 bash /opt/homelab/scripts/verify-torrent-connectivity.sh

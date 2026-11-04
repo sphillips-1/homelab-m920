@@ -6,6 +6,8 @@ A service directory should contain the configuration required to deploy that ser
 
 Initial services:
 
+- `local-ai` — CPU-only Ollama and Open WebUI; see `local-ai/README.md`.
+
 - `audiobookshelf`
 - `calibre-web`
 - `readest` — separate browser reader and per-user sync; see `readest/README.md`.

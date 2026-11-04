@@ -39,6 +39,14 @@ M920Q
 
 ## Service model
 
+The local coding AI stack runs Ollama and Open WebUI on a dedicated bridge
+network, outside the shared ingress network. Both host ports bind to loopback;
+workstations connect through SSH forwarding. Persistent models and UI state live
+under `/srv/homelab/appdata/local-ai`. The normal GitHub Actions deployment
+initializes models and verifies health. Combined container limits are 8 GiB RAM
+and four CPU equivalents, with swap disabled for these containers. See the
+[local AI guide](../services/local-ai/README.md) for resource tradeoffs and Continue.
+
 The media importer also hosts a persistent Discord metadata approval queue.
 It polls completed torrent downloads, gathers Audiobookshelf provider candidates,
 and accepts edition approval or rejection from explicitly allowed Discord user
