@@ -18,10 +18,10 @@
   <form id="import-form">
     <label for="source">Completed download</label><select id="source" required><option value="">Loading downloads…</option></select>
     <p id="details" class="hint"></p>
-    <div class="fields"><div><label for="author">Author</label><input id="author" required maxlength="180" placeholder="e.g. Terry Pratchett"></div>
+    <div class="fields"><div><label for="author">Author (optional for search)</label><input id="author" maxlength="180" placeholder="e.g. Terry Pratchett"></div>
     <div><label for="title">Book title</label><input id="title" required maxlength="180" placeholder="e.g. Small Gods"></div></div>
     <div class="fields"><div><label for="provider">Metadata provider</label><select id="provider"><option value="audible">Audible</option><option value="google">Google Books</option><option value="openlibrary">Open Library</option></select></div><div class="lookup"><button id="lookup" type="button">Search again</button></div></div>
-    <p class="hint">Metadata suggestions load automatically after you enter an author and title. Choose the matching narrator and edition, then approve the import. Search suggestions do not verify the audio itself.</p>
+    <p class="hint">Metadata suggestions load automatically after you enter a title. Leave the author blank to search by title alone; choosing a match fills in its author. Enter an author before a manual import. Choose the matching narrator and edition, then approve the import. Search suggestions do not verify the audio itself.</p>
     <div id="matches" aria-live="polite"></div>
     <p id="review-status" role="status"></p>
     <label class="manual"><input id="manual" type="checkbox"> I reviewed the entered author and title; import without a provider match.</label>

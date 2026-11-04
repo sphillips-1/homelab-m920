@@ -24,7 +24,7 @@ function invalidateReview() {
 }
 function prepareReview() {
   invalidateReview();
-  if (!source.value || !author.value.trim() || !title.value.trim()) return;
+  if (!source.value || !title.value.trim()) return;
   reviewStatus.textContent = 'Preparing metadata suggestions…';
   searchTimer = setTimeout(searchMetadata, 700);
 }
@@ -94,7 +94,7 @@ async function searchMetadata() {
   const signal = searchController.signal;
   reviewStatus.textContent = 'Searching Audiobookshelf metadata…';
   try {
-    const matches = await api('metadata', {signal,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({author:author.value,title:title.value,provider:document.querySelector('#provider').value})});
+    const matches = await api('metadata', {signal,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({author:author.value.trim(),title:title.value,provider:document.querySelector('#provider').value})});
     if (revision !== requestRevision) return;
     reviewStatus.textContent = matches.length ? 'Choose the edition that matches your audio.' : 'No matches found. Try another provider or explicitly confirm manual metadata.';
     const container = document.querySelector('#matches'); container.replaceChildren();
@@ -118,7 +118,12 @@ async function searchMetadata() {
 }
 document.querySelector('#lookup').addEventListener('click', searchMetadata);
 document.querySelector('#import-form').addEventListener('submit', async event => {
-  event.preventDefault(); button.disabled = true;
+  event.preventDefault();
+  if (!author.value.trim()) {
+    message.textContent = 'Choose a metadata match or enter an author before importing.';
+    return;
+  }
+  button.disabled = true;
   try {
     await api('import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:source.value,author:author.value,title:title.value,review,manual:manual.checked,approval_id:approvalId})});
     message.textContent = 'Import started. You can leave this page; the copy continues on the server.';

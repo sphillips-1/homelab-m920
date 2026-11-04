@@ -31,7 +31,9 @@ Rejection never removes files or stops seeding. It adds the download to
 original message with a direct link to that item. Open the item to inspect file
 names/sizes, the existing metadata sidecar and saved provider candidates; edit
 the author/title, search Audible, Google Books or Open Library, and select an
-edition. **Approve and import** completes the manual review. The explicit manual
+edition. The author may be blank for title-only searches; selecting a match
+fills its author. A manual import still needs an author for library organization.
+**Approve and import** completes the manual review. The explicit manual
 confirmation remains available when no provider matches the audio. Importing
 removes the item from the review list; a failed/interrupted import returns there.
 When automatic search finds no candidates, the Discord post offers rejection
