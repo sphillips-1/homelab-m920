@@ -267,6 +267,20 @@ class ApprovalTests(unittest.TestCase):
             self.queue.tick()
             self.assertFalse(any(call.args[0] == 'DELETE' for call in self.discord.request.call_args_list))
 
+    def test_removed_invalid_review_can_resolve_manually_without_reposting(self):
+        self.prepare()
+        key=self.row()['id']
+        self.queue.update(key,status='needs_review',discord_deleted=1,dirty=0)
+        module.manual_job(self.app,key,'Author - Title','manual2')
+        with closing(self.app.database()) as db:
+            db.execute('INSERT INTO jobs VALUES (?,?,?)',('manual2','Author - Title','done'))
+            db.commit()
+        self.discord.request.reset_mock()
+        for _ in range(3):
+            self.queue.tick()
+        self.assertEqual(self.row()['status'],'done')
+        self.discord.request.assert_not_called()
+
     def test_missing_approvers_fail_closed(self):
         with self.assertRaises(ValueError):
             module.ReviewQueue(self.app, dict(self.config, approver_ids=[]), self.discord)

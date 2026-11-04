@@ -247,6 +247,9 @@ class ReviewQueue:
         self.update(row['id'], discord_deleted=1, dirty=0)
 
     def publish(self, row):
+        if row['discord_deleted']:
+            self.update(row['id'], dirty=0)
+            return
         if row['status'] in RESOLVED:
             self.delete_resolved(row)
             return
@@ -353,7 +356,7 @@ class ReviewQueue:
                 if row['status'] == 'settling':
                     if row['source'] in available and time.time() - row['seen'] >= 120:
                         self.gather(row)
-                elif row['selected'] == -1 and not row['reply'] and row['message']:
+                elif row['selected'] == -1 and not row['reply'] and row['message'] and not row['discord_deleted']:
                     self.rejected_reply(row)
                 elif row['dirty'] or not row['message']:
                     self.publish(row)
