@@ -1,12 +1,25 @@
 # M920 qBittorrent
 
+## Discord metadata approval
+
+Completed audiobook downloads can be automatically prepared for Anna's approval
+in **#media-approval**. Numbered reactions approve a specific metadata edition;
+rejection queues the download for deeper validation in the **Metadata review**
+Authentik tile and replies with a direct item link. Files remain on USB for seeding.
+See [setup, behavior and recovery](../../docs/audiobook-metadata-approval.md).
+Activation requires the private bot configuration and GitHub Actions deployment.
+
 ## Import audiobooks
 
 Open the **Import audiobooks** Authentik tile or
 `https://torrents.shelfgoblin.dev/imports/`. Choose a completed audiobook,
-enter its author and title, and click **Import to Audiobookshelf**. The importer
-now requires a metadata review first: click **Search ABS metadata**, review
-the narrator/edition/series, and choose **Use this metadata**. Audible, Google
+enter its author and title. Metadata suggestions load automatically after a short
+pause. Review the narrator/edition/series, choose **Use this metadata**, then
+click **Approve and import**. Every import requires your explicit approval;
+search results never start a copy. **Search again** retries a lookup. Changing
+the download, author, title or provider clears the selection and prepares new
+suggestions. Superseded searches are cancelled and stale responses ignored.
+Audible, Google
 Books and Open Library use the deployed ABS search API without importing any
 file. An explicit manual confirmation is available when no match is suitable.
 Editing the author/title invalidates a chosen match; review records expire

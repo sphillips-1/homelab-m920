@@ -63,9 +63,13 @@ services:
     command: ["python", "-B", "/app/importer.py"]
     volumes:
       - ./importer.py:/app/importer.py:ro
+      - ./discord_approval.py:/app/discord_approval.py:ro
+      - ./configure_discord_approval.py:/app/configure_discord_approval.py:ro
       - ./import.html:/app/import.html:ro
       - ./import.js:/app/import.js:ro
       - ./import.css:/app/import.css:ro
+      - ./reviews.html:/app/reviews.html:ro
+      - ./reviews.js:/app/reviews.js:ro
       - type: bind
         source: /srv/homelab/media/torrents-m920
         target: /downloads

@@ -1,0 +1,6 @@
+{
+  "bot_token": "REPLACE_WITH_PRIVATE_DISCORD_BOT_TOKEN",
+  "channel_id": "1567517842658558083",
+  "notify_user_id": "490205210145194009",
+  "approver_ids": ["490205210145194009"]
+}

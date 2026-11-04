@@ -10,18 +10,22 @@
   <p class="eyebrow">FROM DOWNLOAD TO LIBRARY</p>
   <h1>Bring a book to the shelf.</h1>
   <p class="intro">Choose a finished audiobook from your USB drive. We'll copy it to the library and refresh Audiobookshelf. Your download stays available for seeding.</p>
+  <p><a href="/imports/reviews/">Open metadata review list</a></p>
+  <section id="review-evidence" hidden><h2>Download evidence</h2><p id="review-context"></p>
+    <details><summary>Files, existing metadata and proposed matches</summary><pre id="review-data"></pre></details>
+  </section>
   <section aria-labelledby="import-heading"><h2 id="import-heading">Import an audiobook</h2>
   <form id="import-form">
     <label for="source">Completed download</label><select id="source" required><option value="">Loading downloads…</option></select>
     <p id="details" class="hint"></p>
     <div class="fields"><div><label for="author">Author</label><input id="author" required maxlength="180" placeholder="e.g. Terry Pratchett"></div>
     <div><label for="title">Book title</label><input id="title" required maxlength="180" placeholder="e.g. Small Gods"></div></div>
-    <div class="fields"><div><label for="provider">Metadata provider</label><select id="provider"><option value="audible">Audible</option><option value="google">Google Books</option><option value="openlibrary">Open Library</option></select></div><div class="lookup"><button id="lookup" type="button">Search ABS metadata</button></div></div>
-    <p class="hint">Confirm the title, narrator and edition before importing. Search suggestions do not verify the audio itself.</p>
+    <div class="fields"><div><label for="provider">Metadata provider</label><select id="provider"><option value="audible">Audible</option><option value="google">Google Books</option><option value="openlibrary">Open Library</option></select></div><div class="lookup"><button id="lookup" type="button">Search again</button></div></div>
+    <p class="hint">Metadata suggestions load automatically after you enter an author and title. Choose the matching narrator and edition, then approve the import. Search suggestions do not verify the audio itself.</p>
     <div id="matches" aria-live="polite"></div>
     <p id="review-status" role="status"></p>
     <label class="manual"><input id="manual" type="checkbox"> I reviewed the entered author and title; import without a provider match.</label>
-    <button id="submit" type="submit" disabled>Import to Audiobookshelf</button>
+    <button id="submit" type="submit" disabled>Approve and import</button>
     <p id="message" role="status" aria-live="polite"></p>
   </form></section>
   <section aria-labelledby="recent-heading"><h2 id="recent-heading">Recent imports</h2><div id="jobs"><p class="hint">No imports yet.</p></div></section>

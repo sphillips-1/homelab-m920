@@ -8,6 +8,7 @@ import secrets
 import shutil
 import sqlite3
 import stat
+import sys
 import threading
 import time
 import urllib.request
@@ -135,7 +136,8 @@ def scan_library():
         for folder in item.get('folders', []))), None)
     if not library:
         raise ValueError('Imported. Run Scan in Audiobookshelf; the library was not found.')
-    # Do not race the ABS watcher with a full-library scan.
+    # Publishing the completed folder already notifies ABS's watcher. A full
+    # scan racing that watcher can create two catalog entries for the same path.
     if not library.get('settings', {}).get('disableWatcher', False):
         return 'Imported. Audiobookshelf will detect the book automatically; the USB copy is preserved.'
     with urllib.request.urlopen(urllib.request.Request(
@@ -219,7 +221,8 @@ def run_job(job, source, target, metadata=None):
         lock.release()
 
 def metadata_search(payload):
-    author, title = component(payload.get('author')), component(payload.get('title'))
+    author = component(payload['author']) if payload.get('author') else ''
+    title = component(payload.get('title'))
     provider = payload.get('provider', 'audible')
     if provider not in ('audible', 'google', 'openlibrary'):
         raise ValueError('Choose a supported metadata provider.')
@@ -287,6 +290,10 @@ def start_job(payload):
         raise ValueError('Choose a completed audiobook from the list.')
     author, title = component(payload.get('author')), component(payload.get('title'))
     metadata = reviewed_metadata(payload, author, title)
+    approval_id = payload.get('approval_id')
+    if approval_id:
+        from discord_approval import manual_job
+        manual_job(sys.modules[__name__], approval_id, source_name)
     target = destination(author, title)
     if not lock.acquire(blocking=False):
         raise ValueError('An import is already running. Wait for it to finish.')
@@ -295,6 +302,8 @@ def start_job(payload):
         with database() as db:
             db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (job, source_name, author, title, 'copying', 'Copying audiobook…', time.time()))
+        if approval_id:
+            manual_job(sys.modules[__name__], approval_id, source_name, job)
         threading.Thread(target=run_job, args=(job, DOWNLOADS / 'complete' / source_name,
                                               target, metadata), daemon=True).start()
     except Exception:
@@ -335,11 +344,19 @@ class Handler(BaseHTTPRequestHandler):
                 with database() as db:
                     rows = db.execute('SELECT * FROM jobs ORDER BY created DESC LIMIT 20').fetchall()
                 self.send(200, [dict(row) for row in rows])
-            elif self.path in ('/imports/', '/imports/app.js', '/imports/style.css'):
+            elif self.path == '/imports/api/reviews' or self.path.startswith('/imports/api/reviews/'):
+                from discord_approval import reviews
+                key = self.path.removeprefix('/imports/api/reviews/') if self.path.startswith('/imports/api/reviews/') else None
+                self.send(200, reviews(sys.modules[__name__], key))
+            elif urllib.parse.urlsplit(self.path).path in (
+                    '/imports/', '/imports/app.js', '/imports/style.css',
+                    '/imports/reviews/', '/imports/reviews.js'):
                 filename = {'/imports/': 'import.html', '/imports/app.js': 'import.js',
-                            '/imports/style.css': 'import.css'}[self.path]
+                            '/imports/style.css': 'import.css', '/imports/reviews/': 'reviews.html',
+                            '/imports/reviews.js': 'reviews.js'}[urllib.parse.urlsplit(self.path).path]
                 kind = {'import.html': 'text/html; charset=utf-8', 'import.js': 'text/javascript',
-                        'import.css': 'text/css'}[filename]
+                        'import.css': 'text/css', 'reviews.html': 'text/html; charset=utf-8',
+                        'reviews.js': 'text/javascript'}[filename]
                 self.send(200, (ASSETS / filename).read_bytes(), kind)
             else:
                 self.send(404, {'error': 'Not found'})
@@ -375,4 +392,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     os.umask(0o027)
     initialize()
+    from discord_approval import run as run_discord_approval
+    threading.Thread(target=run_discord_approval, args=(sys.modules[__name__],),
+                     daemon=True).start()
     ThreadingHTTPServer(('127.0.0.1', 8092), Handler).serve_forever()

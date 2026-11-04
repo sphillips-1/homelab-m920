@@ -39,6 +39,15 @@ M920Q
 
 ## Service model
 
+The audiobook importer also hosts a persistent Discord metadata approval queue.
+It polls completed torrent downloads, gathers Audiobookshelf provider candidates,
+and accepts edition approval or rejection from explicitly allowed Discord user
+IDs. Rejections enter an Authentik-protected manual review list and receive a
+direct-link Discord reply. The worker shares the existing importer process,
+copy lock and storage checks; it adds no inbound port or callback route.
+State and private bot configuration remain in the importer's `/srv/homelab`
+appdata directory. See [metadata approvals](audiobook-metadata-approval.md).
+
 Services are kept logically separate so individual applications can be deployed, updated, or recovered without turning the host into one monolithic configuration.
 
 The exact Compose organization will be established as services are migrated.

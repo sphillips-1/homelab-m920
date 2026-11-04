@@ -7,20 +7,37 @@ let downloads = [];
 let busy = false;
 let review = null;
 let revision = 0;
+let searchTimer;
+let searchController;
 let completedImports = '';
 const author = document.querySelector('#author');
 const manual = document.querySelector('#manual');
 const reviewStatus = document.querySelector('#review-status');
+const approvalId = new URLSearchParams(location.search).get('review');
 function updateButton() { button.disabled = !source.value || busy || (!review && !manual.checked); }
 function invalidateReview() {
+  clearTimeout(searchTimer);
+  searchController?.abort();
   revision++; review = null; manual.checked = false;
   reviewStatus.textContent = 'Review metadata before importing.';
   document.querySelector('#matches').replaceChildren(); updateButton();
 }
-author.addEventListener('input', invalidateReview);
-title.addEventListener('input', invalidateReview);
-document.querySelector('#provider').addEventListener('change', invalidateReview);
-manual.addEventListener('change', () => { if (manual.checked) review = null; updateButton(); });
+function prepareReview() {
+  invalidateReview();
+  if (!source.value || !author.value.trim() || !title.value.trim()) return;
+  reviewStatus.textContent = 'Preparing metadata suggestions…';
+  searchTimer = setTimeout(searchMetadata, 700);
+}
+author.addEventListener('input', prepareReview);
+title.addEventListener('input', prepareReview);
+document.querySelector('#provider').addEventListener('change', prepareReview);
+manual.addEventListener('change', () => {
+  if (manual.checked) {
+    invalidateReview(); manual.checked = true;
+    reviewStatus.textContent = 'Manual metadata selected. Approve the import to continue.';
+  }
+  updateButton();
+});
 async function api(path, options) {
   const response = await fetch('/imports/api/' + path, options);
   if (response.redirected) throw new Error('Your session expired. Refresh to sign in again.');
@@ -39,12 +56,16 @@ async function loadDownloads() {
   document.querySelector('#details').textContent = downloads.length ? 'MP3, M4B and other audio files. Extract ZIP or RAR archives before importing.' : 'Successfully imported downloads are hidden. New completed audiobooks will appear here after refreshing.';
 }
 source.addEventListener('change', () => {
+  if (approvalId) {
+    message.textContent = 'This page is linked to a review. Open Import audiobooks to choose a different download.';
+    return;
+  }
   const item = downloads.find(item => item.source === source.value);
   if (item) {
     title.value = item.title;
     document.querySelector('#details').textContent = (item.bytes / 1024 ** 3).toFixed(2) + ' GB · The original files stay on the USB.';
   }
-  invalidateReview();
+  prepareReview();
 });
 async function loadJobs() {
   const jobs = await api('jobs');
@@ -65,14 +86,15 @@ async function loadJobs() {
     row.append(heading, detail); container.append(row);
   }
 }
-document.querySelector('#lookup').addEventListener('click', async () => {
+async function searchMetadata() {
   if (!author.reportValidity() || !title.reportValidity()) return;
   invalidateReview();
   const requestRevision = revision;
-  const lookup = document.querySelector('#lookup'); lookup.disabled = true;
+  searchController = new AbortController();
+  const signal = searchController.signal;
   reviewStatus.textContent = 'Searching Audiobookshelf metadata…';
   try {
-    const matches = await api('metadata', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({author:author.value,title:title.value,provider:document.querySelector('#provider').value})});
+    const matches = await api('metadata', {signal,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({author:author.value,title:title.value,provider:document.querySelector('#provider').value})});
     if (revision !== requestRevision) return;
     reviewStatus.textContent = matches.length ? 'Choose the edition that matches your audio.' : 'No matches found. Try another provider or explicitly confirm manual metadata.';
     const container = document.querySelector('#matches'); container.replaceChildren();
@@ -90,16 +112,32 @@ document.querySelector('#lookup').addEventListener('click', async () => {
       });
       card.append(heading,detail,description,choose); container.append(card);
     }
-  } catch (error) { reviewStatus.textContent = error.message; }
-  finally { lookup.disabled = false; }
-});
+  } catch (error) {
+    if (revision === requestRevision && error.name !== 'AbortError') reviewStatus.textContent = error.message;
+  }
+}
+document.querySelector('#lookup').addEventListener('click', searchMetadata);
 document.querySelector('#import-form').addEventListener('submit', async event => {
   event.preventDefault(); button.disabled = true;
   try {
-    await api('import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:source.value,author:author.value,title:title.value,review,manual:manual.checked})});
+    await api('import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({source:source.value,author:author.value,title:title.value,review,manual:manual.checked,approval_id:approvalId})});
     message.textContent = 'Import started. You can leave this page; the copy continues on the server.';
     await loadJobs();
   } catch (error) { message.textContent = error.message; updateButton(); }
 });
-Promise.all([loadDownloads(),loadJobs()]).catch(error => { message.textContent = error.message; });
+async function openReview() {
+  if (!approvalId) return;
+  const item = await api('reviews/' + encodeURIComponent(approvalId));
+  document.querySelector('#review-evidence').hidden = false;
+  document.querySelector('#review-context').textContent = item.source + ' · ' + item.status.replaceAll('_', ' ');
+  document.querySelector('#review-data').textContent = JSON.stringify({files:item.files,existingMetadata:item.sidecar,proposedMatches:item.matches}, null, 2);
+  if (!downloads.some(download => download.source === item.source)) {
+    throw new Error('This download is no longer available for import. Check recent imports and source storage.');
+  }
+  source.value = item.source; source.disabled = true;
+  author.value = item.matches[0]?.author || '';
+  title.value = item.matches[0]?.title || item.source;
+  prepareReview();
+}
+Promise.all([loadDownloads(),loadJobs()]).then(openReview).catch(error => { message.textContent = error.message; });
 setInterval(() => loadJobs().catch(error => { message.textContent = error.message; }), 5000);

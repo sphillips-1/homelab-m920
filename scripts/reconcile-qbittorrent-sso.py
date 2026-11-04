@@ -47,6 +47,15 @@ with transaction.atomic():
         'group': group, 'policy': None, 'user': None, 'enabled': True,
         'negate': False, 'failure_result': False,
     })
+    reviews, _ = Application.objects.update_or_create(slug='audiobook-metadata-review', defaults={
+        'name': 'Metadata review', 'provider': None, 'group': 'Administration',
+        'meta_launch_url': 'https://torrents.shelfgoblin.dev/imports/reviews/',
+        'meta_icon': 'fa://fa-list-check', 'meta_hide': False, 'policy_engine_mode': 'all',
+    })
+    PolicyBinding.objects.update_or_create(target=reviews, order=0, defaults={
+        'group': group, 'policy': None, 'user': None, 'enabled': True,
+        'negate': False, 'failure_result': False,
+    })
 
 # Portal lists are cached for 24 hours. Clear only approved users' application
 # lists so an existing session sees the new tile without waiting for expiry.
