@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import secrets
 import shutil
@@ -11,6 +12,7 @@ import stat
 import sys
 import threading
 import time
+import unicodedata
 import urllib.request
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -95,6 +97,128 @@ def ensure_complete(source, current):
                     or state.startswith('checking') or state in ('error', 'missingFiles')):
                 raise ValueError('This torrent is still downloading or being checked.')
 
+def identity_text(value, title=False):
+    if not isinstance(value, str):
+        return ''
+    if title:
+        # Edition filenames often append a series position; retain actual title numbers.
+        value = re.sub(r'\s*[\[(]book\s+0*\d+[\])]\s*$', '', value, flags=re.I)
+    return ''.join(c for c in unicodedata.normalize('NFKC', value).casefold() if c.isalnum())
+
+
+def sidecar_identity(directory):
+    path = directory / 'metadata.json'
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 1048576:
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding='utf-8-sig'))
+        if isinstance(data, dict):
+            data = data.get('metadata', data)
+            return data if isinstance(data, dict) else {}
+    except (ValueError, UnicodeError):
+        pass
+    return {}
+
+
+def mp3_identity(path):
+    """Read bounded, ordinary ID3v2.3/2.4 title/artist frames; unsupported tags stay unknown."""
+    with path.open('rb') as stream:
+        header = stream.read(10)
+        if (len(header) != 10 or header[:3] != b'ID3' or header[3] not in (3, 4)
+                or header[5] & 0xe0 or any(v & 0x80 for v in header[6:10])):
+            return {}
+        size = sum(v << shift for v, shift in zip(header[6:10], (21, 14, 7, 0)))
+        data = stream.read(min(size, 1048576))
+    offset, values = 0, {}
+    while offset + 10 <= len(data):
+        frame = data[offset:offset + 10]
+        if not re.fullmatch(b'[A-Z0-9]{4}', frame[:4]):
+            break
+        size = (sum(v << shift for v, shift in zip(frame[4:8], (21, 14, 7, 0)))
+                if header[3] == 4 else int.from_bytes(frame[4:8], 'big'))
+        if size <= 0 or offset + 10 + size > len(data):
+            break
+        value = data[offset + 10:offset + 10 + size]
+        if frame[:4] in (b'TIT2', b'TPE1') and not frame[9]:
+            encoding = {0: 'latin1', 1: 'utf-16', 2: 'utf-16-be', 3: 'utf-8'}.get(value[0])
+            if encoding:
+                try:
+                    values[frame[:4]] = value[1:].decode(encoding).strip('\x00').strip()
+                except UnicodeError:
+                    pass
+        offset += 10 + size
+    return {'title': values.get(b'TIT2', ''),
+            'authors': [v.strip() for v in values.get(b'TPE1', '').split('\x00') if v.strip()]}
+
+
+def source_identity(source, files=None):
+    if source.is_dir():
+        metadata = sidecar_identity(source)
+        if metadata.get('title') and metadata.get('authors'):
+            return metadata
+    audio = [path for path, _, _ in (files if files is not None else source_files(source))
+             if path.suffix.lower() in AUDIO]
+    tags = [mp3_identity(path) if path.suffix.lower() == '.mp3' else {} for path in audio]
+    if tags and all(tag.get('title') and tag.get('authors') and tag == tags[0] for tag in tags):
+        return tags[0]
+    return {}
+
+
+_library_identity_cache = None
+_identity_lock = threading.Lock()
+
+
+def library_identities(refresh=False):
+    global _library_identity_cache
+    with _identity_lock:
+        if (_library_identity_cache and _library_identity_cache[0] == LIBRARY
+                and not refresh and time.monotonic() - _library_identity_cache[1] < 30):
+            return _library_identity_cache[2]
+        books = set()
+        # Match only real audio-bearing book folders, never an empty reserved destination.
+        for directory, subdirs, names in os.walk(LIBRARY, followlinks=False):
+            root = Path(directory)
+            subdirs[:] = [name for name in subdirs if not (root / name).is_symlink()]
+            if any(Path(name).suffix.lower() in AUDIO and not (root / name).is_symlink() for name in names):
+                parts = root.relative_to(LIBRARY).parts
+                if parts:
+                    books.add(LIBRARY.joinpath(*parts[:2]))
+        result = []
+        for book in sorted(books):
+            parts = book.relative_to(LIBRARY).parts
+            metadata = sidecar_identity(book)
+            if not metadata.get('title'):
+                metadata['title'] = book.name
+            if not metadata.get('authors') and len(parts) >= 2:
+                metadata['authors'] = [parts[0]]
+            result.append((book.relative_to(LIBRARY).as_posix(), metadata))
+        _library_identity_cache = (LIBRARY, time.monotonic(), result)
+        return result
+
+
+def existing_book(source, metadata=None):
+    identity = metadata if metadata is not None else source_identity(source)
+    title = identity_text(identity.get('title'), title=True)
+    authors = identity.get('authors', [])
+    authors = {identity_text(author) for author in authors if isinstance(author, str)} if isinstance(authors, list) else set()
+    authors.discard('')
+    if not (title and authors) and not any(identity_text(identity.get(field)) for field in ('asin', 'isbn')):
+        return None
+    for path, book in library_identities(refresh=metadata is not None):
+        # Strong provider identifiers cover renamed/re-encoded copies too.
+        if any(identity_text(identity.get(field)) and identity_text(identity.get(field)) == identity_text(book.get(field))
+               for field in ('asin', 'isbn')):
+            return path
+        book_authors = book.get('authors', [])
+        book_authors = {identity_text(author) for author in book_authors if isinstance(author, str)} if isinstance(book_authors, list) else set()
+        source_sequence = re.search(r'[\[(]book\s+0*(\d+)[\])]\s*$', str(identity.get('title', '')), re.I)
+        book_sequence = re.search(r'[\[(]book\s+0*(\d+)[\])]\s*$', str(book.get('title', '')), re.I)
+        same_sequence = not (source_sequence and book_sequence) or int(source_sequence[1]) == int(book_sequence[1])
+        if title and authors and same_sequence and title == identity_text(book.get('title'), title=True) and authors == book_authors:
+            return path
+    return None
+
+
 def catalog():
     storage_ready()
     current = torrents()  # Fail closed if completion cannot be checked.
@@ -108,6 +232,8 @@ def catalog():
         try:
             ensure_complete(source, current)
             files = source_files(source)
+            if existing_book(source):
+                continue
         except ValueError:
             continue
         result.append({'source': source.name, 'title': source.stem if source.is_file()
@@ -299,6 +425,9 @@ def start_job(payload):
         raise ValueError('An import is already running. Wait for it to finish.')
     job = secrets.token_hex(16)
     try:
+        duplicate = existing_book(DOWNLOADS / 'complete' / source_name, metadata)
+        if duplicate:
+            raise ValueError('Already in the audiobook library: ' + duplicate)
         with database() as db:
             db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (job, source_name, author, title, 'copying', 'Copying audiobook…', time.time()))

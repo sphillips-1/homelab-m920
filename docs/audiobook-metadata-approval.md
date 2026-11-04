@@ -7,7 +7,22 @@ Only ordinary audio files accepted by its storage and torrent completion checks
 are considered. Each download must remain unchanged for two minutes. Initial
 activation also discovers completed downloads that have not already been imported.
 
-The worker reads a root `metadata.json` when available, otherwise uses the
+Before posting, the importer checks actual audio-bearing library folders using
+ASIN/ISBN or normalized title plus author. Source identities come from a root
+`metadata.json` or consistent embedded MP3 ID3v2.3/2.4 title/artist tags. Case,
+punctuation and trailing `(Book 02)` annotations are normalized; distinct title
+numbers, conflicting series positions and different authors remain distinct.
+Filename or title similarity alone never silently suppresses a download.
+Unsupported or missing tags keep the normal review flow. Library identities are
+cached for at most 30 seconds and refreshed for the final import check.
+
+Confirmed duplicates are hidden from the download picker and marked
+`already_in_library` in the queue. Existing Discord requests and rejection
+replies are updated, and duplicates leave the manual review list. Files stay
+on USB for seeding. Both Discord approvals and web imports are checked again
+before copying, including books imported under different source names.
+
+The worker reads a root `metadata.json` and embedded MP3 tags when available, otherwise uses the
 filename (including an `Author - Title` naming convention), and searches the
 existing Audiobookshelf Audible provider. Up to three editions are saved with
 their author, title, narrator, series, publisher, year, language and ASIN.
@@ -102,7 +117,8 @@ not Discord delivery or bot permissions.
 
 ## Validation
 
-Run `python3 -B tests/test_discord_approval.py` for offline queue, authorization,
+Run `python3 -B tests/test_duplicate_detection.py` for library identity and
+false-positive regression coverage. Run `python3 -B tests/test_discord_approval.py` for offline queue, authorization,
 rejection-link, manual-resolution, recovery and notification-retry coverage.
 The deployment workflow runs it alongside the existing importer safety tests.
 Live Discord delivery and Authentik tile checks require the private bot

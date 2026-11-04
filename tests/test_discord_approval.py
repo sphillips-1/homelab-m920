@@ -46,6 +46,8 @@ class ApprovalTests(unittest.TestCase):
             metadata_search=Mock(return_value=[self.match]),
             start_job=Mock(return_value={'id': 'job1'}))
         self.app.component = lambda value: value
+        self.app.existing_book = Mock(return_value=None)
+        self.app.source_identity = Mock(return_value={})
         self.config = {'channel_id': '123', 'notify_user_id': '456',
                        'approver_ids': ['456'], 'bot_token': 'fixture'}
         self.discord = Mock()
@@ -182,6 +184,37 @@ class ApprovalTests(unittest.TestCase):
         puts = [call for call in self.discord.request.call_args_list if call.args[0] == 'PUT']
         self.assertEqual(len(puts), 1)
         self.assertIn('No usable metadata match', self.queue.content(self.row()))
+
+    def test_existing_library_book_is_not_announced(self):
+        self.app.existing_book.return_value = 'Author/Title'
+        self.prepare()
+        self.assertEqual(self.row()['status'], 'already_in_library')
+        self.discord.request.assert_not_called()
+        self.app.start_job.assert_not_called()
+
+    def test_rejected_duplicate_is_reconciled_and_messages_updated(self):
+        self.prepare()
+        self.vote(module.REJECT, {'456'})
+        self.queue.tick()  # rejection reply
+        self.app.existing_book.return_value = 'Author/Title'
+        self.queue.tick()
+        self.queue.tick()
+        self.assertEqual(self.row()['status'], 'already_in_library')
+        self.assertEqual(module.reviews(self.app), [])
+        patches = [call for call in self.discord.request.call_args_list if call.args[0] == 'PATCH']
+        self.assertEqual(len(patches), 2)
+        self.assertIn('No import needed', patches[0].args[2]['content'])
+        self.assertIn('Removed from manual review', patches[1].args[2]['content'])
+        self.app.start_job.assert_not_called()
+
+    def test_approved_metadata_is_rechecked_against_library(self):
+        self.prepare()
+        self.vote(module.CHOICES[0], {'456'})
+        self.app.existing_book.side_effect = lambda source, metadata=None: 'Author/Title' if metadata else None
+        self.queue.tick()  # update original message
+        self.queue.tick()  # final metadata duplicate check
+        self.assertEqual(self.row()['status'], 'already_in_library')
+        self.app.start_job.assert_not_called()
 
     def test_missing_approvers_fail_closed(self):
         with self.assertRaises(ValueError):

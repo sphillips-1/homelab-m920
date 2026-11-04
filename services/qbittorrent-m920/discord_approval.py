@@ -63,7 +63,7 @@ def manual_job(app, key, source, job=None):
     """Bind a web import to its queue item without accepting a caller-supplied source."""
     with closing(sqlite3.connect(app.STATE / 'discord-approvals.sqlite')) as db:
         row = db.execute('SELECT source,status FROM queue WHERE id=?', (key,)).fetchone()
-        if not row or row[0] != source or row[1] in ('starting', 'importing', 'done'):
+        if not row or row[0] != source or row[1] in ('starting', 'importing', 'done', 'already_in_library'):
             raise ValueError('This review is unavailable for import.')
         if job:
             db.execute("UPDATE queue SET status='importing',job=?,dirty=1 WHERE id=?", (job, key))
@@ -124,6 +124,8 @@ class ReviewQueue:
             columns = {row[1] for row in db.execute('PRAGMA table_info(queue)')}
             if 'reply' not in columns:
                 db.execute('ALTER TABLE queue ADD COLUMN reply TEXT')
+            if 'library_path' not in columns:
+                db.execute('ALTER TABLE queue ADD COLUMN library_path TEXT')
             # A crash between job creation and queue association must never retry a copy.
             db.execute("UPDATE queue SET status='needs_review', dirty=1 WHERE status='starting'")
             db.commit()
@@ -172,6 +174,10 @@ class ReviewQueue:
                 title = data.get('title') or title
             except (ValueError, TypeError, AttributeError):
                 pass
+        identity = self.app.source_identity(source)
+        if identity.get('title') and identity.get('authors'):
+            author = ', '.join(identity['authors'])
+            title = identity['title']
         if not author and ' - ' in title:
             author, title = title.split(' - ', 1)
         matches = self.app.metadata_search({'author': author, 'title': title,
@@ -196,6 +202,8 @@ class ReviewQueue:
             if not json.loads(row['matches'] or '[]'):
                 lines.append('No usable metadata match. Review manually on the import page; only rejection is available here.')
         else:
+            if row['status'] == 'already_in_library':
+                lines.append('Already in the audiobook library: ' + row['library_path'] + '. No import needed.')
             lines.append('Status: ' + row['status'] +
                          (' | decided by ' + row['actor'] if row['actor'] else ''))
             if row['job']:
@@ -221,6 +229,11 @@ class ReviewQueue:
             for emoji in (*CHOICES[:len(json.loads(row['matches'] or '[]'))], REJECT):
                 self.discord.request('PUT', route + '/' + row['message'] + '/reactions/' +
                                      urllib.parse.quote(emoji, safe='') + '/@me')
+        if row['status'] == 'already_in_library' and row['reply']:
+            self.discord.request('PATCH', route + '/' + row['reply'], {
+                'content': 'Resolved: already in the audiobook library: ' + row['library_path'] +
+                           '. Removed from manual review; files remain available for seeding.',
+                'allowed_mentions': {'parse': []}})
         self.update(row['id'], dirty=0)
 
     def decide(self, row):
@@ -263,6 +276,10 @@ class ReviewQueue:
             self.update(row['id'], status='needs_review', dirty=1)
             return
         match = json.loads(row['matches'])[row['selected']]
+        duplicate = self.app.existing_book(self.app.DOWNLOADS / 'complete' / row['source'], match['metadata'])
+        if duplicate:
+            self.update(row['id'], status='already_in_library', library_path=duplicate, dirty=bool(row['message']))
+            return
         self.update(row['id'], status='starting', dirty=1)
         try:
             # Mint a fresh server-side review for the exact stored candidate.
@@ -285,6 +302,18 @@ class ReviewQueue:
             rows = db.execute('SELECT * FROM queue ORDER BY seen').fetchall()
         for row in rows:
             try:
+                if row['status'] in ('settling', 'pending', 'rejected', 'approved', 'needs_review',
+                                     'source_changed', 'failed', 'interrupted'):
+                    if row['status'] != 'settling' or time.time() - row['seen'] >= 120:
+                        duplicate = self.app.existing_book(self.app.DOWNLOADS / 'complete' / row['source'])
+                        if duplicate:
+                            self.update(row['id'], status='already_in_library', library_path=duplicate,
+                                        dirty=bool(row['message']))
+                            continue
+                if row['status'] == 'already_in_library':
+                    if row['message'] and row['dirty']:
+                        self.publish(row)
+                    continue
                 if row['status'] == 'settling':
                     if row['source'] in available and time.time() - row['seen'] >= 120:
                         self.gather(row)
