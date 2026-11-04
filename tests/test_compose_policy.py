@@ -67,7 +67,7 @@ class ComposePolicyTest(unittest.TestCase):
 
     def test_local_ai_resource_budget(self):
         services = self.models["services/local-ai/compose.yml"]["services"]
-        self.assertEqual(sum(s["mem_limit"] for s in services.values()), 8 * 1024**3)
+        self.assertEqual(sum(int(s["mem_limit"]) for s in services.values()), 8 * 1024**3)
         for service in services.values():
             self.assertEqual(service["memswap_limit"], service["mem_limit"])
             self.assertLessEqual(float(service["cpus"]), 3)
