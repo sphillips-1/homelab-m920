@@ -195,7 +195,7 @@ class ApprovalTests(unittest.TestCase):
         self.discord.request.assert_not_called()
         self.app.start_job.assert_not_called()
 
-    def test_rejected_duplicate_is_reconciled_and_messages_updated(self):
+    def test_rejected_duplicate_is_reconciled_and_messages_deleted(self):
         self.prepare()
         self.vote(module.REJECT, {'456'})
         self.queue.tick()  # rejection reply
@@ -204,10 +204,9 @@ class ApprovalTests(unittest.TestCase):
         self.queue.tick()
         self.assertEqual(self.row()['status'], 'already_in_library')
         self.assertEqual(module.reviews(self.app), [])
-        patches = [call for call in self.discord.request.call_args_list if call.args[0] == 'PATCH']
-        self.assertEqual(len(patches), 2)
-        self.assertIn('No import needed', patches[0].args[2]['content'])
-        self.assertIn('Removed from manual review', patches[1].args[2]['content'])
+        deletes = [call for call in self.discord.request.call_args_list if call.args[0] == 'DELETE']
+        self.assertEqual(len(deletes), 2)
+        self.assertEqual(self.row()['discord_deleted'], 1)
         self.app.start_job.assert_not_called()
 
     def test_approved_metadata_is_rechecked_against_library(self):
@@ -231,6 +230,42 @@ class ApprovalTests(unittest.TestCase):
         self.queue.tick()
         self.app.start_job.assert_not_called()
         self.assertEqual(self.row()['status'], 'rejected')
+
+    def test_resolved_message_deleted_once_and_not_reposted_after_restart(self):
+        self.prepare()
+        self.queue.update(self.row()['id'], status='done', dirty=1)
+        self.queue.tick()
+        self.assertEqual(self.row()['discord_deleted'], 1)
+        self.assertEqual(self.row()['message'], '789')
+        self.discord.request.reset_mock()
+        module.ReviewQueue(self.app, self.config, self.discord).tick()
+        self.discord.request.assert_not_called()
+
+    def test_delete_failure_retries_and_404_counts_as_success(self):
+        self.prepare()
+        self.queue.update(self.row()['id'], status='done')
+        self.discord.request.side_effect = module.DiscordHTTPError(403)
+        self.queue.tick()
+        self.assertEqual(self.row()['discord_deleted'], 0)
+        self.discord.request.side_effect = module.DiscordHTTPError(404)
+        self.queue.tick()
+        self.assertEqual(self.row()['discord_deleted'], 1)
+
+    def test_resolution_cleanup_does_not_require_available_download_storage(self):
+        self.prepare()
+        self.queue.update(self.row()['id'], status='done')
+        self.app.catalog.side_effect = ValueError('USB unavailable')
+        with self.assertRaises(ValueError):
+            self.queue.tick()
+        self.assertEqual(self.row()['discord_deleted'], 1)
+
+    def test_unresolved_failure_and_cleanup_keep_discord_message(self):
+        self.prepare()
+        for status in ('failed', 'interrupted', 'cleanup_required'):
+            self.queue.update(self.row()['id'], status=status, dirty=0)
+            self.discord.request.reset_mock()
+            self.queue.tick()
+            self.assertFalse(any(call.args[0] == 'DELETE' for call in self.discord.request.call_args_list))
 
     def test_missing_approvers_fail_closed(self):
         with self.assertRaises(ValueError):

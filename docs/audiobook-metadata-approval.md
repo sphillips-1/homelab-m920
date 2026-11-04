@@ -22,7 +22,7 @@ cached for at most 30 seconds and refreshed for the final import check.
 
 Confirmed duplicates are hidden from the download picker and marked
 `already_in_library` in the queue. Existing Discord requests and rejection
-replies are updated, and duplicates leave the manual review list. Files stay
+replies are deleted, and duplicates leave the manual review list. Files stay
 on USB for seeding. Both Discord approvals and web imports are checked again
 before copying, including books imported under different source names.
 
@@ -43,7 +43,7 @@ webhook, public callback, Gateway connection or privileged intent is needed.
 Approval uses the exact stored metadata and the existing copy/scan workflow.
 The worker rechecks completion, source fingerprint and existing jobs. Changed
 downloads and uncertain recovery states require manual review. Copies remain
-serialized. The original message is updated as the import finishes or fails.
+serialized. The original message is deleted after a successful import; failures remain visible.
 
 Rejection never removes files or stops seeding. It adds the download to
 **Metadata review**, a restricted Authentik portal tile. The bot replies to the
@@ -130,3 +130,14 @@ configuration and the normal deployment pipeline.
 
 Discord endpoints follow the official
 [Message resource](https://github.com/discord/discord-api-docs/blob/main/developers/resources/message.mdx).
+
+## Resolved Discord messages
+
+Successful imports/moves and confirmed `already_in_library` duplicates resolve
+the review. The bot deletes its original request and any rejection-link reply,
+including older resolved reviews on deployment. Rejected items awaiting manual
+review, failures, interruptions and transfers awaiting source cleanup keep their
+messages. Deletion retries after errors; a Discord 404 counts as already deleted.
+Message IDs and decisions remain in the persistent queue for audit and restart
+safety, so deleting a message never causes a replacement post. Only the bot's
+tracked review messages are deleted; media files are unaffected by this cleanup.

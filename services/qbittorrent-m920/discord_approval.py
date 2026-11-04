@@ -13,6 +13,13 @@ import urllib.request
 
 CHOICES = ('1️⃣', '2️⃣', '3️⃣')
 REJECT = '❌'
+RESOLVED = ('done', 'already_in_library')
+
+
+class DiscordHTTPError(RuntimeError):
+    def __init__(self, status):
+        self.status = status
+        super().__init__('Discord HTTP ' + str(status))
 
 
 def validate_config(config):
@@ -98,7 +105,7 @@ class Discord:
             if error.code == 429:
                 self.until = time.time() + float(json.loads(error.read()).get('retry_after', 30))
             # Never expose request headers or credentials in logs.
-            raise RuntimeError('Discord HTTP ' + str(error.code)) from None
+            raise DiscordHTTPError(error.code) from None
 
     def voters(self, route, emoji):
         result, after = set(), '0'
@@ -128,6 +135,8 @@ class ReviewQueue:
                 db.execute('ALTER TABLE queue ADD COLUMN library_path TEXT')
             if 'media_kind' not in columns:
                 db.execute("ALTER TABLE queue ADD COLUMN media_kind TEXT DEFAULT 'audiobook'")
+            if 'discord_deleted' not in columns:
+                db.execute('ALTER TABLE queue ADD COLUMN discord_deleted INTEGER NOT NULL DEFAULT 0')
             # A crash between job creation and queue association must never retry a copy.
             db.execute("UPDATE queue SET status='needs_review', dirty=1 WHERE status='starting'")
             db.commit()
@@ -223,7 +232,24 @@ class ReviewQueue:
         lines.append('https://torrents.shelfgoblin.dev/imports/')
         return '\n'.join(lines)[:2000]
 
+    def delete_resolved(self, row):
+        if row['discord_deleted']:
+            return
+        route = '/channels/' + self.config['channel_id'] + '/messages/'
+        # Keep IDs as audit history. A crash or partial failure safely retries already-deleted IDs.
+        for field in ('reply', 'message'):
+            if row[field]:
+                try:
+                    self.discord.request('DELETE', route + row[field])
+                except DiscordHTTPError as error:
+                    if error.status != 404:
+                        raise
+        self.update(row['id'], discord_deleted=1, dirty=0)
+
     def publish(self, row):
+        if row['status'] in RESOLVED:
+            self.delete_resolved(row)
+            return
         route = '/channels/' + self.config['channel_id'] + '/messages'
         data = {'content': self.content(row), 'allowed_mentions': {
             'parse': [], 'users': [self.config['notify_user_id']] if not row['message'] else []}}
@@ -238,11 +264,6 @@ class ReviewQueue:
             for emoji in (*CHOICES[:len(json.loads(row['matches'] or '[]'))], REJECT):
                 self.discord.request('PUT', route + '/' + row['message'] + '/reactions/' +
                                      urllib.parse.quote(emoji, safe='') + '/@me')
-        if row['status'] == 'already_in_library' and row['reply']:
-            self.discord.request('PATCH', route + '/' + row['reply'], {
-                'content': 'Resolved: already in the media library: ' + row['library_path'] +
-                           '. Removed from manual review; files remain available for seeding.',
-                'allowed_mentions': {'parse': []}})
         self.update(row['id'], dirty=0)
 
     def decide(self, row):
@@ -306,6 +327,14 @@ class ReviewQueue:
             raise
 
     def tick(self):
+        # Resolution cleanup must work even if USB/storage discovery is unavailable.
+        with self.db() as db:
+            resolved = db.execute("SELECT * FROM queue WHERE status IN ('done','already_in_library') AND discord_deleted=0").fetchall()
+        for row in resolved:
+            try:
+                self.delete_resolved(row)
+            except Exception as error:
+                logging.warning('Discord cleanup %s deferred (%s)', row['id'], type(error).__name__)
         available = self.discover()
         with self.db() as db:
             rows = db.execute('SELECT * FROM queue ORDER BY seen').fetchall()
@@ -319,9 +348,7 @@ class ReviewQueue:
                             self.update(row['id'], status='already_in_library', library_path=duplicate,
                                         dirty=bool(row['message']))
                             continue
-                if row['status'] == 'already_in_library':
-                    if row['message'] and row['dirty']:
-                        self.publish(row)
+                if row['status'] in RESOLVED:
                     continue
                 if row['status'] == 'settling':
                     if row['source'] in available and time.time() - row['seen'] >= 120:
@@ -339,6 +366,8 @@ class ReviewQueue:
                         job = db.execute('SELECT * FROM jobs WHERE id=?', (row['job'],)).fetchone()
                     if job and job['status'] != 'copying' and job['status'] != row['status']:
                         self.update(row['id'], status=job['status'], dirty=1)
+                        if job['status'] in RESOLVED:
+                            self.delete_resolved(dict(row, status=job['status']))
             except Exception as error:
                 logging.warning('Discord review %s deferred (%s)', row['id'], type(error).__name__)
 

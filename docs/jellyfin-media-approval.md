@@ -31,8 +31,8 @@ policy. Discord permission does not grant a Jellyfin or Authentik account.
    is rechecked. The worker stops/removes the associated torrent records with
    `deleteFiles=false`, then deletes only the verified video/subtitle source
    files. Unrelated files, artwork, old metadata and other extras remain on USB.
-   Empty source directories are removed. The original Discord message reports
-   the job outcome.
+   Empty source directories are removed. Successful transfers delete the original
+   Discord request and bot reply; unresolved failures remain visible in Discord.
 
 Audiobooks keep their existing **copy to Audiobookshelf and continue seeding**
 behavior. Automatically classified duplicates are preserved on USB and do not
@@ -106,3 +106,14 @@ Naming and NFO behavior follow the official Jellyfin documentation for
 [movies](https://jellyfin.org/docs/general/server/media/movies/),
 [TV](https://jellyfin.org/docs/general/server/media/shows/) and
 [NFO metadata](https://jellyfin.org/docs/general/server/metadata/nfo/).
+
+## Resolved Discord messages
+
+Successful imports/moves and confirmed `already_in_library` duplicates resolve
+the review. The bot deletes its original request and any rejection-link reply,
+including older resolved reviews on deployment. Rejected items awaiting manual
+review, failures, interruptions and transfers awaiting source cleanup keep their
+messages. Deletion retries after errors; a Discord 404 counts as already deleted.
+Message IDs and decisions remain in the persistent queue for audit and restart
+safety, so deleting a message never causes a replacement post. Only the bot's
+tracked review messages are deleted; media files are unaffected by this cleanup.
