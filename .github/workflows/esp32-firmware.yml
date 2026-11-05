@@ -39,7 +39,7 @@ jobs:
         run: |
           g++ -std=c++14 -Wall -Wextra -pedantic tests/test_esp32_health.cpp -o /tmp/test-esp32-health
           /tmp/test-esp32-health
-      - name: Test touch calibration and button geometry
+      - name: Test touch calibration and swipe gestures
         run: |
           g++ -std=c++14 -Wall -Wextra -pedantic tests/test_esp32_touch.cpp -o /tmp/test-esp32-touch
           /tmp/test-esp32-touch

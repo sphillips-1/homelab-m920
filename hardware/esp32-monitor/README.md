@@ -33,13 +33,12 @@ use the Actions workflow.
 
 ## Pet and controls
 
-A code-drawn pixel goblin blinks and bobs while watching the homelab. Tap the
-bottom **Home**, **Feed**, **Play** and **Metrics** tabs to change pages. On Feed
-or Play, tap the large **Feed goblin** or **Play with goblin** button.
-Feeding produces a short munch animation and snack; playing produces
-a sparkle. Both show a response message and share a 30-second cooldown.
-There are no Fullness or Happiness meters, hidden needs, or care decay.
-Interactions do not change evolution or clear server alerts.
+A code-drawn pixel goblin blinks and bobs while watching the homelab.
+**Swipe left** to show Metrics and **swipe right** to return to the goblin.
+Keep a finger or blunt stylus pressed while moving horizontally, then release.
+The screen shows a direction hint along the bottom; navigation has no buttons.
+Feeding, playing and care meters have been removed. Expressions and evolution
+follow homelab health.
 
 ### Health-based evolution
 
@@ -69,7 +68,7 @@ back up to five minutes of progress or decay. Colors describe the creature's
 form; an adult or warrior keeps its skin color during Unknown/Offline status,
 with the health label conveying connection and server status separately.
 
-Expressions reflect homelab health and brief interactions. No pet state is
+Expressions reflect homelab health. No pet state is
 sent to the server, and Wi-Fi credentials remain separate from evolution state.
 
 ### Touch setup and recovery
@@ -78,27 +77,31 @@ The first boot with touch enabled prompts for four targets. Firmly tap each
 crosshair with a finger or blunt stylus, then lift before tapping the next.
 The first three taps calibrate the panel; the fourth checks alignment. Bad
 samples restart calibration. Touch is resistive, so a firm tap works better
-than a light capacitive-screen tap. Drags and holds over 1.5 seconds are ignored.
+than a light capacitive-screen tap. Calibration accepts stationary taps and
+ignores swipes or long holds.
 
 Calibration is stored separately in ESP32 NVS (`touch-v1`) and survives firmware
-updates without resetting Wi-Fi or evolution progress. Recalibrate using the
-**Calibrate touch** button on Metrics. If alignment prevents navigating there,
+updates without resetting Wi-Fi or evolution progress. To recalibrate, hold a
+finger still on the screen for two seconds, then release. If alignment prevents that,
 hold BOOT for at least one second and release before five seconds. A short BOOT
 press cancels recalibration when a previous valid calibration exists. BOOT no
-longer navigates pages, feeds or plays. Hold it for five seconds for Wi-Fi setup;
+is reserved for recovery. Hold it for five seconds for Wi-Fi setup;
 RST reboots the device. Homelab-health evolution pauses during calibration.
 
 The XPT2046 uses its own VSPI bus (CLK 25, MISO 39, MOSI 32, CS 33, IRQ 36);
 the display uses HSPI on its existing pins. A small sampling task queues touch
 releases during HTTP requests. Slow networking can delay feedback, but does not
-discard taps. The UI still requires physical calibration and tap verification.
+discard gestures. Swipes need at least 70 pixels of horizontal movement within
+2.5 seconds, at most 40 pixels of vertical drift, and predominantly horizontal
+motion. Small movements, vertical drags and drag-out-and-back motions are
+ignored. The UI still requires physical calibration and swipe verification.
 Pinout and API references: [CYD touch example](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/Examples/Basics/2-TouchTest/2-TouchTest.ino)
 and [XPT2046_Touchscreen](https://github.com/PaulStoffregen/XPT2046_Touchscreen).
 
 ## Homelab health
 
 The health label and highest-priority reason remain visible on every page.
-Care cannot dismiss a server alert. Metrics refresh every five seconds; failed
+Metrics refresh every five seconds; failed
 requests clear readings and show Offline. Partial responses show Unknown unless
 a known reading already establishes an alert. Missing values display `--`.
 
@@ -117,7 +120,7 @@ thresholds are conservative display defaults, not hardware shutdown controls.
 ## Build validation
 
 The **ESP32 firmware** GitHub Actions workflow compiles the firmware, checks
-health thresholds and evolution timelines, tests touch calibration/button geometry and deployment failure behavior,
+health thresholds and evolution timelines, tests touch calibration/swipe recognition and deployment failure behavior,
 and uploads binaries tied to the commit. Its main-branch deployment job flashes
 the connected board through the M920Q runner. Other branches and PRs build only.
 

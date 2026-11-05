@@ -32,34 +32,35 @@ Evolution evolution;
 Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
 uint32_t lastPoll = 0, lastGood = 0, pressed = 0, lastFrame = 0;
-uint32_t lastSave = 0, lastInteraction = 0, feedbackAt = 0;
+uint32_t lastSave = 0;
 unsigned long hostUptime = 0;
-bool hasData = false, online = false, longHandled = false, interacted = false;
+bool hasData = false, online = false, longHandled = false;
 bool spriteReady = false, dirty = true, storeReady = false;
-int page = 0, interaction = 0;
-const char *feedback = "";
+int page = 0; // 0: goblin, 1: metrics.
 
-// Only this task accesses the touch SPI bus. Queue taps during HTTP requests
+// Only this task accesses the touch SPI bus. Queue gestures during HTTP requests
 // instead of dropping them while the UI thread is waiting for the server.
 void sampleTouch(void *) {
   uint32_t started = 0, sumX = 0, sumY = 0;
   unsigned int count = 0, released = 0;
-  TouchPoint first{};
-  bool moved = false;
+  TouchPoint first{}, last{};
+  int maxMotion = 0;
   for (;;) {
     bool down = touchscreen.touched();
     touchDown = down;
     if (down) {
       TS_Point p = touchscreen.getPoint();
-      if (!count) { started = millis(); first = {p.x, p.y}; moved = false; }
-      if (abs(p.x - first.x) > 350 || abs(p.y - first.y) > 350) moved = true;
+      if (!count) { started = millis(); first = {p.x, p.y}; maxMotion = 0; }
+      last = {p.x, p.y};
+      maxMotion = max(maxMotion, max(abs(p.x - first.x), abs(p.y - first.y)));
       if (count < 100) { sumX += p.x; sumY += p.y; ++count; }
       released = 0;
     } else if (count && ++released >= 2) {
       uint32_t held = millis() - started;
-      if (count >= 2 && held >= 40 && held <= 1500 && !moved) {
-        TouchPoint tap{static_cast<int>(sumX / count), static_cast<int>(sumY / count)};
-        xQueueSend(touchEvents, &tap, 0);
+      if (count >= 2 && held >= 40 && held <= 5000) {
+        TouchStroke stroke{first, last,
+            {static_cast<int>(sumX / count), static_cast<int>(sumY / count)}, held, maxMotion};
+        xQueueSend(touchEvents, &stroke, 0);
       }
       count = 0; sumX = 0; sumY = 0;
     }
@@ -131,18 +132,6 @@ void saveEvolution() {
   }
   lastSave = millis();
 }
-void interact() {
-  if (page != 1 && page != 2) return;
-  feedbackAt = millis();
-  if (interacted && millis() - lastInteraction < 30000) {
-    feedback = "Let me enjoy that first!";
-  } else {
-    interaction = page;
-    interacted = true; lastInteraction = millis();
-    feedback = page == 1 ? "Crunch! Thanks for the snack." : "That was fun!";
-  }
-  dirty = true;
-}
 void drawPet() {
   if (!spriteReady) return;
   pet.fillSprite(bg);
@@ -194,9 +183,6 @@ void drawPet() {
     pet.drawLine(80, y + 29, 90, y + 34, TFT_BLACK);
   } else if (!online || health.mood == Mood::Unknown) {
     pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
-  } else if (interaction == 1 && millis() - lastInteraction < 4000) {
-    // Feeding is a short munch animation, without a persistent hunger meter.
-    pet.fillRect(72, y + 30, 16, (millis() / 500) % 2 ? 7 : 3, TFT_BLACK);
   } else {
     pet.fillRect(68, y + 30, 24, 4, TFT_BLACK);
     pet.fillRect(72, y + 34, 16, 4, TFT_BLACK);
@@ -205,15 +191,6 @@ void drawPet() {
   if (warrior) {
     pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
     pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
-  }
-  if (interaction && millis() - lastInteraction < 4000) {
-    if (interaction == 1) {
-      pet.fillRect(137, 83, 10, 10, TFT_ORANGE);
-      pet.fillRect(139, 81, 6, 14, TFT_ORANGE);
-    } else {
-      pet.fillTriangle(140, 7, 135, 18, 145, 18, TFT_YELLOW);
-      pet.fillTriangle(140, 22, 135, 11, 145, 11, TFT_YELLOW);
-    }
   }
   pet.pushSprite(8, 61);
 }
@@ -233,7 +210,7 @@ void render() {
   tft.drawRightString(healthLabel(), 310, 7, 2);
   tft.drawFastHLine(10, 30, 300, muted);
   tft.drawString(health.reason, 10, 36, 2);
-  if (page == 3) {
+  if (page == 1) {
     tft.setTextColor(TFT_WHITE, bg);
     tft.drawString("CPU " + metric(readings.cpu) + "   RAM " + metric(readings.ram), 10, 68, 2);
     tft.drawString("CPU temperature " + metric(readings.temp, " C"), 10, 93, 2);
@@ -265,30 +242,24 @@ void render() {
     tft.drawString(next, 182, 149, 1);
     tft.setTextColor(TFT_WHITE, bg);
   }
-  if (page != 0) {
-    tft.fillRoundRect(10, 174, 300, 28, 5, accent);
-    tft.setTextColor(TFT_BLACK, accent);
-    String label = page == 1 ? "Feed goblin" : page == 2 ? "Play with goblin" : "Calibrate touch";
-    if (page != 3 && *feedback && millis() - feedbackAt < 4000) label = feedback;
-    tft.drawCentreString(label, 160, 179, 2);
-  } else {
+  if (page == 0) {
     tft.setTextColor(muted, bg);
     String caption = !touchReady ? "Touch unavailable; restart device" : !online ?
         (hasData ? "Last update " + String((millis() - lastGood) / 1000) + "s ago" : "Waiting for server metrics...") : "Keeping watch over the lab.";
     tft.drawCentreString(caption, 160, 180, 2);
+  } else {
+    tft.setTextColor(muted, bg);
+    tft.drawCentreString("Hold 2s to recalibrate touch", 160, 190, 1);
   }
-  const char *tabs[] = {"Home", "Feed", "Play", "Metrics"};
-  for (int tab = 0; tab < 4; ++tab) {
-    uint16_t color = page == tab ? accent : 0x2945;
-    tft.fillRoundRect(tab * 80 + 2, 206, 76, 32, 4, color);
-    tft.setTextColor(page == tab ? TFT_BLACK : TFT_WHITE, color);
-    tft.drawCentreString(tabs[tab], tab * 80 + 40, 213, 2);
-  }
+  tft.setTextColor(accent, bg);
+  tft.drawCentreString(page == 0 ? "< Swipe left for metrics" : "Swipe right for goblin >", 160, 215, 2);
   dirty = false;
 }
 
-void handleTouch(TouchPoint raw) {
+void handleTouch(const TouchStroke &stroke) {
   if (calibrationActive) {
+    if (!isCalibrationTap(stroke)) return;
+    TouchPoint raw = stroke.average;
     if (calibrationStep < 3) {
       calibrationRaw[calibrationStep++] = raw;
       if (calibrationStep == 3 && !calibrateTouch(calibrationRaw, candidate)) {
@@ -308,17 +279,10 @@ void handleTouch(TouchPoint raw) {
     return;
   }
   if (!calibrated) return;
-  TouchPoint p = mapTouch(calibration, raw);
-  // Calibration targets are inset, so allow the small physical edge margins.
-  if (p.x < -12 || p.x > 331 || p.y < -12 || p.y > 251) return;
-  p.x = constrain(p.x, 0, 319); p.y = constrain(p.y, 0, 239);
-  switch (hitTouch(p.x, p.y, page)) {
-    case TouchAction::Home: page = 0; dirty = true; break;
-    case TouchAction::Feed: page = 1; dirty = true; break;
-    case TouchAction::Play: page = 2; dirty = true; break;
-    case TouchAction::Metrics: page = 3; dirty = true; break;
-    case TouchAction::Activate: interact(); break;
-    case TouchAction::Calibrate: startCalibration(); break;
+  switch (classifyGesture(calibration, stroke)) {
+    case Gesture::Left: page = 1; dirty = true; break;
+    case Gesture::Right: page = 0; dirty = true; break;
+    case Gesture::Hold: startCalibration(); break;
     default: break;
   }
 }
@@ -382,7 +346,7 @@ void setup() {
   touchBus.begin(25, 39, 32, 33);
   touchReady = touchscreen.begin(touchBus);
   touchscreen.setRotation(1);
-  touchEvents = xQueueCreate(8, sizeof(TouchPoint));
+  touchEvents = xQueueCreate(8, sizeof(TouchStroke));
   touchReady = touchReady && touchEvents != nullptr;
   if (touchReady) touchReady = xTaskCreate(sampleTouch, "touch", 3072, nullptr, 1, nullptr) == pdPASS;
   if (!calibrated) startCalibration();
@@ -413,9 +377,9 @@ void loop() {
   }
   now = millis();
   if (touchReady) {
-    TouchPoint tap;
-    while (xQueueReceive(touchEvents, &tap, 0) == pdTRUE) {
-      if (!wifi.getConfigPortalActive()) handleTouch(tap);
+    TouchStroke stroke;
+    while (xQueueReceive(touchEvents, &stroke, 0) == pdTRUE) {
+      if (!wifi.getConfigPortalActive()) handleTouch(stroke);
     }
   }
   now = millis();
@@ -431,9 +395,8 @@ void loop() {
     if (!pressed && !touchDown && (lastPoll == 0 || now - lastPoll >= 5000)) {
       poll(); lastPoll = millis();
     }
-    if (*feedback && now - feedbackAt >= 4000) { feedback = ""; dirty = true; }
     if (dirty) render();
-    else if (page != 3 && now - lastFrame >= 500) drawPet();
+    else if (page == 0 && now - lastFrame >= 500) drawPet();
     if (now - lastFrame >= 500) lastFrame = now;
   } else { evolution = evolution.paused(); dirty = true; }
   delay(10);

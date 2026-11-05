@@ -1,6 +1,7 @@
 #pragma once
 #include <math.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 struct TouchPoint { int x, y; };
 struct TouchCalibration { float a, b, c, d, e, f; };
@@ -36,12 +37,26 @@ inline bool confirmsCalibration(const TouchCalibration &v, TouchPoint raw) {
   return abs(p.x - 296) <= 24 && abs(p.y - 216) <= 24;
 }
 
-enum class TouchAction { None, Home, Feed, Play, Metrics, Activate, Calibrate };
-constexpr TouchAction hitTouch(int x, int y, int page) {
-  return x < 0 || x >= 320 || y < 0 || y >= 240 ? TouchAction::None :
-      y >= 204 ? (x < 80 ? TouchAction::Home : x < 160 ? TouchAction::Feed :
-                   x < 240 ? TouchAction::Play : TouchAction::Metrics) :
-      (x >= 10 && x < 310 && y >= 174 && y < 202) ?
-      (page == 1 || page == 2 ? TouchAction::Activate : page == 3 ? TouchAction::Calibrate : TouchAction::None) :
-      TouchAction::None;
+struct TouchStroke {
+  TouchPoint first, last, average;
+  uint32_t durationMs;
+  int maxMotion; // Largest raw displacement from the starting point.
+};
+enum class Gesture { None, Tap, Left, Right, Hold };
+constexpr bool isCalibrationTap(const TouchStroke &stroke) {
+  return stroke.durationMs >= 40 && stroke.durationMs <= 1500 && stroke.maxMotion <= 350;
+}
+inline bool nearScreen(TouchPoint p) {
+  return p.x >= -12 && p.x <= 331 && p.y >= -12 && p.y <= 251;
+}
+inline Gesture classifyGesture(const TouchCalibration &cal, const TouchStroke &stroke) {
+  TouchPoint first = mapTouch(cal, stroke.first), last = mapTouch(cal, stroke.last);
+  if (!nearScreen(first) || !nearScreen(last)) return Gesture::None;
+  int dx = last.x - first.x, dy = last.y - first.y;
+  if (stroke.durationMs >= 80 && stroke.durationMs <= 2500 &&
+      abs(dx) >= 70 && abs(dy) <= 40 && abs(dx) >= 2 * abs(dy))
+    return dx < 0 ? Gesture::Left : Gesture::Right;
+  if (stroke.durationMs >= 2000 && stroke.durationMs <= 5000 && stroke.maxMotion <= 250)
+    return Gesture::Hold;
+  return isCalibrationTap(stroke) ? Gesture::Tap : Gesture::None;
 }
