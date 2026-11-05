@@ -1,7 +1,11 @@
 # Local coding AI
 
-A short default system prompt identifies this local installation and its mobile
-URL, so the model does not confuse it with a public hosted Qwen service.
+The default browser model is `shelfgoblin-coder:3b`, a repository-managed wrapper
+around `qwen2.5-coder:3b` with the same shared weights. Its Modelfile supplies the
+local installation identity and mobile URL directly to Ollama. This avoids a
+WebUI v0.13 first-turn issue with default system prompts. The original Qwen and
+DeepSeek tags remain available to Continue. The wrapper adds no extra concurrent
+model process or duplicate weight download. Deployment reapplies the Modelfile.
 
 Built-in agent tools are disabled through `DEFAULT_MODEL_METADATA`. These small
 models should return chat answers rather than receive WebUI's task-management,
@@ -86,7 +90,7 @@ route; Ollama has no public route.
 Ollama has no API authentication; the SSH connection supplies access control.
 
 Open <https://ai.shelfgoblin.dev> and sign in through Authentik. Your existing
-Google-linked owner account has access. Select `qwen2.5-coder:3b` for chat.
+Google-linked owner account has access. Select `shelfgoblin-coder:3b` for browser chat.
 Browser access needs no SSH tunnel. For Continue, forward only port 11434;
 port 3000 remains a localhost-only diagnostic endpoint and is no longer a local
 password-login route. The OIDC callback always returns to the HTTPS hostname.

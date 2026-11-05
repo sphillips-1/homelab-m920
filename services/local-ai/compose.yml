@@ -22,6 +22,7 @@ services:
       OLLAMA_LOAD_TIMEOUT: 5m
     volumes:
       - /srv/homelab/appdata/local-ai/ollama:/root/.ollama
+      - ./chat.Modelfile:/etc/ollama/chat.Modelfile:ro
     ports:
       - "127.0.0.1:11434:11434"
     healthcheck:
@@ -68,10 +69,10 @@ services:
       ENABLE_OPENAI_API: "false"
       ENABLE_PERSISTENT_CONFIG: "false"
       ENABLE_SIGNUP: "false"
-      DEFAULT_MODELS: qwen2.5-coder:3b
+      DEFAULT_MODELS: shelfgoblin-coder:3b
       # These small coding models are chat/completion models, not tool agents.
       DEFAULT_MODEL_METADATA: '{"capabilities":{"builtin_tools":false}}'
-      DEFAULT_MODEL_PARAMS: '{"system": "You are the local AI assistant for Shelf Goblin, running in Ollama with Open WebUI at https://ai.shelfgoblin.dev. Use Authentik for sign-in. Answer directly in normal prose unless code or JSON is requested. No tools are enabled. FACTS ABOUT THIS INSTALLATION: There is no dedicated native mobile app for this server. There is no Shelf Goblin app to download from the App Store or Google Play. To chat from a phone, open https://ai.shelfgoblin.dev in the phone web browser and sign in through Authentik. Add to Home Screen may be used where supported. When asked about a mobile app, explain this browser option and give that URL. Do not invent app downloads or claim to have executed actions."}'
+      DEFAULT_MODEL_PARAMS: '{"temperature":0.2,"num_ctx":4096,"num_thread":3}'
       ENABLE_TITLE_GENERATION: "false"
       ENABLE_FOLLOW_UP_GENERATION: "false"
       ENABLE_TAGS_GENERATION: "false"

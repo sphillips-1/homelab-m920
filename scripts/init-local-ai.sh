@@ -24,5 +24,7 @@ for model in qwen2.5-coder:3b deepseek-coder:1.3b; do
     compose exec -T ollama ollama show "${model}" >/dev/null
 done
 
+echo "==> Configuring local Qwen chat identity (shared model weights)"
+compose exec -T ollama ollama create shelfgoblin-coder:3b -f /etc/ollama/chat.Modelfile
 compose up -d --wait --wait-timeout 300 open-webui
 echo "Local AI ready: https://ai.shelfgoblin.dev; Ollama remains on localhost:11434."
