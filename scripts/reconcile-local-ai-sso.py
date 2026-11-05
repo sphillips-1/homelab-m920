@@ -14,9 +14,11 @@ with transaction.atomic():
     if created:
         # The existing Bambu trial has exactly one Google-linked owner/admin.
         # Bootstrap once; later membership changes remain administrator-managed.
-        owner = Group.objects.get(name="bambu-users").users.filter(
-            is_active=True, is_superuser=True, sources__slug="google").distinct().get()
-        group.users.add(owner)
+        owners = [user for user in Group.objects.get(name="bambu-users").users.filter(
+            is_active=True, sources__slug="google").distinct() if user.is_superuser]
+        if len(owners) != 1:
+            raise RuntimeError("Expected exactly one existing Google-linked Bambu owner/admin.")
+        group.users.add(owners[0])
     identity, _ = ExpressionPolicy.objects.update_or_create(
         name="local-ai-verified-google", defaults={"expression":
             'return bool(request.user.email) and request.user.sources.filter(slug="google").exists()'})
