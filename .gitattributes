@@ -11,3 +11,9 @@ scripts/*bambustudio* text eol=lf
 
 services/local-ai/** text eol=lf
 scripts/init-local-ai.sh text eol=lf
+
+hardware/esp32-monitor/** text eol=lf
+scripts/*esp32* text eol=lf
+tests/test_esp32* text eol=lf
+.github/workflows/esp32-firmware.yml text eol=lf
+docs/esp32-deployment.md text eol=lf

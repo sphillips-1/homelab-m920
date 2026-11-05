@@ -1,0 +1,103 @@
+name: ESP32 firmware
+
+on:
+  push:
+    paths:
+      - hardware/esp32-monitor/**
+      - tests/test_esp32_health.cpp
+      - tests/test_esp32_deployment.py
+      - scripts/package-esp32-firmware.py
+      - scripts/deploy-esp32-firmware.py
+      - .github/workflows/esp32-firmware.yml
+  pull_request:
+    paths:
+      - hardware/esp32-monitor/**
+      - tests/test_esp32_health.cpp
+      - tests/test_esp32_deployment.py
+      - scripts/package-esp32-firmware.py
+      - scripts/deploy-esp32-firmware.py
+      - .github/workflows/esp32-firmware.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Validate firmware workflow
+        run: docker run --rm -v "$PWD:/repo:ro" --workdir /repo rhysd/actionlint:1.7.12 -color .github/workflows/esp32-firmware.yml
+      - name: Check health thresholds and missing-data behavior
+        run: |
+          g++ -std=c++14 -Wall -Wextra -pedantic tests/test_esp32_health.cpp -o /tmp/test-esp32-health
+          /tmp/test-esp32-health
+      - name: Install PlatformIO
+        run: python -m pip install platformio==6.2.0
+      - name: Test artifact integrity, board identity and rollback
+        run: python -B tests/test_esp32_deployment.py
+      - name: Build display firmware
+        run: pio run -d hardware/esp32-monitor
+      - name: Package flash images for this commit
+        run: |
+          python scripts/package-esp32-firmware.py \
+            --build hardware/esp32-monitor/.pio/build/cyd \
+            --boot-app "$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" \
+            --output firmware-package --sha "$GITHUB_SHA"
+      - name: Save firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shelf-goblin-firmware-${{ github.sha }}
+          path: firmware-package/
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 20
+    concurrency:
+      group: esp32-usb-deployment
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Refuse an obsolete firmware build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          latest=$(git log -1 --format=%H origin/main -- hardware/esp32-monitor tests/test_esp32_health.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
+          git merge-base --is-ancestor "$latest" "$GITHUB_SHA" || { echo 'A newer firmware change is already on main; deploy the newer run.' >&2; exit 1; }
+      - name: Download verified firmware from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: shelf-goblin-firmware-${{ github.sha }}
+          path: firmware-package
+      - name: Build isolated USB flasher
+        run: docker build -f hardware/esp32-monitor/deploy/Dockerfile -t "homelab-esp32-flasher:$GITHUB_SHA" .
+      - name: Back up, flash, verify and check boot
+        shell: bash
+        env:
+          ESP32_SERIAL_DEVICE: ${{ vars.ESP32_SERIAL_DEVICE || '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0' }}
+          ESP32_MAC: ${{ vars.ESP32_MAC || '48:9d:31:c0:27:5c' }}
+        run: |
+          set -euo pipefail
+          [[ "$ESP32_SERIAL_DEVICE" == /dev/serial/by-id/* ]] || { echo 'Use a stable USB by-id device path.' >&2; exit 1; }
+          device=$(readlink -e -- "$ESP32_SERIAL_DEVICE")
+          [[ -c "$device" ]] || { echo 'ESP32 USB serial device is unavailable.' >&2; exit 1; }
+          docker run --rm --read-only --network none \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+            --device "$device:/dev/esp32:rw" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/firmware-package,target=/firmware,readonly" \
+            --mount type=bind,source=/srv/homelab/backups,target=/backups \
+            "homelab-esp32-flasher:$GITHUB_SHA" --mac "$ESP32_MAC" --sha "$GITHUB_SHA"
+          printf '### ESP32 deployed\n\nCommit: `%s`\n\nUSB flash verification and serial boot check passed. Private backups remain on the M920Q under `/srv/homelab/backups/esp32`.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

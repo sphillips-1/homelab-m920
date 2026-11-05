@@ -41,3 +41,10 @@ terraform/authentik/adoption.env
 terraform/authentik/api-token.env
 crash.log
 crash.*.log
+
+# ESP32 tools, generated firmware and private device backups
+.esp32-tools/
+.platformio/
+.pio/
+.esp32-backups/
+firmware-package/
