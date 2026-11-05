@@ -100,4 +100,4 @@ jobs:
             --mount "type=bind,source=$GITHUB_WORKSPACE/firmware-package,target=/firmware,readonly" \
             --mount type=bind,source=/srv/homelab/backups,target=/backups \
             "homelab-esp32-flasher:$GITHUB_SHA" --mac "$ESP32_MAC" --sha "$GITHUB_SHA"
-          printf '### ESP32 deployed\n\nCommit: `%s`\n\nUSB flash verification and serial boot check passed. Private backups remain on the M920Q under `/srv/homelab/backups/esp32`.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          printf '### ESP32 deployed\n\nCommit: %s\n\nUSB flash verification and serial boot check passed. Private backups remain on the M920Q under /srv/homelab/backups/esp32.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
