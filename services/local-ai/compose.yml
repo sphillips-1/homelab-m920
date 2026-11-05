@@ -61,6 +61,8 @@ services:
       OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
       ENABLE_PASSWORD_AUTH: "false"
       ENABLE_LOGIN_FORM: "false"
+      OAUTH_AUTO_REDIRECT: "true"
+      WEBUI_SECRET_KEY_FILE: /app/backend/data/.webui_secret_key
       ENABLE_INITIAL_ADMIN_SIGNUP: "false"
       DEFAULT_USER_ROLE: user
       WEBUI_AUTH_COOKIE_SECURE: "true"

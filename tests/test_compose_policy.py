@@ -76,6 +76,8 @@ class ComposePolicyTest(unittest.TestCase):
         self.assertFalse(json.loads(webui["DEFAULT_MODEL_METADATA"])["capabilities"]["builtin_tools"])
         self.assertEqual(webui["ENABLE_PASSWORD_AUTH"], "false")
         self.assertEqual(webui["ENABLE_LOGIN_FORM"], "false")
+        self.assertEqual(webui["OAUTH_AUTO_REDIRECT"], "true")
+        self.assertEqual(webui["WEBUI_SECRET_KEY_FILE"], "/app/backend/data/.webui_secret_key")
         self.assertEqual(webui["ENABLE_SIGNUP"], "false")
         self.assertEqual(webui["ENABLE_INITIAL_ADMIN_SIGNUP"], "false")
         self.assertEqual(webui["OPENID_REDIRECT_URI"], "https://ai.shelfgoblin.dev/oauth/oidc/callback")

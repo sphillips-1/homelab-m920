@@ -1,5 +1,15 @@
 # Local coding AI
 
+SSO automatically continues to Authentik when the WebUI session expires. With an
+existing Authentik session, opening the site should take you straight to chat;
+there is no extra **Continue with Authentik** click. Authentication and owner-only
+`ai-users` authorization still apply. `/auth?form=signin` provides a manual login
+screen if troubleshooting is needed. The private signing/encryption key lives in
+`open-webui/.webui_secret_key` under appdata and is included in WebUI backups.
+Provisioning preserves the running container's key on first migration, so routine
+container recreations no longer invalidate existing sessions merely by rotating
+that key. Normal expiry, logout, and revocation still apply.
+
 The default browser model is `shelfgoblin-coder:3b`, a repository-managed wrapper
 around `qwen2.5-coder:3b` with the same shared weights. Its Modelfile supplies the
 local installation identity and mobile URL directly to Ollama. This avoids a
