@@ -53,6 +53,7 @@ class CloudflareTest(unittest.TestCase):
                 self.assertNotIn("__", (self.runtime / "config.yml").read_text())
                 self.cloudflared("validate")
                 routes = {
+                    "ai.example.invalid/": "http://authentik-server:9000" if mode == "sso" else "http_status:404",
                     "auth.example.invalid/invite/01234567-89ab-cdef-0123-456789abcdef": "http://invitation-provisioner:8080",
                     "auth.example.invalid/if/flow/default-authentication-flow/": "http://authentik-server:9000",
                     "jellyfin.example.invalid/": "http_status:404",

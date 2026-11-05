@@ -1,5 +1,12 @@
 # Local coding AI
 
+Browser access: https://ai.shelfgoblin.dev using your existing Authentik Google
+identity. Only the owner is initially granted `ai-users`. The embedded proxy gates
+all browser traffic; native OIDC creates or matches your private WebUI account.
+Local passwords and signup are disabled. Continue retains the private Ollama SSH
+tunnel below; it does not use browser SSO.
+
+
 ## Deployment
 
 This stack follows the repository's `services/<name>/compose.yml` convention.
@@ -68,11 +75,14 @@ The address comes from `docs/network-inventory.md`. SSH here forwards traffic
 only. Both services are loopback-only, with no Cloudflare route or public port.
 Ollama has no API authentication; the SSH connection supplies access control.
 
-Open <http://127.0.0.1:3000> and create the initial administrator account.
-The pinned WebUI version permits first-admin creation even with signup disabled;
-subsequent public registrations are disabled. Select `qwen2.5-coder:3b` for chat.
-WebUI talks to `http://ollama:11434` inside Docker. Continue talks directly to the
-forwarded Ollama API, not to WebUI and not to an `/api` or `/v1` base path.
+Open <https://ai.shelfgoblin.dev> and sign in through Authentik. Your existing
+Google-linked owner account has access. Select `qwen2.5-coder:3b` for chat.
+Browser access needs no SSH tunnel. For Continue, forward only port 11434;
+port 3000 remains a localhost-only diagnostic endpoint and is no longer a local
+password-login route. The OIDC callback always returns to the HTTPS hostname.
+WebUI talks to `http://ollama:11434` inside Docker; Continue talks directly to
+Ollama, not WebUI. WebUI joins the shared `homelab` network for the proxy, while
+Ollama remains exclusively on the dedicated AI network.
 
 ## Continue config.json (legacy)
 

@@ -114,6 +114,7 @@ PY
 
 wait_for_container local-ai-ollama
 wait_for_container local-ai-webui
+docker exec -i authentik-worker ak shell < /opt/homelab/scripts/verify-local-ai-sso.py
 curl --fail --silent --show-error --output /dev/null http://127.0.0.1:11434/api/tags
 curl --fail --silent --show-error --output /dev/null http://127.0.0.1:3000/health
 for model in qwen2.5-coder:3b deepseek-coder:1.3b; do

@@ -1,5 +1,6 @@
 locals {
   application_hostnames = {
+    local_ai       = "ai.${var.zone_name}"
     bambustudio    = "bambu.${var.zone_name}"
     audiobookshelf = "audiobooks.${var.zone_name}"
     calibre_web    = "books.${var.zone_name}"

@@ -47,7 +47,21 @@ services:
     mem_reservation: 512m
     memswap_limit: 2g
     pids_limit: 256
+    env_file:
+      - path: /srv/homelab/appdata/local-ai/oidc.env
+        required: false
     environment:
+      WEBUI_URL: https://ai.shelfgoblin.dev
+      OAUTH_PROVIDER_NAME: Authentik
+      OPENID_PROVIDER_URL: https://auth.shelfgoblin.dev/application/o/local-ai-oidc/.well-known/openid-configuration
+      OPENID_REDIRECT_URI: https://ai.shelfgoblin.dev/oauth/oidc/callback
+      OAUTH_SCOPES: openid email profile
+      ENABLE_OAUTH_SIGNUP: "true"
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
+      ENABLE_LOGIN_FORM: "false"
+      ENABLE_INITIAL_ADMIN_SIGNUP: "false"
+      DEFAULT_USER_ROLE: user
+      WEBUI_AUTH_COOKIE_SECURE: "true"
       OLLAMA_BASE_URL: http://ollama:11434
       WEBUI_AUTH: "true"
       ENABLE_OPENAI_API: "false"
@@ -75,8 +89,10 @@ services:
       options:
         max-size: 10m
         max-file: "3"
-    networks: [local-ai]
+    networks: [local-ai, homelab]
 
 networks:
+  homelab:
+    external: true
   local-ai:
     driver: bridge

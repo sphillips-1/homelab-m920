@@ -223,10 +223,10 @@ if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
 fi
 log "Reconciling Beszel native Authentik SSO"
 python3 "${REPO_DIR}/scripts/configure-beszel-sso.py"
-deploy_cloudflared
-
 log "Initializing local coding AI"
 bash "${REPO_DIR}/scripts/init-local-ai.sh"
+
+deploy_cloudflared
 
 log "Service deployment complete"
 

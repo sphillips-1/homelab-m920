@@ -41,7 +41,9 @@ M920Q
 
 The local coding AI stack runs Ollama and Open WebUI on a dedicated bridge
 network, outside the shared ingress network. Both host ports bind to loopback;
-workstations connect through SSH forwarding. Persistent models and UI state live
+Continue connects through SSH forwarding; the WebUI browser interface uses
+`ai.shelfgoblin.dev` through the Authentik proxy with native OIDC. Only WebUI
+joins the shared ingress network. Persistent models and UI state live
 under `/srv/homelab/appdata/local-ai`. The normal GitHub Actions deployment
 initializes models and verifies health. Combined container limits are 8 GiB RAM
 and four CPU equivalents, with swap disabled for these containers. See the

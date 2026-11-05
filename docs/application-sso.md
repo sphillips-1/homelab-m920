@@ -155,3 +155,19 @@ SQL dump, file archive, and the separately protected stable `.env` secret key.
 
 The former `access` mode is retained only as migration history and must not be
 used as the normal deployment mode.
+
+## Local coding AI
+
+`ai.shelfgoblin.dev` passes through the Authentik embedded proxy, then native
+Open WebUI OIDC. Both applications require `ai-users` and a Google-linked
+verified identity. The group is bootstrapped once with the unique existing
+Google-linked Bambu owner/admin; it is never granted by ordinary invitations.
+Subsequent membership changes are explicit administrative actions. Open WebUI
+password login and local signup are disabled. Existing accounts match by verified
+email to preserve history; new accounts receive the ordinary user role.
+Only WebUI joins the ingress network; Ollama stays on its dedicated bridge with
+its host API bound to localhost for Continue's SSH forwarding.
+OIDC credentials persist privately in `/srv/homelab/appdata/local-ai/oidc.env`.
+The browser callback is exactly `https://ai.shelfgoblin.dev/oauth/oidc/callback`.
+The hidden `local-ai-oidc` application owns OIDC; `local-ai` is the visible portal
+tile and proxy gate. Safe/test/access tunnel modes do not route this hostname.

@@ -11,6 +11,7 @@ command -v timeout >/dev/null
 docker compose version >/dev/null
 install -d -m 0700 /srv/homelab/appdata/local-ai
 install -d /srv/homelab/appdata/local-ai/{ollama,open-webui}
+python3 "${REPO_DIR}/scripts/configure-local-ai-sso.py"
 compose config --quiet
 # Official prebuilt images; there is no local Dockerfile to build.
 compose up -d --wait --wait-timeout 300 ollama
@@ -24,4 +25,4 @@ for model in qwen2.5-coder:3b deepseek-coder:1.3b; do
 done
 
 compose up -d --wait --wait-timeout 300 open-webui
-echo "Local AI ready: Ollama on localhost:11434; Open WebUI on localhost:3000."
+echo "Local AI ready: https://ai.shelfgoblin.dev; Ollama remains on localhost:11434."
