@@ -72,7 +72,8 @@ ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
 
 In PowerShell, place the command on one line instead of using backslashes.
 The address comes from `docs/network-inventory.md`. SSH here forwards traffic
-only. Both services are loopback-only, with no Cloudflare route or public port.
+only. Host ports bind only to loopback. WebUI also has the authenticated Cloudflare
+route; Ollama has no public route.
 Ollama has no API authentication; the SSH connection supplies access control.
 
 Open <https://ai.shelfgoblin.dev> and sign in through Authentik. Your existing

@@ -40,7 +40,7 @@ M920Q
 ## Service model
 
 The local coding AI stack runs Ollama and Open WebUI on a dedicated bridge
-network, outside the shared ingress network. Both host ports bind to loopback;
+network for inference. Both host ports bind to loopback;
 Continue connects through SSH forwarding; the WebUI browser interface uses
 `ai.shelfgoblin.dev` through the Authentik proxy with native OIDC. Only WebUI
 joins the shared ingress network. Persistent models and UI state live

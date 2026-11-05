@@ -7,6 +7,7 @@ from authentik.core.models import Application, Group, User
 from authentik.policies.models import PolicyBinding
 from authentik.tenants.models import Tenant
 from authentik.providers.proxy.models import ProxyProvider
+from authentik.providers.oauth2.models import OAuth2Provider
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 group = Group.objects.get(name='ai-users')
@@ -52,6 +53,6 @@ for path in ('/', '/websockets'):
         assert error.code in (302, 303), error.code
         assert '/outpost.goauthentik.io/' in error.headers['Location']
 oidc = Application.objects.get(slug='local-ai-oidc')
-assert oidc.provider.redirect_uris[0].url == 'https://ai.shelfgoblin.dev/oauth/oidc/callback'
+assert OAuth2Provider.objects.get(pk=oidc.provider_id).redirect_uris[0].url == 'https://ai.shelfgoblin.dev/oauth/oidc/callback'
 assert PolicyBinding.objects.filter(target=oidc, group=group, enabled=True).exists()
 print('Approved portal access, ordinary-user denial, and anonymous HTTP/streaming gate passed.')
