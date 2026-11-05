@@ -1,5 +1,8 @@
 # Local coding AI
 
+A short default system prompt identifies this local installation and its mobile
+URL, so the model does not confuse it with a public hosted Qwen service.
+
 Built-in agent tools are disabled through `DEFAULT_MODEL_METADATA`. These small
 models should return chat answers rather than receive WebUI's task-management,
 file, and other tool schemas. If a conversation contains a printed tool payload
