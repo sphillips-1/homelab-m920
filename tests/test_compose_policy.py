@@ -72,6 +72,12 @@ class ComposePolicyTest(unittest.TestCase):
             self.assertEqual(service["memswap_limit"], service["mem_limit"])
             self.assertLessEqual(float(service["cpus"]), 3)
             self.assertLessEqual(service["cpu_shares"], 256)
+        webui = services["open-webui"]["environment"]
+        self.assertEqual(webui["ENABLE_PASSWORD_AUTH"], "false")
+        self.assertEqual(webui["ENABLE_LOGIN_FORM"], "false")
+        self.assertEqual(webui["ENABLE_SIGNUP"], "false")
+        self.assertEqual(webui["ENABLE_INITIAL_ADMIN_SIGNUP"], "false")
+        self.assertEqual(webui["OPENID_REDIRECT_URI"], "https://ai.shelfgoblin.dev/oauth/oidc/callback")
         env = services["ollama"]["environment"]
         self.assertEqual(env["OLLAMA_MAX_LOADED_MODELS"], "1")
         self.assertEqual(env["OLLAMA_NUM_PARALLEL"], "1")
