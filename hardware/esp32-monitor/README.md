@@ -36,8 +36,10 @@ use the Actions workflow.
 A code-drawn pixel goblin blinks and bobs while watching the homelab. Short
 BOOT presses cycle **Home → Feed → Play → Metrics**. On Feed or Play, hold
 BOOT for at least one second and release before five seconds to perform the
-action. A successful action adds 20 fullness or happiness;
-actions share a 30-second cooldown. Care affects expression, not evolution.
+action. Feeding produces a short munch animation and snack; playing produces
+a sparkle. Both show a response message and share a 30-second cooldown.
+There are no Fullness or Happiness meters, hidden needs, or care decay.
+Interactions do not change evolution or clear server alerts.
 
 ### Health-based evolution
 
@@ -58,20 +60,17 @@ over 20 seconds pause progress. The first fresh observation after a pause only
 establishes a baseline. Intervals touching an alert use the worse of their two
 endpoint severities. The firmware cannot establish health while unplugged, so
 that time earns nothing and incurs no penalty. Host uptime is never treated as
-proof of historical health. Health time begins at zero for this firmware version;
-old feed/play points are not converted, while existing care needs are preserved.
+proof of historical health. Existing health-time progress is preserved across
+updates. Old feed/play points and retired care meters are not used.
 
-Health time persists in a separate ESP32 NVS key every five minutes, after care
-actions and immediately on evolution/devolution. A sudden power loss can roll
+Health time persists in the existing ESP32 NVS key every five minutes and
+immediately on evolution/devolution. A sudden power loss can roll
 back up to five minutes of progress or decay. Colors describe the creature's
 form; an adult or warrior keeps its skin color during Unknown/Offline status,
 with the health label conveying connection and server status separately.
 
-Both needs start at 80/100 and lose one point per 15 powered minutes. Low needs
-change its expression but do not cause death or change evolution. Time unplugged
-does not count. Care is saved in ESP32 NVS after each action and every five
-minutes; a sudden power loss can roll back up to five minutes of need decay.
-It is kept separately from Wi-Fi credentials. No pet state is sent to the server.
+Expressions reflect homelab health and brief interactions. No pet state is
+sent to the server, and Wi-Fi credentials remain separate from evolution state.
 
 Hold BOOT for five seconds to reopen Wi-Fi setup. This does not also feed or
 play. RST reboots the device. Touch navigation is not configured. HTTP requests

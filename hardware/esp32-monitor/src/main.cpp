@@ -18,11 +18,11 @@ Evolution evolution;
 Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
 uint32_t lastPoll = 0, lastGood = 0, pressed = 0, lastFrame = 0;
-uint32_t lastMinute = 0, lastSave = 0, lastCare = 0, feedbackAt = 0;
+uint32_t lastSave = 0, lastInteraction = 0, feedbackAt = 0;
 unsigned long hostUptime = 0;
-bool hasData = false, online = false, longHandled = false, cared = false;
+bool hasData = false, online = false, longHandled = false, interacted = false;
 bool spriteReady = false, dirty = true, storeReady = false;
-int page = 0, fullness = 80, happiness = 80;
+int page = 0, interaction = 0;
 const char *feedback = "";
 
 const char *stage() {
@@ -57,26 +57,21 @@ void message(const String &title, const String &detail) {
   tft.setTextColor(muted, bg);
   tft.drawString(detail, 10, 100, 2);
 }
-void savePet() {
+void saveEvolution() {
   if (storeReady) {
-    // A single NVS value prevents mixing generations on power loss.
-    uint32_t value = fullness | (happiness << 7);
-    storage.putUInt("care", value);
     storage.putUInt("health-v1", evolution.healthMs);
   }
   lastSave = millis();
 }
-void care() {
+void interact() {
   if (page != 1 && page != 2) return;
   feedbackAt = millis();
-  if (cared && millis() - lastCare < 30000) {
+  if (interacted && millis() - lastInteraction < 30000) {
     feedback = "Let me enjoy that first!";
   } else {
-    if (page == 1) fullness = min(100, fullness + 20);
-    else happiness = min(100, happiness + 20);
-    cared = true; lastCare = millis();
+    interaction = page;
+    interacted = true; lastInteraction = millis();
     feedback = page == 1 ? "Crunch! Thanks for the snack." : "That was fun!";
-    savePet();
   }
   dirty = true;
 }
@@ -129,8 +124,11 @@ void drawPet() {
     pet.drawLine(90, y + 12, 105, y + 8, TFT_BLACK);
     pet.drawLine(70, y + 34, 80, y + 29, TFT_BLACK);
     pet.drawLine(80, y + 29, 90, y + 34, TFT_BLACK);
-  } else if (fullness < 30 || happiness < 30 || !online || health.mood == Mood::Unknown) {
+  } else if (!online || health.mood == Mood::Unknown) {
     pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
+  } else if (interaction == 1 && millis() - lastInteraction < 4000) {
+    // Feeding is a short munch animation, without a persistent hunger meter.
+    pet.fillRect(72, y + 30, 16, (millis() / 500) % 2 ? 7 : 3, TFT_BLACK);
   } else {
     pet.fillRect(68, y + 30, 24, 4, TFT_BLACK);
     pet.fillRect(72, y + 34, 16, 4, TFT_BLACK);
@@ -139,6 +137,15 @@ void drawPet() {
   if (warrior) {
     pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
     pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
+  }
+  if (interaction && millis() - lastInteraction < 4000) {
+    if (interaction == 1) {
+      pet.fillRect(137, 83, 10, 10, TFT_ORANGE);
+      pet.fillRect(139, 81, 6, 14, TFT_ORANGE);
+    } else {
+      pet.fillTriangle(140, 7, 135, 18, 145, 18, TFT_YELLOW);
+      pet.fillTriangle(140, 22, 135, 11, 145, 11, TFT_YELLOW);
+    }
   }
   pet.pushSprite(8, 61);
 }
@@ -149,12 +156,6 @@ String duration(uint32_t ms) {
   uint32_t hours = ms / 3600000;
   return hours >= 24 ? String(hours / 24) + "d " + String(hours % 24) + "h" :
       String(hours) + "h " + String((ms / 60000) % 60) + "m";
-}
-void bar(const char *label, int value, int x, int y) {
-  tft.setTextColor(muted, bg);
-  tft.drawString(String(label) + " " + value, x, y, 1);
-  tft.fillRect(x, y + 12, 116, 6, 0x2945);
-  tft.fillRect(x, y + 12, value * 116 / 100, 6, value < 30 ? TFT_ORANGE : accent);
 }
 void render() {
   tft.fillScreen(bg);
@@ -186,16 +187,17 @@ void render() {
     tft.setTextColor(muted, bg);
     Form form = formFor(evolution.healthMs);
     tft.drawString(form == Form::Warrior ? "Red warrior" : form == Form::Adult ? "Green adult" : "Green baby", 182, 86, 1);
-    bar("Fullness", fullness, 182, 102);
-    bar("Happiness", happiness, 182, 128);
     tft.setTextColor(muted, bg);
-    tft.drawString("Health " + duration(evolution.healthMs), 182, 153, 1);
+    tft.drawString("HEALTHY TIME", 182, 108, 1);
+    tft.setTextColor(TFT_WHITE, bg);
+    tft.drawString(duration(evolution.healthMs), 182, 121, 2);
     String next = form == Form::Baby ? "Adult in " + duration(ADULT_AT_MS - evolution.healthMs) :
         form == Form::Adult ? "Warrior " + duration(WARRIOR_AT_MS - evolution.healthMs) : "Final form";
-    tft.drawString(next, 182, 165, 1);
+    tft.setTextColor(muted, bg);
+    tft.drawString(next, 182, 149, 1);
     tft.setTextColor(TFT_WHITE, bg);
     const char *caption = page == 1 ? "Hold BOOT 1s: feed" : page == 2 ? "Hold BOOT 1s: play" :
-        fullness < 30 ? "A snack would be lovely." : happiness < 30 ? "Come play with me!" : "Keeping watch over the lab.";
+        "Keeping watch over the lab.";
     tft.drawString(caption, 10, 178, 2);
   }
   tft.setTextColor(accent, bg);
@@ -248,7 +250,7 @@ void poll() {
   if (WiFi.status() != WL_CONNECTED) health = {Mood::Offline, "Wi-Fi disconnected"};
   Form oldForm = formFor(evolution.healthMs);
   evolution = evolution.observed(health.mood, millis(), sampleTimestamp);
-  if (formFor(evolution.healthMs) != oldForm) savePet();
+  if (formFor(evolution.healthMs) != oldForm) saveEvolution();
   dirty = true;
 }
 void setup() {
@@ -259,10 +261,7 @@ void setup() {
   pet.setColorDepth(16);
   spriteReady = pet.createSprite(160, 110) != nullptr;
   storeReady = storage.begin("shelf-goblin", false);
-  uint32_t saved = storeReady ? storage.getUInt("care", 80U | (80U << 7)) : (80U | (80U << 7));
-  fullness = min(100U, saved & 127U);
-  happiness = min(100U, (saved >> 7) & 127U);
-  // Migrate care needs, but never turn old feed/play points into healthy time.
+  // Keep the existing evolution bank; retired care meters are no longer read.
   evolution = Evolution(storeReady ? storage.getUInt("health-v1", 0) : 0);
   message("Starting Wi-Fi...", "Hold BOOT 5s to set up Wi-Fi");
   wifi.setConfigPortalBlocking(false);
@@ -271,7 +270,6 @@ void setup() {
     message("Wi-Fi setup: M920-Display", "Join it; open 192.168.4.1");
   });
   wifi.autoConnect("M920-Display");
-  lastMinute = millis();
 }
 void loop() {
   wifi.process();
@@ -285,21 +283,13 @@ void loop() {
   } else if (pressed) {
     uint32_t duration = now - pressed;
     if (!longHandled && !wifi.getConfigPortalActive()) {
-      if (duration >= 1000) care();
+      if (duration >= 1000) interact();
       else if (duration >= 40) { page = (page + 1) % 4; dirty = true; }
     }
     pressed = 0; longHandled = false;
   }
   now = millis();
-  // One point per 15 powered minutes; unplugging never punishes the goblin.
-  if (now - lastMinute >= 900000) {
-    unsigned int ticks = (now - lastMinute) / 900000;
-    lastMinute += ticks * 900000;
-    fullness = max(0, fullness - static_cast<int>(ticks));
-    happiness = max(0, happiness - static_cast<int>(ticks));
-    dirty = true;
-  }
-  if (now - lastSave >= 300000) savePet();
+  if (now - lastSave >= 300000) saveEvolution();
   if (!wifi.getConfigPortalActive()) {
     // Avoid blocking requests during a button hold.
     if (!pressed && (lastPoll == 0 || now - lastPoll >= 5000)) {

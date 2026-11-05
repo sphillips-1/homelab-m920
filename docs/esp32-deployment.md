@@ -56,8 +56,9 @@ does not delete old backups. Each uses about 4 MB. A neighboring
 `deployment.json` records the backup checksum, target manifest and result.
 
 Writes cover the bootloader, partition table, OTA boot selector and app0 only.
-The NVS range `0x9000–0xDFFF` is preserved, including Wi-Fi, care needs and
-health-based evolution progress. A repeat deployment preserves those settings.
+The NVS range `0x9000–0xDFFF` is preserved, including Wi-Fi and health-based
+evolution progress. A repeat deployment preserves those settings. Retired care
+meter data may remain in NVS but is no longer read or updated by the firmware.
 Firmware image verification and a 12-second serial boot check must pass before
 the job reports success. This checks for boot entry and known crash markers;
 it does not confirm the physical screen or end-to-end homelab metrics.
