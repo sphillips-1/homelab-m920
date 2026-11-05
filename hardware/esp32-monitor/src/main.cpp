@@ -5,14 +5,28 @@
 #include <TFT_eSPI.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <SPI.h>
+#include <XPT2046_Touchscreen.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <math.h>
 #include "health.h"
 #include "evolution.h"
+#include "touch_controls.h"
 
 TFT_eSPI tft;
 TFT_eSprite pet(&tft);
 WiFiManager wifi;
 Preferences storage;
+SPIClass touchBus(VSPI);
+XPT2046_Touchscreen touchscreen(33, 36);
+QueueHandle_t touchEvents = nullptr;
+volatile bool touchDown = false;
+bool touchReady = false, calibrationActive = false, calibrated = false;
+int calibrationStep = 0;
+TouchCalibration calibration{}, candidate{};
+TouchPoint calibrationRaw[3];
+const char *calibrationHint = "Tap the target, then lift your finger";
 Readings readings;
 Evolution evolution;
 Health health{Mood::Offline, "Waiting for metrics"};
@@ -24,6 +38,60 @@ bool hasData = false, online = false, longHandled = false, interacted = false;
 bool spriteReady = false, dirty = true, storeReady = false;
 int page = 0, interaction = 0;
 const char *feedback = "";
+
+// Only this task accesses the touch SPI bus. Queue taps during HTTP requests
+// instead of dropping them while the UI thread is waiting for the server.
+void sampleTouch(void *) {
+  uint32_t started = 0, sumX = 0, sumY = 0;
+  unsigned int count = 0, released = 0;
+  TouchPoint first{};
+  bool moved = false;
+  for (;;) {
+    bool down = touchscreen.touched();
+    touchDown = down;
+    if (down) {
+      TS_Point p = touchscreen.getPoint();
+      if (!count) { started = millis(); first = {p.x, p.y}; moved = false; }
+      if (abs(p.x - first.x) > 350 || abs(p.y - first.y) > 350) moved = true;
+      if (count < 100) { sumX += p.x; sumY += p.y; ++count; }
+      released = 0;
+    } else if (count && ++released >= 2) {
+      uint32_t held = millis() - started;
+      if (count >= 2 && held >= 40 && held <= 1500 && !moved) {
+        TouchPoint tap{static_cast<int>(sumX / count), static_cast<int>(sumY / count)};
+        xQueueSend(touchEvents, &tap, 0);
+      }
+      count = 0; sumX = 0; sumY = 0;
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+void startCalibration() {
+  if (!touchReady) return;
+  calibrationActive = true; calibrationStep = 0;
+  calibrationHint = "Tap the target, then lift your finger";
+  evolution = evolution.paused();
+  xQueueReset(touchEvents);
+  dirty = true;
+}
+
+void renderCalibration() {
+  static const TouchPoint targets[] = {{24, 24}, {296, 24}, {24, 216}, {296, 216}};
+  tft.fillScreen(bg);
+  tft.setTextColor(accent, bg);
+  tft.drawCentreString("TOUCH SETUP", 160, 70, 2);
+  tft.setTextColor(TFT_WHITE, bg);
+  tft.drawCentreString("Target " + String(calibrationStep + 1) + " of 4", 160, 98, 2);
+  tft.setTextColor(muted, bg);
+  tft.drawCentreString(calibrationHint, 160, 130, 1);
+  tft.drawCentreString("Use a firm tap or a blunt stylus", 160, 148, 1);
+  TouchPoint target = targets[calibrationStep];
+  tft.drawCircle(target.x, target.y, 12, accent);
+  tft.drawFastHLine(target.x - 16, target.y, 33, TFT_WHITE);
+  tft.drawFastVLine(target.x, target.y - 16, 33, TFT_WHITE);
+  dirty = false;
+}
 
 const char *stage() {
   return formFor(evolution.healthMs) == Form::Warrior ? "Hobgoblin" :
@@ -175,7 +243,7 @@ void render() {
     tft.drawString(containers, 10, 143, 2);
     tft.setTextColor(muted, bg);
     String up = online ? "Up " + String(hostUptime / 86400) + "d " + String((hostUptime / 3600) % 24) + "h" : "No live metrics";
-    tft.drawString(up + "  Wi-Fi " + String(WiFi.RSSI()) + "dBm", 10, 174, 2);
+    tft.drawString(up + "  Wi-Fi " + String(WiFi.RSSI()) + "dBm", 10, 160, 1);
   } else {
     drawPet();
     if (!spriteReady) {
@@ -196,18 +264,63 @@ void render() {
     tft.setTextColor(muted, bg);
     tft.drawString(next, 182, 149, 1);
     tft.setTextColor(TFT_WHITE, bg);
-    const char *caption = page == 1 ? "Hold BOOT 1s: feed" : page == 2 ? "Hold BOOT 1s: play" :
-        "Keeping watch over the lab.";
-    tft.drawString(caption, 10, 178, 2);
   }
-  tft.setTextColor(accent, bg);
-  tft.drawString(page == 0 ? "HOME" : page == 1 ? "FEED" : page == 2 ? "PLAY" : "METRICS", 10, 203, 1);
-  tft.setTextColor(muted, bg);
-  if (*feedback && millis() - feedbackAt < 4000) tft.drawString(feedback, 65, 203, 1);
-  else if (!online) tft.drawString(hasData ? "Last update " + String((millis() - lastGood) / 1000) + "s ago" : "Waiting for first sample", 65, 203, 1);
-  else tft.drawString("CPU " + metric(readings.cpu) + " / RAM " + metric(readings.ram), 65, 203, 1);
-  tft.drawString("BOOT: next | hold 5s: Wi-Fi setup", 10, 224, 1);
+  if (page != 0) {
+    tft.fillRoundRect(10, 174, 300, 28, 5, accent);
+    tft.setTextColor(TFT_BLACK, accent);
+    String label = page == 1 ? "Feed goblin" : page == 2 ? "Play with goblin" : "Calibrate touch";
+    if (page != 3 && *feedback && millis() - feedbackAt < 4000) label = feedback;
+    tft.drawCentreString(label, 160, 179, 2);
+  } else {
+    tft.setTextColor(muted, bg);
+    String caption = !touchReady ? "Touch unavailable; restart device" : !online ?
+        (hasData ? "Last update " + String((millis() - lastGood) / 1000) + "s ago" : "Waiting for server metrics...") : "Keeping watch over the lab.";
+    tft.drawCentreString(caption, 160, 180, 2);
+  }
+  const char *tabs[] = {"Home", "Feed", "Play", "Metrics"};
+  for (int tab = 0; tab < 4; ++tab) {
+    uint16_t color = page == tab ? accent : 0x2945;
+    tft.fillRoundRect(tab * 80 + 2, 206, 76, 32, 4, color);
+    tft.setTextColor(page == tab ? TFT_BLACK : TFT_WHITE, color);
+    tft.drawCentreString(tabs[tab], tab * 80 + 40, 213, 2);
+  }
   dirty = false;
+}
+
+void handleTouch(TouchPoint raw) {
+  if (calibrationActive) {
+    if (calibrationStep < 3) {
+      calibrationRaw[calibrationStep++] = raw;
+      if (calibrationStep == 3 && !calibrateTouch(calibrationRaw, candidate)) {
+        calibrationStep = 0;
+        calibrationHint = "Targets too close; please try again";
+      }
+    } else if (confirmsCalibration(candidate, raw)) {
+      calibration = candidate;
+      calibrated = true; calibrationActive = false;
+      if (storeReady) storage.putBytes("touch-v1", &calibration, sizeof(calibration));
+      Serial.println("Touch: calibration completed");
+    } else {
+      calibrationStep = 0;
+      calibrationHint = "Alignment check failed; try again";
+    }
+    dirty = true;
+    return;
+  }
+  if (!calibrated) return;
+  TouchPoint p = mapTouch(calibration, raw);
+  // Calibration targets are inset, so allow the small physical edge margins.
+  if (p.x < -12 || p.x > 331 || p.y < -12 || p.y > 251) return;
+  p.x = constrain(p.x, 0, 319); p.y = constrain(p.y, 0, 239);
+  switch (hitTouch(p.x, p.y, page)) {
+    case TouchAction::Home: page = 0; dirty = true; break;
+    case TouchAction::Feed: page = 1; dirty = true; break;
+    case TouchAction::Play: page = 2; dirty = true; break;
+    case TouchAction::Metrics: page = 3; dirty = true; break;
+    case TouchAction::Activate: interact(); break;
+    case TouchAction::Calibrate: startCalibration(); break;
+    default: break;
+  }
 }
 float reading(JsonVariant value, float maximum) {
   if (!value.is<float>()) return -1;
@@ -263,6 +376,16 @@ void setup() {
   storeReady = storage.begin("shelf-goblin", false);
   // Keep the existing evolution bank; retired care meters are no longer read.
   evolution = Evolution(storeReady ? storage.getUInt("health-v1", 0) : 0);
+  calibrated = storeReady && storage.getBytesLength("touch-v1") == sizeof(calibration) &&
+      storage.getBytes("touch-v1", &calibration, sizeof(calibration)) == sizeof(calibration) &&
+      validCalibration(calibration);
+  touchBus.begin(25, 39, 32, 33);
+  touchReady = touchscreen.begin(touchBus);
+  touchscreen.setRotation(1);
+  touchEvents = xQueueCreate(8, sizeof(TouchPoint));
+  touchReady = touchReady && touchEvents != nullptr;
+  if (touchReady) touchReady = xTaskCreate(sampleTouch, "touch", 3072, nullptr, 1, nullptr) == pdPASS;
+  if (!calibrated) startCalibration();
   message("Starting Wi-Fi...", "Hold BOOT 5s to set up Wi-Fi");
   wifi.setConfigPortalBlocking(false);
   wifi.setDebugOutput(false);
@@ -283,16 +406,29 @@ void loop() {
   } else if (pressed) {
     uint32_t duration = now - pressed;
     if (!longHandled && !wifi.getConfigPortalActive()) {
-      if (duration >= 1000) interact();
-      else if (duration >= 40) { page = (page + 1) % 4; dirty = true; }
+      if (duration >= 1000) startCalibration();
+      else if (duration >= 40 && calibrationActive && calibrated) { calibrationActive = false; dirty = true; }
     }
     pressed = 0; longHandled = false;
   }
   now = millis();
+  if (touchReady) {
+    TouchPoint tap;
+    while (xQueueReceive(touchEvents, &tap, 0) == pdTRUE) {
+      if (!wifi.getConfigPortalActive()) handleTouch(tap);
+    }
+  }
+  now = millis();
   if (now - lastSave >= 300000) saveEvolution();
   if (!wifi.getConfigPortalActive()) {
+    if (calibrationActive) {
+      evolution = evolution.paused();
+      if (dirty) renderCalibration();
+      delay(10);
+      return;
+    }
     // Avoid blocking requests during a button hold.
-    if (!pressed && (lastPoll == 0 || now - lastPoll >= 5000)) {
+    if (!pressed && !touchDown && (lastPoll == 0 || now - lastPoll >= 5000)) {
       poll(); lastPoll = millis();
     }
     if (*feedback && now - feedbackAt >= 4000) { feedback = ""; dirty = true; }

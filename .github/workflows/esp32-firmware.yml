@@ -5,6 +5,7 @@ on:
     paths:
       - hardware/esp32-monitor/**
       - tests/test_esp32_health.cpp
+      - tests/test_esp32_touch.cpp
       - tests/test_esp32_deployment.py
       - scripts/package-esp32-firmware.py
       - scripts/deploy-esp32-firmware.py
@@ -13,6 +14,7 @@ on:
     paths:
       - hardware/esp32-monitor/**
       - tests/test_esp32_health.cpp
+      - tests/test_esp32_touch.cpp
       - tests/test_esp32_deployment.py
       - scripts/package-esp32-firmware.py
       - scripts/deploy-esp32-firmware.py
@@ -37,6 +39,10 @@ jobs:
         run: |
           g++ -std=c++14 -Wall -Wextra -pedantic tests/test_esp32_health.cpp -o /tmp/test-esp32-health
           /tmp/test-esp32-health
+      - name: Test touch calibration and button geometry
+        run: |
+          g++ -std=c++14 -Wall -Wextra -pedantic tests/test_esp32_touch.cpp -o /tmp/test-esp32-touch
+          /tmp/test-esp32-touch
       - name: Install PlatformIO
         run: python -m pip install platformio==6.2.0
       - name: Test artifact integrity, board identity and rollback
@@ -74,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          latest=$(git log -1 --format=%H origin/main -- hardware/esp32-monitor tests/test_esp32_health.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
+          latest=$(git log -1 --format=%H origin/main -- hardware/esp32-monitor tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
           git merge-base --is-ancestor "$latest" "$GITHUB_SHA" || { echo 'A newer firmware change is already on main; deploy the newer run.' >&2; exit 1; }
       - name: Download verified firmware from this run
         uses: actions/download-artifact@v4
