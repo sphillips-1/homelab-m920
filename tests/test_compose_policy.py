@@ -73,6 +73,7 @@ class ComposePolicyTest(unittest.TestCase):
             self.assertLessEqual(float(service["cpus"]), 3)
             self.assertLessEqual(service["cpu_shares"], 256)
         webui = services["open-webui"]["environment"]
+        self.assertFalse(json.loads(webui["DEFAULT_MODEL_METADATA"])["capabilities"]["builtin_tools"])
         self.assertEqual(webui["ENABLE_PASSWORD_AUTH"], "false")
         self.assertEqual(webui["ENABLE_LOGIN_FORM"], "false")
         self.assertEqual(webui["ENABLE_SIGNUP"], "false")

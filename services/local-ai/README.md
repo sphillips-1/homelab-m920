@@ -1,5 +1,11 @@
 # Local coding AI
 
+Built-in agent tools are disabled through `DEFAULT_MODEL_METADATA`. These small
+models should return chat answers rather than receive WebUI's task-management,
+file, and other tool schemas. If a conversation contains a printed tool payload
+such as `create_tasks`, refresh WebUI and start a new chat after deployment so
+the previous payload does not remain in the model's conversation context.
+
 Browser access: https://ai.shelfgoblin.dev using your existing Authentik Google
 identity. Only the owner is initially granted `ai-users`. The embedded proxy gates
 all browser traffic; native OIDC creates or matches your private WebUI account.
