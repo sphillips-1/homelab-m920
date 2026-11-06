@@ -32,8 +32,13 @@ Cloudflare Tunnel and Authentik proxy. Membership in the Authentik
 ## Native Authentik SSO
 
 The Status proxy controls public access and protects the leaderboard. Beszel also
-uses a separate confidential OIDC provider, so clicking **Authentik** on its login
-page reuses the same Authentik session. Dashboard password login is disabled on
+uses a separate confidential OIDC provider. With password login disabled and one
+provider, Beszel automatically starts OIDC. `OAUTH_DISABLE_POPUP=true` uses a
+same-window redirect so browsers do not block automatic login as an unsolicited
+popup. An existing Authentik session takes you straight into the dashboard.
+The provider allows both exact callbacks: `/api/oauth2-redirect` and `/` on
+`https://status.shelfgoblin.dev`. Explicit logout retains Beszel's native manual
+sign-in behavior. Dashboard password login is disabled on
 every network path. Use the canonical HTTPS hostname for OIDC; LAN/Tailscale port
 8090 remains a private recovery endpoint, but its IP address is not an allowed
 OAuth callback. PocketBase superuser recovery at `/_/` retains password login.

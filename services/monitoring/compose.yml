@@ -6,6 +6,8 @@ services:
     environment:
       APP_URL: https://status.shelfgoblin.dev
       DISABLE_PASSWORD_AUTH: "true"
+      # Native single-provider auto-login must use redirects, not blocked popups.
+      OAUTH_DISABLE_POPUP: "true"
       USER_CREATION: "true"
 
     ports:

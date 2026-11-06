@@ -14,27 +14,29 @@ spec.loader.exec_module(clients)
 
 
 class ClientsTest(unittest.TestCase):
-    def test_preserves_clients_and_only_patches_redirects(self):
+    def test_preserves_clients_and_only_patches_sso_entry_settings(self):
         current = ["audiobookshelf://oauth", "audiobooth://oauth"]
         state = {clients.FIELD: current, "authActiveAuthMethods": ["openid"]}
 
         def api(method="GET", payload=None):
             if method == "PATCH":
-                self.assertEqual(payload, {clients.FIELD: current + list(clients.REQUIRED_URIS)})
+                self.assertEqual(payload, {clients.FIELD: current + list(clients.REQUIRED_URIS),
+                                           "authOpenIDAutoLaunch": True})
                 state.update(payload)
             return dict(state)
 
         with patch.object(clients, "request_settings", side_effect=api) as request:
             clients.reconcile()
             clients.reconcile()
-        self.assertEqual(sum(call.args == ("PATCH", {clients.FIELD: state[clients.FIELD]})
+        self.assertEqual(sum(bool(call.args) and call.args[0] == "PATCH"
                              for call in request.call_args_list), 1)
         self.assertEqual(state["authActiveAuthMethods"], ["openid"])
 
     def test_existing_lissen_or_wildcard_does_not_write(self):
         for current in (list(clients.REQUIRED_URIS), ["*"]):
             with self.subTest(current=current), patch.object(
-                clients, "request_settings", return_value={clients.FIELD: current}
+                clients, "request_settings", return_value={clients.FIELD: current,
+                    "authActiveAuthMethods": ["openid"], "authOpenIDAutoLaunch": True}
             ) as request:
                 clients.reconcile()
                 request.assert_called_once_with()
@@ -49,8 +51,38 @@ class ClientsTest(unittest.TestCase):
                 request.assert_called_once_with()
 
     def test_detects_unsaved_update(self):
-        with patch.object(clients, "request_settings", return_value={clients.FIELD: []}):
+        with patch.object(clients, "request_settings", return_value={clients.FIELD: [],
+                "authActiveAuthMethods": ["openid"]}):
             with self.assertRaisesRegex(RuntimeError, "verification failed"):
+                clients.reconcile()
+
+    def test_enables_auto_launch_without_changing_existing_callbacks(self):
+        for callbacks in (list(clients.REQUIRED_URIS), ["*"]):
+            state = {clients.FIELD: callbacks, "authActiveAuthMethods": ["openid"],
+                     "authOpenIDAutoLaunch": False}
+
+            def api(method="GET", payload=None):
+                if method == "PATCH":
+                    self.assertEqual(payload, {"authOpenIDAutoLaunch": True})
+                    state.update(payload)
+                return dict(state)
+
+            with self.subTest(callbacks=callbacks), patch.object(clients, "request_settings", side_effect=api):
+                clients.reconcile()
+                clients.reconcile()
+            self.assertEqual(state[clients.FIELD], callbacks)
+
+    def test_refuses_auto_launch_when_openid_is_disabled(self):
+        with patch.object(clients, "request_settings", return_value={clients.FIELD: [],
+                "authActiveAuthMethods": ["local"]}) as request:
+            with self.assertRaisesRegex(RuntimeError, "OpenID must already be enabled"):
+                clients.reconcile()
+            request.assert_called_once_with()
+
+    def test_detects_unsaved_auto_launch(self):
+        with patch.object(clients, "request_settings", return_value={
+                clients.FIELD: list(clients.REQUIRED_URIS), "authActiveAuthMethods": ["openid"]}):
+            with self.assertRaisesRegex(RuntimeError, "auto-launch verification failed"):
                 clients.reconcile()
 
     def test_retries_unavailable_api(self):

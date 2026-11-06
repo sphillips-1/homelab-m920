@@ -47,6 +47,10 @@ with transaction.atomic():
         matching_mode="strict",
         url="https://status.shelfgoblin.dev/api/oauth2-redirect",
         redirect_uri_type="authorization",
+    ), RedirectURI(
+        matching_mode="strict",
+        url="https://status.shelfgoblin.dev/",
+        redirect_uri_type="authorization",
     )]
     provider.save()
     scopes = [ScopeMapping.objects.get(managed=f"goauthentik.io/providers/oauth2/scope-{scope}")

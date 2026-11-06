@@ -64,6 +64,23 @@ browser/mobile setup, troubleshooting, and offboarding.
 
 ## Audiobookshelf clients
 
+Deployment also reconciles `authOpenIDAutoLaunch=true` through the supported
+auth-settings API, after confirming OpenID is already enabled. Browser login
+automatically continues to Authentik; an existing Authentik session takes users
+back to their library. Mobile callbacks and account provisioning remain intact.
+For troubleshooting, `/audiobookshelf/login/?autoLaunch=0` suppresses automatic
+launch; local password authentication remains disabled. To roll back, remove the
+auto-launch reconciliation and set the persisted setting to false through the
+auth-settings API in GitHub Actions. Reverting code alone does not reset it.
+
+Status/Beszel uses its native single-provider automatic login with
+`OAUTH_DISABLE_POPUP=true`. Its same-window flow uses the additional exact OIDC
+callback `https://status.shelfgoblin.dev/`, alongside `/api/oauth2-redirect`.
+Reverting both the Compose option and provider callback restores the popup flow.
+Test approved and denied users, explicit logout, and subsequent login in a fresh
+browser after deployment. Existing accounts, permissions, and signing keys are
+preserved; these changes do not extend session lifetimes.
+
 The custom [ShelfGoblin Android client](../clients/abs-android/README.md) uses
 the same native OIDC flow and server base path with its own exact mobile callback,
 `shelfgoblin://oauth`. The existing client reconciler adds it alongside Lissen
@@ -90,7 +107,8 @@ the invitation provisioner, reusing its protected ABS API credential. It adds
 `/api/auth-settings`, preserves existing callbacks, and verifies the saved list.
 Repeat deployments are a no-op when Lissen is already allowed. An existing
 wildcard is preserved; this script never introduces one. No Authentik provider
-callback change is required. Other authentication settings are left untouched.
+callback change is required. Apart from OpenID auto-launch described above, other
+authentication settings are left untouched.
 
 To reconcile an already deployed server from the canonical checkout:
 

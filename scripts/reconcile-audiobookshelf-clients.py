@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Allow mobile clients through ABS using the provisioner's existing credentials."""
+"""Reconcile native SSO entry and mobile callbacks with provisioner credentials."""
 
 import json
 import os
@@ -50,18 +50,29 @@ def redirect_uris(settings):
 
 
 def reconcile():
-    current = redirect_uris(read_settings())
+    settings = read_settings()
+    current = redirect_uris(settings)
+    if "openid" not in settings.get("authActiveAuthMethods", []):
+        raise RuntimeError("ABS OpenID must already be enabled before automatic SSO launch")
     # ABS accepts '*' only as the sole entry. Preserve an existing wildcard.
-    if current == ["*"] or all(uri in current for uri in REQUIRED_URIS):
-        print("Audiobookshelf already allows the configured mobile clients.")
-        return
-    if "*" in current:
+    if "*" in current and current != ["*"]:
         raise RuntimeError("ABS has a malformed wildcard redirect list")
-    desired = current + [uri for uri in REQUIRED_URIS if uri not in current]
-    request_settings("PATCH", {FIELD: desired})
-    if set(redirect_uris(read_settings())) != set(desired):
+    desired = current if current == ["*"] else current + [uri for uri in REQUIRED_URIS if uri not in current]
+    payload = {}
+    if desired != current:
+        payload[FIELD] = desired
+    if settings.get("authOpenIDAutoLaunch") is not True:
+        payload["authOpenIDAutoLaunch"] = True
+    if not payload:
+        print("Audiobookshelf SSO auto-launch and mobile clients already configured.")
+        return
+    request_settings("PATCH", payload)
+    saved = read_settings()
+    if set(redirect_uris(saved)) != set(desired):
         raise RuntimeError("ABS mobile redirect URI verification failed")
-    print("Audiobookshelf now allows the configured mobile clients; existing callbacks preserved.")
+    if saved.get("authOpenIDAutoLaunch") is not True:
+        raise RuntimeError("ABS SSO auto-launch verification failed")
+    print("Audiobookshelf SSO auto-launch and mobile clients verified; existing callbacks preserved.")
 
 
 if __name__ == "__main__":
