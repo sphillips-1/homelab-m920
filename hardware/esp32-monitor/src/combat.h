@@ -2,15 +2,17 @@
 #include "evolution.h"
 
 // Each row corresponds to one progression stage, starting at level 1.
-constexpr const char *OPPONENTS[][2] = {
-    {"Cave Rat", "Mud Beetle"},
-    {"Rock Crab", "Shield Spider"},
-    {"Face-Eater Moth", "Cave Raptor"},
-    {"Carn Wolf", "Hobgoblin Raider"},
-    {"Gnoll Skirmisher", "Troll Guard"},
-    {"Raskghar Hunter", "Armored Ogre"},
-    {"Young Wyvern", "Minotaur Champion"},
-    {"Wyvern Lord", "Adult Creler"},
+enum class MonsterShape { Beast, Crawler, Winged, Biped };
+struct Opponent { const char *name; MonsterShape shape; };
+constexpr Opponent OPPONENTS[][2] = {
+    {{"Cave Rat", MonsterShape::Beast}, {"Mud Beetle", MonsterShape::Crawler}},
+    {{"Rock Crab", MonsterShape::Crawler}, {"Shield Spider", MonsterShape::Crawler}},
+    {{"Face-Eater Moth", MonsterShape::Winged}, {"Cave Raptor", MonsterShape::Beast}},
+    {{"Carn Wolf", MonsterShape::Beast}, {"Hobgoblin Raider", MonsterShape::Biped}},
+    {{"Gnoll Skirmisher", MonsterShape::Biped}, {"Troll Guard", MonsterShape::Biped}},
+    {{"Raskghar Hunter", MonsterShape::Beast}, {"Armored Ogre", MonsterShape::Biped}},
+    {{"Young Wyvern", MonsterShape::Winged}, {"Minotaur Champion", MonsterShape::Biped}},
+    {{"Wyvern Lord", MonsterShape::Winged}, {"Adult Creler", MonsterShape::Crawler}},
 };
 static_assert(sizeof(OPPONENTS) / sizeof(OPPONENTS[0]) == FORM_COUNT, "Each stage needs opponents");
 

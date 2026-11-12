@@ -83,7 +83,9 @@ that exist, then chooses one of two opponents for the selected level.
 An advancement sets the bank to the next threshold. A Goblin Lord stays at
 its current bank after winning. Any loss kills the goblin and immediately
 rebirths it as a Baby Goblin with an empty bank. The new bank is saved as soon
-as it changes. The result appears for five seconds before the next fight.
+as it changes. A 3.6-second animation shows the goblin facing the named
+opponent before the result appears. The result stays visible for five seconds
+before the next fight.
 
 Unknown, Offline, Wi-Fi setup, repeated sample timestamps and observation gaps
 over 20 seconds pause progress. The first fresh observation after a pause only

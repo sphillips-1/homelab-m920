@@ -34,8 +34,13 @@ Evolution evolution;
 const char *newClass = nullptr;
 uint32_t classObtainedAt = 0;
 String fightReport;
+const Opponent *fightOpponent = nullptr;
+Form fightForm = Form::Baby;
+unsigned fightOpponentRank = 0;
 uint32_t fightAt = 0;
+uint32_t lastBattleFrame = 0;
 constexpr int FIGHT_X = 175, FIGHT_Y = 198, FIGHT_WIDTH = 135, FIGHT_HEIGHT = 34;
+constexpr uint32_t FIGHT_ANIMATION_MS = 3600;
 constexpr uint32_t FIGHT_REPORT_MS = 5000;
 Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
@@ -138,10 +143,12 @@ void saveEvolution() {
 }
 void seekFight() {
   if (fightReport.length()) return;
-  const unsigned rank = static_cast<unsigned>(formFor(evolution.healthMs));
+  fightForm = formFor(evolution.healthMs);
+  const unsigned rank = static_cast<unsigned>(fightForm);
   const unsigned first = firstOpponentRank(rank);
   const unsigned foeRank = first + esp_random() % (lastOpponentRank(rank) - first + 1);
-  const char *foe = OPPONENTS[foeRank][esp_random() % 2];
+  fightOpponentRank = foeRank;
+  fightOpponent = &OPPONENTS[foeRank][esp_random() % 2];
   const FightOutcome outcome = fightOutcome(rank, foeRank, esp_random() % 100);
   if (outcome != FightOutcome::Won) {
     evolution = Evolution(bankAfterFight(evolution.healthMs, rank, outcome));
@@ -150,7 +157,7 @@ void seekFight() {
   }
   const char *result = outcome == FightOutcome::Reborn ? "Reborn as baby" :
       outcome == FightOutcome::Evolved ? "Won and evolved" : "Won";
-  fightReport = String(foe) + " L" + String(foeRank + 1) + ": " + result;
+  fightReport = String(fightOpponent->name) + " L" + String(foeRank + 1) + ": " + result;
   fightAt = millis();
   dirty = true;
 }
@@ -158,10 +165,9 @@ void seekFight() {
 constexpr bool hitsFightButton(TouchPoint p) {
   return p.x >= FIGHT_X && p.x < FIGHT_X + FIGHT_WIDTH && p.y >= FIGHT_Y && p.y < FIGHT_Y + FIGHT_HEIGHT;
 }
-void drawPet() {
+void drawPet(Form form, int lunge = 0) {
   if (!spriteReady) return;
   pet.fillSprite(bg);
-  Form form = formFor(evolution.healthMs);
   const bool small = form < Form::Adult;
   const bool hob = form >= Form::Hobgoblin;
   int y = (small ? 32 : hob ? 17 : 22) + ((millis() / 500) % 2 ? 2 : 0);
@@ -244,7 +250,62 @@ void drawPet() {
     pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
     pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
   }
-  pet.pushSprite(8, 61);
+  pet.pushSprite(8 + lunge, 61);
+}
+
+void drawBattle(uint32_t elapsed) {
+  if (!spriteReady) return;
+  const bool clash = elapsed >= 800 && elapsed < 3000;
+  const unsigned beat = (elapsed / 120) % 6;
+  drawPet(fightForm, clash && beat < 3 ? 12 : 0);
+  pet.fillSprite(bg);
+  const int x = clash && beat >= 3 ? 60 : 74;
+  const int y = 54 + ((elapsed / 180) % 2 ? 3 : 0);
+  const int size = 12 + 2 * fightOpponentRank;
+  const uint16_t color = fightOpponentRank >= 6 ? TFT_PURPLE : TFT_ORANGE;
+  pet.fillEllipse(77, 98, 47, 5, 0x18C3);
+  switch (fightOpponent->shape) {
+    case MonsterShape::Beast:
+      pet.fillEllipse(x + 10, y + 14, size + 11, size / 2, color);
+      pet.fillTriangle(x + 28, y + 12, x + 46, y - 4, x + 34, y + 19, color);
+      pet.fillTriangle(x - 15, y - 5, x - 10, y - 21, x, y, color);
+      pet.fillRect(x + 3, y + 17, 6, 19, color);
+      pet.fillRect(x + 20, y + 17, 6, 19, color);
+      break;
+    case MonsterShape::Crawler:
+      pet.fillEllipse(x + 10, y + 10, size + 9, size / 2 + 4, color);
+      for (int leg = 0; leg < 4; ++leg) {
+        const int root = x - 6 + 10 * leg;
+        const int foot = root - 18 + 12 * leg;
+        pet.drawLine(root, y + 12, foot, y + 22, color);
+        pet.drawLine(foot, y + 22, foot, y + 34, color);
+      }
+      pet.fillTriangle(x - 11, y + 4, x - 24, y + 1, x - 11, y + 11, TFT_WHITE);
+      break;
+    case MonsterShape::Winged: {
+      const int wing = (elapsed / 120) % 2 ? 9 : 26;
+      pet.fillTriangle(x, y + 5, x + 30, y - wing - 8, x + 48, y + 5, color);
+      pet.fillTriangle(x + 3, y + 8, x - 8, y - wing, x + 20, y + 3, TFT_MAGENTA);
+      pet.fillEllipse(x + 13, y + 10, size + 4, 10, color);
+      pet.fillTriangle(x + 21, y + 12, x + 47, y + 19, x + 35, y + 7, color);
+      break;
+    }
+    case MonsterShape::Biped:
+      pet.fillRoundRect(x - 4, y + 2, size + 10, 28, 5, color);
+      pet.fillRect(x, y + 27, 8, 14, color);
+      pet.fillRect(x + size - 2, y + 27, 8, 14, color);
+      pet.fillRect(x - 21, y + 7, 23, 7, color);
+      pet.fillRect(x - 21, y - 9, 4, 36, TFT_LIGHTGREY);
+      break;
+  }
+  pet.fillEllipse(x - 6, y, size / 2 + 4, 9, color);
+  pet.fillCircle(x - 12, y - 2, 2, TFT_WHITE);
+  if (clash && (beat == 2 || beat == 5)) {
+    pet.drawLine(3, 45, 24, 68, TFT_YELLOW);
+    pet.drawLine(3, 68, 24, 45, TFT_YELLOW);
+    pet.drawFastHLine(0, 56, 27, TFT_WHITE);
+  }
+  pet.pushSprite(160, 61);
 }
 String metric(float value, const char *unit = "%") {
   return value < 0 ? "--" : String(value, 0) + unit;
@@ -265,6 +326,13 @@ void render() {
   tft.drawRightString(healthLabel(), 310, 7, 2);
   tft.drawFastHLine(10, 30, 300, muted);
   tft.drawString(health.reason, 10, 36, 2);
+  if (fightOpponent) {
+    drawBattle(millis() - fightAt);
+    tft.setTextColor(TFT_WHITE, bg);
+    tft.drawCentreString(String("vs. ") + fightOpponent->name + "  L" + String(fightOpponentRank + 1), 160, 181, 2);
+    dirty = false;
+    return;
+  }
   if (page == 1) {
     tft.setTextColor(TFT_WHITE, bg);
     tft.drawString("CPU " + metric(readings.cpu) + "   RAM " + metric(readings.ram), 10, 68, 2);
@@ -277,7 +345,7 @@ void render() {
     String up = online ? "Up " + String(hostUptime / 86400) + "d " + String((hostUptime / 3600) % 24) + "h" : "No live metrics";
     tft.drawString(up + "  Wi-Fi " + String(WiFi.RSSI()) + "dBm", 10, 160, 1);
   } else {
-    drawPet();
+    drawPet(formFor(evolution.healthMs));
     if (!spriteReady) {
       tft.setTextColor(accent, bg);
       tft.drawString("( ^ v ^ )", 30, 105, 2);
@@ -353,7 +421,7 @@ void handleTouch(const TouchStroke &stroke) {
     dirty = true;
     return;
   }
-  if (!calibrated) return;
+  if (!calibrated || fightOpponent) return;
   switch (classifyGesture(calibration, stroke)) {
     case Gesture::Left: page = 1; dirty = true; break;
     case Gesture::Right: page = 0; dirty = true; break;
@@ -475,6 +543,21 @@ void loop() {
       delay(10);
       return;
     }
+    // Keep network polling out of the animation so an HTTP timeout cannot delay the reveal.
+    if (fightOpponent) {
+      const uint32_t elapsed = now - fightAt;
+      if (elapsed >= FIGHT_ANIMATION_MS) {
+        fightOpponent = nullptr;
+        fightAt = now;
+        render();
+      } else if (dirty || now - lastBattleFrame >= 80) {
+        if (dirty) render();
+        else drawBattle(elapsed);
+        lastBattleFrame = now;
+      }
+      delay(10);
+      return;
+    }
     // Avoid blocking requests during a button hold.
     if (!pressed && !touchDown && (lastPoll == 0 || now - lastPoll >= 5000)) {
       poll(); lastPoll = millis();
@@ -488,7 +571,7 @@ void loop() {
       dirty = true;
     }
     if (dirty) render();
-    else if (page == 0 && now - lastFrame >= 500) drawPet();
+    else if (page == 0 && now - lastFrame >= 500) drawPet(formFor(evolution.healthMs));
     if (now - lastFrame >= 500) lastFrame = now;
   } else { evolution = evolution.paused(); dirty = true; }
   delay(10);
