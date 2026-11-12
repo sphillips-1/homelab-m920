@@ -7,6 +7,8 @@ ESP32-D0WD-V3 revision 3.1, 4 MB flash. Uses the ST7789 panel profile at
 flash alone does not verify panel compatibility. Confirm the screen visually.
 This panel uses `TFT_INVERSION_OFF`: enabling inversion made the green goblin
 appear pink on the owner's display. Keep inversion disabled for this board.
+The panel uses BGR channel order. Set `TFT_RGB_ORDER=TFT_BGR` so the warrior's
+red skin and the red Critical indicator render correctly.
 
 ## Setup
 
