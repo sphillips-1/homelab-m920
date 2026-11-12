@@ -2,6 +2,7 @@
 // g++ -std=c++14 -fsyntax-only tests/test_esp32_health.cpp
 #include "../hardware/esp32-monitor/src/health.h"
 #include "../hardware/esp32-monitor/src/evolution.h"
+#include "../hardware/esp32-monitor/src/combat.h"
 constexpr Readings good{20, 40, 45, 30, 50, 8, 10, 0};
 static_assert(assess(good, true).mood == Mood::Healthy, "Stopped containers can be intentional");
 static_assert(assess(good, false).mood == Mood::Offline, "Cached readings cannot imply online health");
@@ -63,6 +64,18 @@ static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Warning) == HEALTHY_DAY_MS +
 static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Critical) == 6 * HEALTHY_HOUR_MS + 1, "Critical drop estimate");
 static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Offline) == 0, "No offline countdown");
 static_assert(timeToDrop(0, Mood::Critical) == 0, "Baby cannot drop");
+static_assert(firstOpponentRank(0) == 0 && lastOpponentRank(0) == 1, "Baby draws equal or higher opponents");
+static_assert(lastOpponentRank(FORM_COUNT - 1) == FORM_COUNT - 1, "No opponents beyond the last tier");
+static_assert(fightOutcome(2, 1, 84) == FightOutcome::Won && fightOutcome(2, 1, 85) == FightOutcome::Reborn,
+    "Weaker opponent win and loss boundary");
+static_assert(fightOutcome(2, 2, 64) == FightOutcome::Evolved && fightOutcome(2, 2, 65) == FightOutcome::Reborn,
+    "Equal opponent win and loss boundary");
+static_assert(fightOutcome(2, 3, 39) == FightOutcome::Evolved && fightOutcome(2, 3, 40) == FightOutcome::Reborn,
+    "Stronger opponent win and loss boundary");
+static_assert(fightOutcome(FORM_COUNT - 1, FORM_COUNT - 1, 0) == FightOutcome::Won, "Final form can win without evolving");
+static_assert(bankAfterFight(7 * HEALTHY_DAY_MS, 4, FightOutcome::Evolved) == 10 * HEALTHY_DAY_MS, "Win advances one stage");
+static_assert(bankAfterFight(7 * HEALTHY_DAY_MS, 4, FightOutcome::Won) == 7 * HEALTHY_DAY_MS, "Ordinary win keeps progress");
+static_assert(bankAfterFight(MAX_HEALTH_MS, FORM_COUNT - 1, FightOutcome::Reborn) == 0, "A loss resets any form to baby");
 static_assert(healthDelta(Mood::Healthy, Mood::Busy, 5000) == 5000, "Busy is healthy work");
 static_assert(healthDelta(Mood::Healthy, Mood::Warning, 5000) == -5000, "Warnings drain 1x");
 static_assert(healthDelta(Mood::Critical, Mood::Healthy, 5000) == -20000, "Critical recovery drains 4x");

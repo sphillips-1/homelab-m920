@@ -67,6 +67,24 @@ current alert severity. Earning a new class briefly displays a class announcemen
 Saved banks map directly onto the new thresholds, so an existing 14-day bank
 starts at `[Chieftain]`.
 
+### Seek a Fight
+
+Tap **Seek a Fight** on the goblin screen to face a random opponent. Combat
+levels are the eight milestones above, starting with Baby Goblin at level 1.
+The game draws uniformly from the goblin's level and the neighboring levels
+that exist, then chooses one of two opponents for the selected level.
+
+| Opponent level | Win chance | Reward for winning |
+| --- | --- | --- |
+| One below | 85% | Keep current progress |
+| Equal | 65% | Advance one milestone |
+| One above | 40% | Advance one milestone |
+
+An advancement sets the bank to the next threshold. A Goblin Lord stays at
+its current bank after winning. Any loss kills the goblin and immediately
+rebirths it as a Baby Goblin with an empty bank. The new bank is saved as soon
+as it changes. The result appears for five seconds before the next fight.
+
 Unknown, Offline, Wi-Fi setup, repeated sample timestamps and observation gaps
 over 20 seconds pause progress. The first fresh observation after a pause only
 establishes a baseline. Intervals touching an alert use the worse of their two

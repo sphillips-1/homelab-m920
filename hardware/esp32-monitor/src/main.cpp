@@ -10,8 +10,10 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <math.h>
+#include <esp_system.h>
 #include "health.h"
 #include "evolution.h"
+#include "combat.h"
 #include "touch_controls.h"
 
 TFT_eSPI tft;
@@ -31,6 +33,10 @@ Readings readings;
 Evolution evolution;
 const char *newClass = nullptr;
 uint32_t classObtainedAt = 0;
+String fightReport;
+uint32_t fightAt = 0;
+constexpr int FIGHT_X = 175, FIGHT_Y = 198, FIGHT_WIDTH = 135, FIGHT_HEIGHT = 34;
+constexpr uint32_t FIGHT_REPORT_MS = 5000;
 Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
 uint32_t lastPoll = 0, lastGood = 0, pressed = 0, lastFrame = 0;
@@ -129,6 +135,28 @@ void saveEvolution() {
     storage.putUInt("health-v1", evolution.healthMs);
   }
   lastSave = millis();
+}
+void seekFight() {
+  if (fightReport.length()) return;
+  const unsigned rank = static_cast<unsigned>(formFor(evolution.healthMs));
+  const unsigned first = firstOpponentRank(rank);
+  const unsigned foeRank = first + esp_random() % (lastOpponentRank(rank) - first + 1);
+  const char *foe = OPPONENTS[foeRank][esp_random() % 2];
+  const FightOutcome outcome = fightOutcome(rank, foeRank, esp_random() % 100);
+  if (outcome != FightOutcome::Won) {
+    evolution = Evolution(bankAfterFight(evolution.healthMs, rank, outcome));
+    saveEvolution();
+    newClass = nullptr;
+  }
+  const char *result = outcome == FightOutcome::Reborn ? "Reborn as baby" :
+      outcome == FightOutcome::Evolved ? "Won and evolved" : "Won";
+  fightReport = String(foe) + " L" + String(foeRank + 1) + ": " + result;
+  fightAt = millis();
+  dirty = true;
+}
+
+constexpr bool hitsFightButton(TouchPoint p) {
+  return p.x >= FIGHT_X && p.x < FIGHT_X + FIGHT_WIDTH && p.y >= FIGHT_Y && p.y < FIGHT_Y + FIGHT_HEIGHT;
 }
 void drawPet() {
   if (!spriteReady) return;
@@ -261,7 +289,8 @@ void render() {
     const bool bodyMilestone = form == Form::Adult || form == Form::Hobgoblin;
     tft.drawString(!current.className || bodyMilestone ? String(current.name) : classTitle, 182, 67, 2);
     tft.setTextColor(muted, bg);
-    if (bodyMilestone) tft.drawString(classTitle, 182, 86, 1);
+    const String level = "L" + String(static_cast<unsigned>(form) + 1);
+    tft.drawString(bodyMilestone ? classTitle + "  " + level : level, 182, 86, 1);
     tft.drawString("HEALTHY TIME", 182, 108, 1);
     tft.setTextColor(TFT_WHITE, bg);
     tft.drawString(duration(evolution.healthMs), 182, 121, 2);
@@ -279,16 +308,26 @@ void render() {
   }
   if (page == 0) {
     tft.setTextColor(muted, bg);
-    String caption = newClass ? String("[Class Obtained: ") + newClass + "]" :
+    String caption = fightReport.length() ? fightReport : newClass ? String("[Class Obtained: ") + newClass + "]" :
         !touchReady ? "Touch unavailable; restart device" : !online ?
         (hasData ? "Last update " + String((millis() - lastGood) / 1000) + "s ago" : "Waiting for server metrics...") : "Keeping watch over the lab.";
-    tft.drawCentreString(caption, 160, 180, 2);
+    tft.drawCentreString(caption, 160, 176, 2);
+    if (touchReady) {
+      const uint16_t buttonColor = fightReport.length() ? muted : accent;
+      tft.drawRoundRect(FIGHT_X, FIGHT_Y, FIGHT_WIDTH, FIGHT_HEIGHT, 5, buttonColor);
+      tft.setTextColor(buttonColor, bg);
+      tft.drawCentreString("Seek a Fight", FIGHT_X + FIGHT_WIDTH / 2, FIGHT_Y + 9, 2);
+    }
+    tft.setTextColor(accent, bg);
+    tft.drawString("< Swipe left for metrics", 10, 212, 1);
   } else {
     tft.setTextColor(muted, bg);
     tft.drawCentreString("Hold 2s to recalibrate touch", 160, 190, 1);
   }
-  tft.setTextColor(accent, bg);
-  tft.drawCentreString(page == 0 ? "< Swipe left for metrics" : "Swipe right for goblin >", 160, 215, 2);
+  if (page == 1) {
+    tft.setTextColor(accent, bg);
+    tft.drawCentreString("Swipe right for goblin >", 160, 215, 2);
+  }
   dirty = false;
 }
 
@@ -319,6 +358,10 @@ void handleTouch(const TouchStroke &stroke) {
     case Gesture::Left: page = 1; dirty = true; break;
     case Gesture::Right: page = 0; dirty = true; break;
     case Gesture::Hold: startCalibration(); break;
+    case Gesture::Tap:
+      if (page == 0 && hitsFightButton(mapTouch(calibration, stroke.first)) &&
+          hitsFightButton(mapTouch(calibration, stroke.last))) seekFight();
+      break;
     default: break;
   }
 }
@@ -438,6 +481,10 @@ void loop() {
     }
     if (newClass && millis() - classObtainedAt >= 5000) {
       newClass = nullptr;
+      dirty = true;
+    }
+    if (fightReport.length() && millis() - fightAt >= FIGHT_REPORT_MS) {
+      fightReport = "";
       dirty = true;
     }
     if (dirty) render();
