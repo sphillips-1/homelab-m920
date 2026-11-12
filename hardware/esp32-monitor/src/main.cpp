@@ -35,12 +35,14 @@ const char *newClass = nullptr;
 uint32_t classObtainedAt = 0;
 String fightReport;
 const Opponent *fightOpponent = nullptr;
+bool showDefeat = false;
 Form fightForm = Form::Baby;
 unsigned fightOpponentRank = 0;
 uint32_t fightAt = 0;
 uint32_t lastBattleFrame = 0;
 constexpr int FIGHT_X = 175, FIGHT_Y = 198, FIGHT_WIDTH = 135, FIGHT_HEIGHT = 34;
 constexpr uint32_t FIGHT_ANIMATION_MS = 3600;
+constexpr uint32_t DEFEAT_SCREEN_MS = 2000;
 constexpr uint32_t FIGHT_REPORT_MS = 5000;
 Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
@@ -150,6 +152,7 @@ void seekFight() {
   fightOpponentRank = foeRank;
   fightOpponent = &OPPONENTS[foeRank][esp_random() % 2];
   const FightOutcome outcome = fightOutcome(rank, foeRank, esp_random() % 100);
+  showDefeat = outcome == FightOutcome::Reborn;
   if (outcome != FightOutcome::Won) {
     evolution = Evolution(bankAfterFight(evolution.healthMs, rank, outcome));
     saveEvolution();
@@ -165,7 +168,7 @@ void seekFight() {
 constexpr bool hitsFightButton(TouchPoint p) {
   return p.x >= FIGHT_X && p.x < FIGHT_X + FIGHT_WIDTH && p.y >= FIGHT_Y && p.y < FIGHT_Y + FIGHT_HEIGHT;
 }
-void drawPet(Form form, int lunge = 0) {
+void drawPet(Form form, int offsetX = 0, bool defeated = false) {
   if (!spriteReady) return;
   pet.fillSprite(bg);
   const bool small = form < Form::Adult;
@@ -232,9 +235,19 @@ void drawPet(Form form, int lunge = 0) {
     }
   }
   bool blink = (millis() / 500) % 9 == 0;
-  pet.fillRect(56, y + 15, 14, blink ? 3 : 10, TFT_BLACK);
-  pet.fillRect(90, y + 15, 14, blink ? 3 : 10, TFT_BLACK);
-  if (health.mood == Mood::Critical || health.mood == Mood::Warning) {
+  for (int eye = 56; eye <= 90; eye += 34) {
+    if (defeated) {
+      for (int stroke = 0; stroke < 3; ++stroke) {
+        pet.drawLine(eye, y + 14 + stroke, eye + 13, y + 24 + stroke, TFT_BLACK);
+        pet.drawLine(eye, y + 24 + stroke, eye + 13, y + 14 + stroke, TFT_BLACK);
+      }
+    } else {
+      pet.fillRect(eye, y + 15, 14, blink ? 3 : 10, TFT_BLACK);
+    }
+  }
+  if (defeated) {
+    pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
+  } else if (health.mood == Mood::Critical || health.mood == Mood::Warning) {
     pet.drawLine(55, y + 8, 70, y + 12, TFT_BLACK);
     pet.drawLine(90, y + 12, 105, y + 8, TFT_BLACK);
     pet.drawLine(70, y + 34, 80, y + 29, TFT_BLACK);
@@ -250,7 +263,7 @@ void drawPet(Form form, int lunge = 0) {
     pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
     pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
   }
-  pet.pushSprite(8 + lunge, 61);
+  pet.pushSprite(8 + offsetX, 61);
 }
 
 void drawBattle(uint32_t elapsed) {
@@ -330,6 +343,16 @@ void render() {
     drawBattle(millis() - fightAt);
     tft.setTextColor(TFT_WHITE, bg);
     tft.drawCentreString(String("vs. ") + fightOpponent->name + "  L" + String(fightOpponentRank + 1), 160, 181, 2);
+    dirty = false;
+    return;
+  }
+  if (showDefeat) {
+    drawPet(fightForm, 72, true);
+    tft.setTextColor(TFT_RED, bg);
+    tft.setTextSize(2);
+    if (!spriteReady) tft.drawCentreString("( X _ X )", 160, 107, 2);
+    tft.drawCentreString("DEFEATED", 160, 179, 2);
+    tft.setTextSize(1);
     dirty = false;
     return;
   }
@@ -421,7 +444,7 @@ void handleTouch(const TouchStroke &stroke) {
     dirty = true;
     return;
   }
-  if (!calibrated || fightOpponent) return;
+  if (!calibrated || fightOpponent || showDefeat) return;
   switch (classifyGesture(calibration, stroke)) {
     case Gesture::Left: page = 1; dirty = true; break;
     case Gesture::Right: page = 0; dirty = true; break;
@@ -554,6 +577,16 @@ void loop() {
         if (dirty) render();
         else drawBattle(elapsed);
         lastBattleFrame = now;
+      }
+      delay(10);
+      return;
+    }
+    if (showDefeat) {
+      if (now - fightAt >= DEFEAT_SCREEN_MS) {
+        showDefeat = false;
+        render();
+      } else if (dirty) {
+        render();
       }
       delay(10);
       return;
