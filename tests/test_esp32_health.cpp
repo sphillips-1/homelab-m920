@@ -46,10 +46,23 @@ constexpr bool thresholds() {
 }
 static_assert(thresholds(), "Health threshold or alert precedence regression");
 
-static_assert(formFor(ADULT_AT_MS - 1) == Form::Baby, "Baby until one healthy day");
-static_assert(formFor(ADULT_AT_MS) == Form::Adult, "Adult at one healthy day");
-static_assert(formFor(WARRIOR_AT_MS - 1) == Form::Adult, "Adult until seven healthy days");
-static_assert(formFor(WARRIOR_AT_MS) == Form::Warrior, "Warrior at seven healthy days");
+constexpr bool formThresholds() {
+  constexpr uint32_t expected[] = {0, 8 * HEALTHY_HOUR_MS, HEALTHY_DAY_MS, 3 * HEALTHY_DAY_MS,
+      7 * HEALTHY_DAY_MS, 10 * HEALTHY_DAY_MS, 21 * HEALTHY_DAY_MS, 28 * HEALTHY_DAY_MS};
+  if (sizeof(expected) / sizeof(expected[0]) != FORM_COUNT) return false;
+  for (unsigned i = 0; i < FORM_COUNT; ++i) {
+    if (formFor(expected[i]) != static_cast<Form>(i)) return false;
+    if (i && formFor(applyHealthDelta(expected[i], -1)) != static_cast<Form>(i - 1)) return false;
+  }
+  return true;
+}
+static_assert(formThresholds(), "Every stage uses the same boundary in both directions");
+static_assert(MAX_HEALTH_MS == 35 * HEALTHY_DAY_MS, "Final form has a week of buffer");
+static_assert(formFor(Evolution(14 * HEALTHY_DAY_MS).healthMs) == Form::Chieftain, "Keep existing banks");
+static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Warning) == HEALTHY_DAY_MS + 1, "Warning drop estimate");
+static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Critical) == 6 * HEALTHY_HOUR_MS + 1, "Critical drop estimate");
+static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Offline) == 0, "No offline countdown");
+static_assert(timeToDrop(0, Mood::Critical) == 0, "Baby cannot drop");
 static_assert(healthDelta(Mood::Healthy, Mood::Busy, 5000) == 5000, "Busy is healthy work");
 static_assert(healthDelta(Mood::Healthy, Mood::Warning, 5000) == -5000, "Warnings drain 1x");
 static_assert(healthDelta(Mood::Critical, Mood::Healthy, 5000) == -20000, "Critical recovery drains 4x");
@@ -59,8 +72,6 @@ static_assert(healthDelta(Mood::Offline, Mood::Healthy, 5000) == 0, "No credit f
 static_assert(healthDelta(Mood::Healthy, Mood::Healthy, 20001) == 0, "Long gaps do not accrue");
 static_assert(applyHealthDelta(0, -20000) == 0, "No unsigned underflow");
 static_assert(applyHealthDelta(MAX_HEALTH_MS - 1, 5000) == MAX_HEALTH_MS, "Cap healthy-time bank");
-static_assert(formFor(applyHealthDelta(ADULT_AT_MS, -5000)) == Form::Baby, "Adult can devolve");
-static_assert(formFor(applyHealthDelta(WARRIOR_AT_MS, -20000)) == Form::Adult, "Warrior can devolve");
 
 constexpr bool evolutionTimeline() {
   Evolution pet;
@@ -80,11 +91,11 @@ constexpr bool evolutionTimeline() {
   pet = pet.observed(Mood::Critical, 35100, 1035);
   if (!(pet.healthMs == 0)) return false;
 
-  pet = Evolution(WARRIOR_AT_MS + 5000);
+  pet = Evolution(7 * HEALTHY_DAY_MS + 5000);
   pet = pet.paused();
   pet = pet.observed(Mood::Warning, 40100, 1040);
   pet = pet.observed(Mood::Warning, 50100, 1050);
-  if (!(formFor(pet.healthMs) == Form::Adult)) return false;
+  if (!(formFor(pet.healthMs) == Form::Tactician)) return false;
   pet = Evolution(0xFFFFFFFFU);
   if (!(pet.healthMs == MAX_HEALTH_MS)) return false;
 

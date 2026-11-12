@@ -29,6 +29,8 @@ TouchPoint calibrationRaw[3];
 const char *calibrationHint = "Tap the target, then lift your finger";
 Readings readings;
 Evolution evolution;
+const char *newClass = nullptr;
+uint32_t classObtainedAt = 0;
 Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
 uint32_t lastPoll = 0, lastGood = 0, pressed = 0, lastFrame = 0;
@@ -94,10 +96,6 @@ void renderCalibration() {
   dirty = false;
 }
 
-const char *stage() {
-  return formFor(evolution.healthMs) == Form::Warrior ? "Hobgoblin" :
-      formFor(evolution.healthMs) == Form::Adult ? "Adult goblin" : "Baby goblin";
-}
 const char *healthLabel() {
   switch (health.mood) {
     case Mood::Healthy: return "HEALTHY";
@@ -136,42 +134,68 @@ void drawPet() {
   if (!spriteReady) return;
   pet.fillSprite(bg);
   Form form = formFor(evolution.healthMs);
-  bool warrior = form == Form::Warrior, baby = form == Form::Baby;
-  int y = (baby ? 32 : 19) + ((millis() / 500) % 2 ? 2 : 0);
-  uint16_t skin = warrior ? TFT_RED : TFT_GREEN;
-  uint16_t cloth = warrior ? 0x3186 : baby ? 0xE6FA : 0x92A8;
-  int left = baby ? 48 : 52, width = baby ? 64 : 56;
-  int headHeight = baby ? 42 : 38;
+  const bool small = form < Form::Adult;
+  const bool hob = form >= Form::Hobgoblin;
+  int y = (small ? 32 : hob ? 17 : 22) + ((millis() / 500) % 2 ? 2 : 0);
+  uint16_t skin = hob ? TFT_RED : TFT_GREEN;
+  uint16_t cloth = hob ? 0x3186 : small ? 0xE6FA : 0x92A8;
+  int width = small ? 64 : hob ? 64 : 56;
+  int left = 80 - width / 2;
+  int headHeight = small ? 42 : 38;
   pet.fillEllipse(80, 99, 46, 5, 0x18C3);
   pet.fillTriangle(24, y + 5, left + 9, y + 14, left, y + 31, skin);
   pet.fillTriangle(136, y + 5, 151 - left, y + 14, 160 - left, y + 31, skin);
   pet.fillRect(left, y, width, headHeight, skin);
   pet.fillRect(left - 6, y + 10, width + 12, 23, skin);
-  pet.fillRect(56, y + headHeight, 48, baby ? 15 : 33, cloth);
-  pet.fillRect(49, y + (baby ? 57 : 71), 22, 7, skin);
-  pet.fillRect(89, y + (baby ? 57 : 71), 22, 7, skin);
-  if (!baby) {
+  pet.fillRect(56, y + headHeight, 48, small ? 15 : 33, cloth);
+  pet.fillRect(49, y + (small ? 57 : 71), 22, 7, skin);
+  pet.fillRect(89, y + (small ? 57 : 71), 22, 7, skin);
+  if (!small) {
     pet.fillRect(45, y + 42, 11, 23, skin);
     pet.fillRect(104, y + 42, 11, 23, skin);
-    pet.fillRect(54, y + 37, 52, 6, warrior ? 0xBDF7 : TFT_ORANGE);
+    pet.fillRect(54, y + 37, 52, 6, hob ? 0xBDF7 : TFT_ORANGE);
     pet.fillRect(56, y + 61, 48, 5, 0x6204);
     pet.fillRect(76, y + 60, 8, 7, TFT_YELLOW);
   }
-  if (warrior) {
-    // Steel helmet, pauldrons, sword and shield distinguish the final form.
-    pet.fillRect(51, y - 5, 58, 10, 0xBDF7);
+  if (hob) {
+    const uint16_t armor = form == Form::GoblinLord ? 0x3ACB : 0xBDF7;
+    pet.fillRect(left - 1, y - 5, width + 2, 10, armor);
     pet.fillRect(75, y - 12, 10, 9, TFT_RED);
-    pet.fillRect(45, y + 39, 16, 9, 0xBDF7);
-    pet.fillRect(99, y + 39, 16, 9, 0xBDF7);
-    pet.fillRect(126, y + 17, 5, 44, 0xDEFB);
-    pet.fillTriangle(126, y + 17, 130, y + 17, 128, y + 9, TFT_WHITE);
-    pet.fillRect(121, y + 60, 15, 4, TFT_YELLOW);
-    pet.fillRect(126, y + 64, 5, 11, 0x6204);
-    pet.fillRect(23, y + 43, 24, 24, 0x738E);
-    pet.fillTriangle(23, y + 67, 47, y + 67, 35, y + 79, 0x738E);
-    pet.fillRect(33, y + 47, 4, 23, TFT_RED);
-  } else if (baby) {
+    pet.fillRect(43, y + 39, 18, 9, armor);
+    pet.fillRect(99, y + 39, 18, 9, armor);
+  } else if (small) {
     pet.fillRect(71, y - 4, 6, 7, 0x4C63);
+  }
+  if (form == Form::Scavenger || form == Form::Adult) {
+    // Patchwork satchel and the first scavenged tool.
+    pet.drawLine(62, y + 39, 101, y + 54, 0x6204);
+    pet.fillRoundRect(97, y + 42, 21, 16, 3, 0xA344);
+    pet.fillRect(103, y + 45, 8, 5, TFT_ORANGE);
+    pet.drawLine(114, y + 48, 124, y + 36, 0xBDF7);
+    pet.fillCircle(124, y + 35, 3, 0xBDF7);
+  } else if (form == Form::Tactician || form == Form::Hobgoblin) {
+    // A folded map and a crossbow carry over when the Tactician grows into a Hob.
+    pet.fillRect(24, y + 47, 23, 18, 0xE6D0);
+    pet.drawLine(31, y + 49, 31, y + 62, 0xA344);
+    pet.drawLine(39, y + 49, 39, y + 62, 0xA344);
+    pet.fillRect(123, y + 42, 5, 28, 0xA344);
+    pet.drawLine(108, y + 52, 125, y + 43, TFT_YELLOW);
+    pet.drawLine(125, y + 43, 143, y + 52, TFT_YELLOW);
+    pet.drawFastHLine(108, y + 52, 36, 0xDEFB);
+  } else if (form >= Form::Chieftain) {
+    pet.fillRect(124, 6, 4, 84, 0xA344);
+    pet.fillTriangle(128, 8, 156, 8, 128, 27, TFT_RED);
+    if (form >= Form::GreatChieftain) {
+      pet.fillTriangle(128, 24, 152, 24, 128, 41, TFT_GOLD);
+      pet.fillTriangle(128, 39, 148, 39, 128, 54, TFT_CYAN);
+      pet.fillTriangle(43, y + 48, 60, y + 43, 41, y + 73, 0x3ACB);
+      pet.fillTriangle(117, y + 48, 100, y + 43, 119, y + 73, 0x3ACB);
+    }
+    if (form == Form::GoblinLord) {
+      const int flame = 4 + (millis() / 500) % 2;
+      pet.fillTriangle(72, y + 58, 88, y + 58, 80, y + 43 - flame, TFT_GREEN);
+      pet.fillCircle(80, y + 54, 3, TFT_YELLOW);
+    }
   }
   bool blink = (millis() / 500) % 9 == 0;
   pet.fillRect(56, y + 15, 14, blink ? 3 : 10, TFT_BLACK);
@@ -188,7 +212,7 @@ void drawPet() {
     pet.fillRect(72, y + 34, 16, 4, TFT_BLACK);
     pet.fillRect(70, y + 30, 4, 5, TFT_WHITE);
   }
-  if (warrior) {
+  if (hob) {
     pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
     pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
   }
@@ -201,6 +225,9 @@ String duration(uint32_t ms) {
   uint32_t hours = ms / 3600000;
   return hours >= 24 ? String(hours / 24) + "d " + String(hours % 24) + "h" :
       String(hours) + "h " + String((ms / 60000) % 60) + "m";
+}
+String countdown(uint32_t ms) {
+  return ms < 60000 ? String((ms + 999) / 1000) + "s" : duration(ms);
 }
 void render() {
   tft.fillScreen(bg);
@@ -228,23 +255,32 @@ void render() {
       tft.drawString("( ^ v ^ )", 30, 105, 2);
     }
     tft.setTextColor(TFT_WHITE, bg);
-    tft.drawString(stage(), 182, 67, 2);
+    const Form form = formFor(evolution.healthMs);
+    const auto &current = milestone(form);
+    const String classTitle = current.className ? String("[") + current.className + "]" : "";
+    const bool bodyMilestone = form == Form::Adult || form == Form::Hobgoblin;
+    tft.drawString(!current.className || bodyMilestone ? String(current.name) : classTitle, 182, 67, 2);
     tft.setTextColor(muted, bg);
-    Form form = formFor(evolution.healthMs);
-    tft.drawString(form == Form::Warrior ? "Red warrior" : form == Form::Adult ? "Green adult" : "Green baby", 182, 86, 1);
-    tft.setTextColor(muted, bg);
+    if (bodyMilestone) tft.drawString(classTitle, 182, 86, 1);
     tft.drawString("HEALTHY TIME", 182, 108, 1);
     tft.setTextColor(TFT_WHITE, bg);
     tft.drawString(duration(evolution.healthMs), 182, 121, 2);
-    String next = form == Form::Baby ? "Adult in " + duration(ADULT_AT_MS - evolution.healthMs) :
-        form == Form::Adult ? "Warrior " + duration(WARRIOR_AT_MS - evolution.healthMs) : "Final form";
     tft.setTextColor(muted, bg);
-    tft.drawString(next, 182, 149, 1);
+    const uint32_t dropMs = timeToDrop(evolution.healthMs, health.mood);
+    if (dropMs) {
+      tft.setTextColor(healthColor(), bg);
+      tft.drawString("Drop in " + countdown(dropMs), 182, 146, 1);
+    } else if (form != Form::GoblinLord) {
+      const auto &next = milestone(static_cast<Form>(static_cast<unsigned>(form) + 1));
+      tft.drawString(String("Next: ") + next.name, 182, 146, 1);
+      tft.drawString(countdown(next.thresholdMs - evolution.healthMs), 182, 157, 1);
+    }
     tft.setTextColor(TFT_WHITE, bg);
   }
   if (page == 0) {
     tft.setTextColor(muted, bg);
-    String caption = !touchReady ? "Touch unavailable; restart device" : !online ?
+    String caption = newClass ? String("[Class Obtained: ") + newClass + "]" :
+        !touchReady ? "Touch unavailable; restart device" : !online ?
         (hasData ? "Last update " + String((millis() - lastGood) / 1000) + "s ago" : "Waiting for server metrics...") : "Keeping watch over the lab.";
     tft.drawCentreString(caption, 160, 180, 2);
   } else {
@@ -327,7 +363,12 @@ void poll() {
   if (WiFi.status() != WL_CONNECTED) health = {Mood::Offline, "Wi-Fi disconnected"};
   Form oldForm = formFor(evolution.healthMs);
   evolution = evolution.observed(health.mood, millis(), sampleTimestamp);
-  if (formFor(evolution.healthMs) != oldForm) saveEvolution();
+  const Form form = formFor(evolution.healthMs);
+  if (form != oldForm) {
+    saveEvolution();
+    newClass = form > oldForm && form != Form::Adult && form != Form::Hobgoblin ? milestone(form).className : nullptr;
+    classObtainedAt = millis();
+  }
   dirty = true;
 }
 void setup() {
@@ -394,6 +435,10 @@ void loop() {
     // Avoid blocking requests during a button hold.
     if (!pressed && !touchDown && (lastPoll == 0 || now - lastPoll >= 5000)) {
       poll(); lastPoll = millis();
+    }
+    if (newClass && millis() - classObtainedAt >= 5000) {
+      newClass = nullptr;
+      dirty = true;
     }
     if (dirty) render();
     else if (page == 0 && now - lastFrame >= 500) drawPet();

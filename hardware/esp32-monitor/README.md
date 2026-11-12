@@ -7,7 +7,7 @@ ESP32-D0WD-V3 revision 3.1, 4 MB flash. Uses the ST7789 panel profile at
 flash alone does not verify panel compatibility. Confirm the screen visually.
 This panel uses `TFT_INVERSION_OFF`: enabling inversion made the green goblin
 appear pink on the owner's display. Keep inversion disabled for this board.
-The panel uses BGR channel order. Set `TFT_RGB_ORDER=TFT_BGR` so the warrior's
+The panel uses BGR channel order. Set `TFT_RGB_ORDER=TFT_BGR` so the hobgoblin's
 red skin and the red Critical indicator render correctly.
 
 ## Setup
@@ -44,17 +44,28 @@ follow homelab health.
 
 ### Health-based evolution
 
-| Accumulated health time | Form |
-| --- | --- |
-| Less than 1 day | Green baby goblin: big head, small body and diaper |
-| 1 day to less than 7 days | Green adult goblin: taller body, tunic and scarf |
-| 7 days or more | Red warrior hobgoblin: helmet, armor, tusks, sword and shield |
+The leadership path is inspired by Rags from *The Wandering Inn*. The adult
+and hobgoblin milestones change the pet's appearance while retaining its class.
+
+| Banked health time | Form | Class |
+| --- | --- | --- |
+| 0 | Green baby goblin | |
+| 8 hours | Small goblin with a satchel and spoon | `[Scavenger]` |
+| 1 day | Green adult goblin | `[Scavenger]` |
+| 3 days | Green goblin with a map and crossbow | `[Tactician]` |
+| 7 days | Red hobgoblin with armor, map and crossbow | `[Tactician]` |
+| 10 days | Hobgoblin with a tribal banner | `[Chieftain]` |
+| 21 days | Hobgoblin with a wyvern-scale mantle and several pennants | `[Great Chieftain]` |
+| 28 days | Hobgoblin with wyvern armor and a green chest flame | `[Goblin Lord]` |
 
 Healthy and Busy observations earn one second of health time per observed
 second. Warning conditions drain one second per second; Critical conditions
 drain four. Crossing the same thresholds downward devolves the pet. The bank
-is capped at 14 days, allowing a mature warrior to build a week's buffer.
-The current bank and time to the next form appear beside the pet.
+is capped at 35 days, giving the Goblin Lord a week's buffer. The display shows
+the current bank and time to the next form, or the estimated time to drop at the
+current alert severity. Earning a new class briefly displays a class announcement.
+Saved banks map directly onto the new thresholds, so an existing 14-day bank
+starts at `[Chieftain]`.
 
 Unknown, Offline, Wi-Fi setup, repeated sample timestamps and observation gaps
 over 20 seconds pause progress. The first fresh observation after a pause only
@@ -67,7 +78,7 @@ updates. Old feed/play points and retired care meters are not used.
 Health time persists in the existing ESP32 NVS key every five minutes and
 immediately on evolution/devolution. A sudden power loss can roll
 back up to five minutes of progress or decay. Colors describe the creature's
-form; an adult or warrior keeps its skin color during Unknown/Offline status,
+form; a goblin keeps its skin color during Unknown/Offline status,
 with the health label conveying connection and server status separately.
 
 Expressions reflect homelab health. No pet state is

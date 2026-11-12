@@ -2,22 +2,39 @@
 #include <stdint.h>
 #include "health.h"
 
-constexpr uint32_t HEALTHY_DAY_MS = 24UL * 60 * 60 * 1000;
-constexpr uint32_t ADULT_AT_MS = HEALTHY_DAY_MS;
-constexpr uint32_t WARRIOR_AT_MS = 7UL * HEALTHY_DAY_MS;
-// A mature warrior can bank a further week to weather brief incidents.
-constexpr uint32_t MAX_HEALTH_MS = 14UL * HEALTHY_DAY_MS;
+constexpr uint32_t HEALTHY_HOUR_MS = 60UL * 60 * 1000;
+constexpr uint32_t HEALTHY_DAY_MS = 24UL * HEALTHY_HOUR_MS;
+constexpr uint32_t MAX_HEALTH_MS = 35UL * HEALTHY_DAY_MS;
 constexpr uint32_t MAX_OBSERVATION_GAP_MS = 20000;
-enum class Form { Baby, Adult, Warrior };
-constexpr Form formFor(uint32_t healthMs) {
-  return healthMs >= WARRIOR_AT_MS ? Form::Warrior :
-      healthMs >= ADULT_AT_MS ? Form::Adult : Form::Baby;
+enum class Form { Baby, Scavenger, Adult, Tactician, Hobgoblin, Chieftain, GreatChieftain, GoblinLord, Count };
+struct Milestone { uint32_t thresholdMs; const char *name; const char *className; };
+constexpr Milestone MILESTONES[] = {
+    {0, "Baby Goblin", nullptr},
+    {8UL * HEALTHY_HOUR_MS, "Scavenger", "Scavenger"},
+    {HEALTHY_DAY_MS, "Adult Goblin", "Scavenger"},
+    {3UL * HEALTHY_DAY_MS, "Tactician", "Tactician"},
+    {7UL * HEALTHY_DAY_MS, "Red Hobgoblin", "Tactician"},
+    {10UL * HEALTHY_DAY_MS, "Chieftain", "Chieftain"},
+    {21UL * HEALTHY_DAY_MS, "Great Chieftain", "Great Chieftain"},
+    {28UL * HEALTHY_DAY_MS, "Goblin Lord", "Goblin Lord"},
+};
+constexpr unsigned FORM_COUNT = sizeof(MILESTONES) / sizeof(MILESTONES[0]);
+static_assert(FORM_COUNT == static_cast<unsigned>(Form::Count), "Each form needs a milestone");
+constexpr const Milestone &milestone(Form form) { return MILESTONES[static_cast<unsigned>(form)]; }
+constexpr Form formFor(uint32_t healthMs, unsigned stage = FORM_COUNT - 1) {
+  return healthMs >= MILESTONES[stage].thresholdMs ? static_cast<Form>(stage) :
+      formFor(healthMs, stage - 1);
 }
 constexpr bool knownHealth(Mood mood) {
   return mood != Mood::Unknown && mood != Mood::Offline;
 }
 constexpr unsigned int decayRate(Mood mood) {
   return mood == Mood::Critical ? 4 : mood == Mood::Warning ? 1 : 0;
+}
+// A form changes only once the bank falls strictly below its threshold.
+constexpr uint32_t timeToDrop(uint32_t healthMs, Mood mood) {
+  return formFor(healthMs) != Form::Baby && decayRate(mood) ?
+      (healthMs - milestone(formFor(healthMs)).thresholdMs) / decayRate(mood) + 1 : 0;
 }
 // Credit only intervals bracketed by fresh, known observations. An alert at
 // either end uses the worse severity; transitions never award healthy time.
