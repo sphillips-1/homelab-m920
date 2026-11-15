@@ -12,6 +12,8 @@ red skin and the red Critical indicator render correctly.
 
 ## Waveshare ESP32-S3-Touch-LCD-1.69
 
+This panel uses BGR channel order. Keep `TFT_RGB_ORDER=TFT_BGR` so red and blue render correctly.
+
 The Waveshare target runs Shelf Goblin offline in portrait and landscape. The onboard
 accelerometer rotates the display and touch together when the board settles
 in a new orientation. The current orientation is retained when laid flat.
