@@ -3,7 +3,8 @@ name: ESP32 firmware
 on:
   push:
     paths:
-      - hardware/esp32-monitor/**
+      - hardware/esp32-audiobook/**
+      - hardware/esp32-monitor/deploy/**
       - tests/test_esp32_health.cpp
       - tests/test_esp32_touch.cpp
       - tests/test_esp32_deployment.py
@@ -12,7 +13,8 @@ on:
       - .github/workflows/esp32-firmware.yml
   pull_request:
     paths:
-      - hardware/esp32-monitor/**
+      - hardware/esp32-audiobook/**
+      - hardware/esp32-monitor/deploy/**
       - tests/test_esp32_health.cpp
       - tests/test_esp32_touch.cpp
       - tests/test_esp32_deployment.py
@@ -48,17 +50,17 @@ jobs:
       - name: Test artifact integrity, board identity and rollback
         run: python -B tests/test_esp32_deployment.py
       - name: Build display firmware
-        run: pio run -d hardware/esp32-monitor
+        run: pio run -d hardware/esp32-audiobook
       - name: Package flash images for this commit
         run: |
           python scripts/package-esp32-firmware.py \
-            --build hardware/esp32-monitor/.pio/build/cyd \
+            --build hardware/esp32-audiobook/.pio/build/cyd \
             --boot-app "$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" \
             --output firmware-package --sha "$GITHUB_SHA"
       - name: Save firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shelf-goblin-firmware-${{ github.sha }}
+          name: cyd-audiobook-firmware-${{ github.sha }}
           path: firmware-package/
           if-no-files-found: error
 
@@ -80,12 +82,12 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          latest=$(git log -1 --format=%H origin/main -- hardware/esp32-monitor tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
+          latest=$(git log -1 --format=%H origin/main -- hardware/esp32-audiobook hardware/esp32-monitor/deploy tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
           git merge-base --is-ancestor "$latest" "$GITHUB_SHA" || { echo 'A newer firmware change is already on main; deploy the newer run.' >&2; exit 1; }
       - name: Download verified firmware from this run
         uses: actions/download-artifact@v4
         with:
-          name: shelf-goblin-firmware-${{ github.sha }}
+          name: cyd-audiobook-firmware-${{ github.sha }}
           path: firmware-package
       - name: Build isolated USB flasher
         run: docker build -f hardware/esp32-monitor/deploy/Dockerfile -t "homelab-esp32-flasher:$GITHUB_SHA" .

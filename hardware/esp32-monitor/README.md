@@ -12,15 +12,7 @@ red skin and the red Critical indicator render correctly.
 
 ## Setup
 
-Normal deployments run through **Actions → ESP32 firmware** on **main**, or
-automatically after firmware changes reach main. The existing homelab runner
-identifies the connected board, saves a private full-flash backup, flashes the
-checksummed CI artifact and checks startup. See [USB deployment and
-recovery](../../docs/esp32-deployment.md). Wi-Fi and pet progress are preserved.
-
-The following local commands are historical bench/recovery references. COM3
-was its Windows connection before it moved to the homelab; normal updates now
-use the Actions workflow.
+The USB-connected board now runs the [CYD audiobook player](../esp32-audiobook/README.md). The following commands are historical bench and recovery references for the Shelf Goblin firmware.
 
 1. Install the server feed described in [the service guide](../../services/esp32-monitor/README.md).
 2. Install PlatformIO 6.2.0, then run `pio run -d hardware/esp32-monitor`.

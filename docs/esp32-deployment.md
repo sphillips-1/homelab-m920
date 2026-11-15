@@ -1,6 +1,6 @@
 # ESP32 USB deployment through GitHub Actions
 
-The Shelf Goblin is powered and connected by USB to the M920Q. The existing
+The CYD audiobook player is powered and connected by USB to the M920Q. The pipeline builds the [Bluetooth audiobook firmware](../hardware/esp32-audiobook/README.md) for this board. The existing
 `self-hosted`, `linux`, `x64`, `m920` runner flashes it locally. GitHub-hosted
 runners build and test; no public serial bridge, OTA endpoint, SSH deployment,
 new runner, serial-group change or additional sudo rule is required.
