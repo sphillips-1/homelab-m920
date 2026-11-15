@@ -1,12 +1,19 @@
 #include <Arduino.h>
+#include <TFT_eSPI.h>
+#include <Preferences.h>
+#include <SPI.h>
+#ifdef SHELF_GOBLIN_WAVESHARE
+#include <atomic>
+#include "waveshare_touch.h"
+#include "waveshare_orientation.h"
+#include "experience.h"
+#else
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiManager.h>
-#include <TFT_eSPI.h>
 #include <ArduinoJson.h>
-#include <Preferences.h>
-#include <SPI.h>
 #include <XPT2046_Touchscreen.h>
+#endif
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <math.h>
@@ -18,21 +25,45 @@
 
 TFT_eSPI tft;
 TFT_eSprite pet(&tft);
-WiFiManager wifi;
 Preferences storage;
+#ifdef SHELF_GOBLIN_WAVESHARE
+constexpr int nativeWidth = waveshareOrientation::nativeWidth;
+constexpr int nativeHeight = waveshareOrientation::nativeHeight;
+int screenWidth = nativeWidth, screenHeight = nativeHeight, screenRotation = 0;
+bool orientationReady = false;
+std::atomic<int> pendingRotation{waveshareOrientation::noRotation};
+std::atomic<bool> touchInProgress{false};
+constexpr char calibrationKey[] = "touch-portrait";
+uint32_t experience = 0;
+uint32_t idleStartedAt = 0;
+Form currentForm() { return formForXp(experience); }
+#else
+constexpr int screenWidth = 320, screenHeight = 240, screenRotation = 1;
+constexpr char calibrationKey[] = "touch-v1";
+constexpr char setupNetwork[] = "M920-Display";
+WiFiManager wifi;
 SPIClass touchBus(VSPI);
 XPT2046_Touchscreen touchscreen(33, 36);
+#endif
+int screenCenter() { return screenWidth / 2; }
+bool portrait() { return screenHeight > screenWidth; }
+int petOffset() { return portrait() ? screenCenter() - 88 : 0; }
 QueueHandle_t touchEvents = nullptr;
+#ifndef SHELF_GOBLIN_WAVESHARE
 volatile bool touchDown = false;
+#endif
 bool touchReady = false, calibrationActive = false, calibrated = false;
 int calibrationStep = 0;
 TouchCalibration calibration{}, candidate{};
 TouchPoint calibrationRaw[3];
 const char *calibrationHint = "Tap the target, then lift your finger";
+#ifndef SHELF_GOBLIN_WAVESHARE
 Readings readings;
 Evolution evolution;
+Form currentForm() { return formFor(evolution.healthMs); }
 const char *newClass = nullptr;
 uint32_t classObtainedAt = 0;
+#endif
 String fightReport;
 const Opponent *fightOpponent = nullptr;
 bool showDefeat = false;
@@ -40,31 +71,52 @@ Form fightForm = Form::Baby;
 unsigned fightOpponentRank = 0;
 uint32_t fightAt = 0;
 uint32_t lastBattleFrame = 0;
-constexpr int FIGHT_X = 175, FIGHT_Y = 198, FIGHT_WIDTH = 135, FIGHT_HEIGHT = 34;
+struct FightButton {
+  int x, y, width, height;
+};
+FightButton fightButton() {
+#ifdef SHELF_GOBLIN_WAVESHARE
+  return {screenCenter() - 65, screenHeight - 41, 130, 28};
+#else
+  return {175, 198, 135, 34};
+#endif
+}
 constexpr uint32_t FIGHT_ANIMATION_MS = 3600;
 constexpr uint32_t DEFEAT_SCREEN_MS = 2000;
 constexpr uint32_t FIGHT_REPORT_MS = 5000;
-Health health{Mood::Offline, "Waiting for metrics"};
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
-uint32_t lastPoll = 0, lastGood = 0, pressed = 0, lastFrame = 0;
+uint32_t pressed = 0, lastFrame = 0;
+bool spriteReady = false, dirty = true, storeReady = false;
+#ifndef SHELF_GOBLIN_WAVESHARE
+Health health{Mood::Offline, "Waiting for metrics"};
+uint32_t lastPoll = 0, lastGood = 0;
 uint32_t lastSave = 0;
 unsigned long hostUptime = 0;
 bool hasData = false, online = false, longHandled = false;
-bool spriteReady = false, dirty = true, storeReady = false;
 int page = 0; // 0: goblin, 1: metrics.
+#endif
 
-// Only this task accesses the touch SPI bus. Queue gestures during HTTP requests
-// instead of dropping them while the UI thread is waiting for the server.
+// This task owns touch sampling and the Waveshare I2C bus after setup.
 void sampleTouch(void *) {
   uint32_t started = 0, sumX = 0, sumY = 0;
   unsigned int count = 0, released = 0;
   TouchPoint first{}, last{};
   int maxMotion = 0;
   for (;;) {
-    bool down = touchscreen.touched();
-    touchDown = down;
+    TouchPoint p{};
+#ifdef SHELF_GOBLIN_WAVESHARE
+    const bool down = touchReady && waveshareTouch::read(p);
+#else
+    const bool down = touchscreen.touched();
     if (down) {
-      TS_Point p = touchscreen.getPoint();
+      const TS_Point point = touchscreen.getPoint();
+      p = {point.x, point.y};
+    }
+#endif
+#ifndef SHELF_GOBLIN_WAVESHARE
+    touchDown = down;
+#endif
+    if (down) {
       if (!count) { started = millis(); first = {p.x, p.y}; maxMotion = 0; }
       last = {p.x, p.y};
       maxMotion = max(maxMotion, max(abs(p.x - first.x), abs(p.y - first.y)));
@@ -79,29 +131,52 @@ void sampleTouch(void *) {
       }
       count = 0; sumX = 0; sumY = 0;
     }
+#ifdef SHELF_GOBLIN_WAVESHARE
+    touchInProgress.store(count != 0);
+    if (orientationReady) pendingRotation.store(waveshareOrientation::sample(millis()));
+#endif
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
+#ifdef SHELF_GOBLIN_WAVESHARE
+void setScreenRotation(int rotation) {
+  if (rotation == screenRotation) return;
+  screenRotation = rotation;
+  tft.setRotation(rotation);
+  screenWidth = tft.width();
+  screenHeight = tft.height();
+  dirty = true;
+  Serial.printf("Orientation: %d (%dx%d)\n", screenRotation, screenWidth, screenHeight);
+}
+#endif
+
 void startCalibration() {
   if (!touchReady) return;
+#ifdef SHELF_GOBLIN_WAVESHARE
+  setScreenRotation(0);
+#endif
   calibrationActive = true; calibrationStep = 0;
   calibrationHint = "Tap the target, then lift your finger";
+#ifndef SHELF_GOBLIN_WAVESHARE
   evolution = evolution.paused();
+#endif
   xQueueReset(touchEvents);
   dirty = true;
 }
 
 void renderCalibration() {
-  static const TouchPoint targets[] = {{24, 24}, {296, 24}, {24, 216}, {296, 216}};
+  const TouchPoint targets[] = {{24, 24}, {screenWidth - 24, 24}, {24, screenHeight - 24}, {screenWidth - 24, screenHeight - 24}};
   tft.fillScreen(bg);
   tft.setTextColor(accent, bg);
-  tft.drawCentreString("TOUCH SETUP", 160, 70, 2);
+  tft.drawCentreString("TOUCH SETUP", screenCenter(), 70, 2);
   tft.setTextColor(TFT_WHITE, bg);
-  tft.drawCentreString("Target " + String(calibrationStep + 1) + " of 4", 160, 98, 2);
+  tft.drawCentreString("Target " + String(calibrationStep + 1) + " of 4", screenCenter(), 98, 2);
   tft.setTextColor(muted, bg);
-  tft.drawCentreString(calibrationHint, 160, 130, 1);
-  tft.drawCentreString("Use a firm tap or a blunt stylus", 160, 148, 1);
+  tft.drawCentreString(calibrationHint, screenCenter(), 130, 1);
+#ifndef SHELF_GOBLIN_WAVESHARE
+  tft.drawCentreString("Use a firm tap or a blunt stylus", screenCenter(), 148, 1);
+#endif
   TouchPoint target = targets[calibrationStep];
   tft.drawCircle(target.x, target.y, 12, accent);
   tft.drawFastHLine(target.x - 16, target.y, 33, TFT_WHITE);
@@ -109,6 +184,7 @@ void renderCalibration() {
   dirty = false;
 }
 
+#ifndef SHELF_GOBLIN_WAVESHARE
 const char *healthLabel() {
   switch (health.mood) {
     case Mood::Healthy: return "HEALTHY";
@@ -143,15 +219,43 @@ void saveEvolution() {
   }
   lastSave = millis();
 }
+#endif
+#ifdef SHELF_GOBLIN_WAVESHARE
+void saveXp(uint32_t updatedXp) {
+  if (updatedXp != experience) {
+    experience = updatedXp;
+    if (storeReady) storage.putUInt("xp-v1", experience);
+    dirty = true;
+  }
+}
+#endif
+
 void seekFight() {
   if (fightReport.length()) return;
-  fightForm = formFor(evolution.healthMs);
+  fightForm = currentForm();
   const unsigned rank = static_cast<unsigned>(fightForm);
   const unsigned first = firstOpponentRank(rank);
   const unsigned foeRank = first + esp_random() % (lastOpponentRank(rank) - first + 1);
   fightOpponentRank = foeRank;
   fightOpponent = &OPPONENTS[foeRank][esp_random() % 2];
-  const FightOutcome outcome = fightOutcome(rank, foeRank, esp_random() % 100);
+  const unsigned roll = esp_random() % 100;
+#ifdef SHELF_GOBLIN_WAVESHARE
+  const uint32_t amount = battleXp(rank, foeRank);
+  showDefeat = roll >= winChance(rank, foeRank);
+  if (showDefeat) {
+    const uint32_t remainingXp = removeXp(experience, amount);
+    const uint32_t lostXp = experience - remainingXp;
+    fightReport = lostXp ? "Defeat. -" + String(lostXp) + " XP" : "Defeat. 0 XP lost";
+    saveXp(remainingXp);
+  } else {
+    const uint32_t updatedXp = addXp(experience, amount);
+    const uint32_t earnedXp = updatedXp - experience;
+    fightReport = earnedXp ? "Victory! +" + String(earnedXp) + " XP" : "Victory! Max level";
+    saveXp(updatedXp);
+  }
+  if (currentForm() != fightForm) fightReport += showDefeat ? " | Level down" : " | Level up!";
+#else
+  const FightOutcome outcome = fightOutcome(rank, foeRank, roll);
   showDefeat = outcome == FightOutcome::Reborn;
   if (outcome != FightOutcome::Won) {
     evolution = Evolution(bankAfterFight(evolution.healthMs, rank, outcome));
@@ -161,12 +265,19 @@ void seekFight() {
   const char *result = outcome == FightOutcome::Reborn ? "Reborn as baby" :
       outcome == FightOutcome::Evolved ? "Won and evolved" : "Won";
   fightReport = String(fightOpponent->name) + " L" + String(foeRank + 1) + ": " + result;
+#endif
   fightAt = millis();
   dirty = true;
 }
 
-constexpr bool hitsFightButton(TouchPoint p) {
-  return p.x >= FIGHT_X && p.x < FIGHT_X + FIGHT_WIDTH && p.y >= FIGHT_Y && p.y < FIGHT_Y + FIGHT_HEIGHT;
+bool hitsFightButton(TouchPoint raw) {
+  TouchPoint point = mapTouch(calibration, raw);
+#ifdef SHELF_GOBLIN_WAVESHARE
+  point = waveshareOrientation::rotateTouch(point, screenRotation);
+#endif
+  const FightButton button = fightButton();
+  return point.x >= button.x && point.x < button.x + button.width &&
+      point.y >= button.y && point.y < button.y + button.height;
 }
 void drawPet(Form form, int offsetX = 0, bool defeated = false) {
   if (!spriteReady) return;
@@ -247,6 +358,7 @@ void drawPet(Form form, int offsetX = 0, bool defeated = false) {
   }
   if (defeated) {
     pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
+#ifndef SHELF_GOBLIN_WAVESHARE
   } else if (health.mood == Mood::Critical || health.mood == Mood::Warning) {
     pet.drawLine(55, y + 8, 70, y + 12, TFT_BLACK);
     pet.drawLine(90, y + 12, 105, y + 8, TFT_BLACK);
@@ -254,6 +366,7 @@ void drawPet(Form form, int offsetX = 0, bool defeated = false) {
     pet.drawLine(80, y + 29, 90, y + 34, TFT_BLACK);
   } else if (!online || health.mood == Mood::Unknown) {
     pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
+#endif
   } else {
     pet.fillRect(68, y + 30, 24, 4, TFT_BLACK);
     pet.fillRect(72, y + 34, 16, 4, TFT_BLACK);
@@ -270,6 +383,10 @@ void drawBattle(uint32_t elapsed) {
   if (!spriteReady) return;
   const bool clash = elapsed >= 800 && elapsed < 3000;
   const unsigned beat = (elapsed / 120) % 6;
+#ifdef SHELF_GOBLIN_WAVESHARE
+  // The goblin sprite repaints the left side, including its overlap with the opponent.
+  tft.fillRect(168, 61, screenWidth - 168, 110, bg);
+#endif
   drawPet(fightForm, clash && beat < 3 ? 12 : 0);
   pet.fillSprite(bg);
   const int x = clash && beat >= 3 ? 60 : 74;
@@ -318,8 +435,13 @@ void drawBattle(uint32_t elapsed) {
     pet.drawLine(3, 68, 24, 45, TFT_YELLOW);
     pet.drawFastHLine(0, 56, 27, TFT_WHITE);
   }
+#ifdef SHELF_GOBLIN_WAVESHARE
+  pet.pushSprite(screenWidth - 160, 61, bg);
+#else
   pet.pushSprite(160, 61);
+#endif
 }
+#ifndef SHELF_GOBLIN_WAVESHARE
 String metric(float value, const char *unit = "%") {
   return value < 0 ? "--" : String(value, 0) + unit;
 }
@@ -331,31 +453,65 @@ String duration(uint32_t ms) {
 String countdown(uint32_t ms) {
   return ms < 60000 ? String((ms + 999) / 1000) + "s" : duration(ms);
 }
+#endif
 void render() {
   tft.fillScreen(bg);
   tft.setTextColor(accent, bg);
   tft.drawString("SHELF GOBLIN", 10, 7, 2);
+#ifdef SHELF_GOBLIN_WAVESHARE
+  const Form form = currentForm();
+  const unsigned level = static_cast<unsigned>(fightOpponent || showDefeat ? fightForm : form) + 1;
+  tft.drawRightString("LEVEL " + String(level), screenWidth - 10, 7, 2);
+#else
   tft.setTextColor(healthColor(), bg);
-  tft.drawRightString(healthLabel(), 310, 7, 2);
-  tft.drawFastHLine(10, 30, 300, muted);
+  tft.drawRightString(healthLabel(), screenWidth - 10, 7, 2);
+#endif
+  tft.drawFastHLine(10, 30, screenWidth - 20, muted);
+#ifndef SHELF_GOBLIN_WAVESHARE
   tft.drawString(health.reason, 10, 36, 2);
+#endif
   if (fightOpponent) {
     drawBattle(millis() - fightAt);
     tft.setTextColor(TFT_WHITE, bg);
-    tft.drawCentreString(String("vs. ") + fightOpponent->name + "  L" + String(fightOpponentRank + 1), 160, 181, 2);
+    tft.drawCentreString(String("vs. ") + fightOpponent->name + "  L" + String(fightOpponentRank + 1), screenCenter(), 181, 2);
     dirty = false;
     return;
   }
   if (showDefeat) {
-    drawPet(fightForm, 72, true);
+    drawPet(fightForm, screenCenter() - 88, true);
     tft.setTextColor(TFT_RED, bg);
     tft.setTextSize(2);
-    if (!spriteReady) tft.drawCentreString("( X _ X )", 160, 107, 2);
-    tft.drawCentreString("DEFEATED", 160, 179, 2);
+    if (!spriteReady) tft.drawCentreString("( X _ X )", screenCenter(), 107, 2);
+    tft.drawCentreString("DEFEATED", screenCenter(), 179, 2);
     tft.setTextSize(1);
     dirty = false;
     return;
   }
+#ifdef SHELF_GOBLIN_WAVESHARE
+  drawPet(form, petOffset());
+  tft.setTextColor(TFT_WHITE, bg);
+  const bool tall = portrait();
+  const int detailsX = tall ? screenCenter() : 221;
+  if (!spriteReady) tft.drawCentreString("( ^ v ^ )", tall ? screenCenter() : 88, 105, 2);
+  const String name = milestone(form).name;
+  tft.drawCentreString(name, detailsX, tall ? 170 : 78, !tall && tft.textWidth(name, 2) > 110 ? 1 : 2);
+
+  const unsigned rank = static_cast<unsigned>(form);
+  const String progress = form == Form::GoblinLord ? "MAX LEVEL  |  " + String(experience) + " XP" :
+      String(experience) + " / " + String(XP_THRESHOLDS[rank + 1]) + " XP";
+  tft.setTextColor(accent, bg);
+  tft.drawCentreString(progress, detailsX, tall ? 192 : 106, 2);
+  tft.setTextColor(muted, bg);
+  if (fightReport.length()) tft.drawCentreString(fightReport, screenCenter(), screenHeight - 65, 2);
+  if (!touchReady) tft.drawCentreString("Touch unavailable", screenCenter(), screenHeight - 32, 2);
+  else {
+    const uint16_t buttonColor = fightReport.length() ? muted : accent;
+    const FightButton button = fightButton();
+    tft.drawRoundRect(button.x, button.y, button.width, button.height, 5, buttonColor);
+    tft.setTextColor(buttonColor, bg);
+    tft.drawCentreString("FIGHT!", screenCenter(), button.y + 6, 2);
+  }
+#else
   if (page == 1) {
     tft.setTextColor(TFT_WHITE, bg);
     tft.drawString("CPU " + metric(readings.cpu) + "   RAM " + metric(readings.ram), 10, 68, 2);
@@ -368,17 +524,18 @@ void render() {
     String up = online ? "Up " + String(hostUptime / 86400) + "d " + String((hostUptime / 3600) % 24) + "h" : "No live metrics";
     tft.drawString(up + "  Wi-Fi " + String(WiFi.RSSI()) + "dBm", 10, 160, 1);
   } else {
-    drawPet(formFor(evolution.healthMs));
+    drawPet(formFor(evolution.healthMs), petOffset());
     if (!spriteReady) {
       tft.setTextColor(accent, bg);
-      tft.drawString("( ^ v ^ )", 30, 105, 2);
+      tft.drawCentreString("( ^ v ^ )", 75, 105, 2);
     }
     tft.setTextColor(TFT_WHITE, bg);
     const Form form = formFor(evolution.healthMs);
     const auto &current = milestone(form);
     const String classTitle = current.className ? String("[") + current.className + "]" : "";
     const bool bodyMilestone = form == Form::Adult || form == Form::Hobgoblin;
-    tft.drawString(!current.className || bodyMilestone ? String(current.name) : classTitle, 182, 67, 2);
+    const String title = !current.className || bodyMilestone ? String(current.name) : classTitle;
+    tft.drawString(title, 182, 67, 2);
     tft.setTextColor(muted, bg);
     const String level = "L" + String(static_cast<unsigned>(form) + 1);
     tft.drawString(bodyMilestone ? classTitle + "  " + level : level, 182, 86, 1);
@@ -393,7 +550,8 @@ void render() {
     } else if (form != Form::GoblinLord) {
       const auto &next = milestone(static_cast<Form>(static_cast<unsigned>(form) + 1));
       tft.drawString(String("Next: ") + next.name, 182, 146, 1);
-      tft.drawString(countdown(next.thresholdMs - evolution.healthMs), 182, 157, 1);
+      const String remaining = countdown(next.thresholdMs - evolution.healthMs);
+      tft.drawString(remaining, 182, 157, 1);
     }
     tft.setTextColor(TFT_WHITE, bg);
   }
@@ -402,23 +560,26 @@ void render() {
     String caption = fightReport.length() ? fightReport : newClass ? String("[Class Obtained: ") + newClass + "]" :
         !touchReady ? "Touch unavailable; restart device" : !online ?
         (hasData ? "Last update " + String((millis() - lastGood) / 1000) + "s ago" : "Waiting for server metrics...") : "Keeping watch over the lab.";
-    tft.drawCentreString(caption, 160, 176, 2);
+    const int captionFont = tft.textWidth(caption, 2) <= screenWidth - 16 ? 2 : 1;
+    tft.drawCentreString(caption, screenCenter(), 176, captionFont);
     if (touchReady) {
       const uint16_t buttonColor = fightReport.length() ? muted : accent;
-      tft.drawRoundRect(FIGHT_X, FIGHT_Y, FIGHT_WIDTH, FIGHT_HEIGHT, 5, buttonColor);
+      const FightButton button = fightButton();
+      tft.drawRoundRect(button.x, button.y, button.width, button.height, 5, buttonColor);
       tft.setTextColor(buttonColor, bg);
-      tft.drawCentreString("Seek a Fight", FIGHT_X + FIGHT_WIDTH / 2, FIGHT_Y + 9, 2);
+      tft.drawCentreString("Seek a Fight", button.x + button.width / 2, button.y + 9, 2);
     }
     tft.setTextColor(accent, bg);
     tft.drawString("< Swipe left for metrics", 10, 212, 1);
   } else {
     tft.setTextColor(muted, bg);
-    tft.drawCentreString("Hold 2s to recalibrate touch", 160, 190, 1);
+    tft.drawCentreString("Hold 2s to recalibrate touch", screenCenter(), 190, 1);
   }
   if (page == 1) {
     tft.setTextColor(accent, bg);
-    tft.drawCentreString("Swipe right for goblin >", 160, 215, 2);
+    tft.drawCentreString("Swipe right for goblin >", screenCenter(), 215, 2);
   }
+#endif
   dirty = false;
 }
 
@@ -428,14 +589,14 @@ void handleTouch(const TouchStroke &stroke) {
     TouchPoint raw = stroke.average;
     if (calibrationStep < 3) {
       calibrationRaw[calibrationStep++] = raw;
-      if (calibrationStep == 3 && !calibrateTouch(calibrationRaw, candidate)) {
+      if (calibrationStep == 3 && !calibrateTouch(calibrationRaw, candidate, screenWidth, screenHeight)) {
         calibrationStep = 0;
         calibrationHint = "Targets too close; please try again";
       }
-    } else if (confirmsCalibration(candidate, raw)) {
+    } else if (confirmsCalibration(candidate, raw, screenWidth, screenHeight)) {
       calibration = candidate;
       calibrated = true; calibrationActive = false;
-      if (storeReady) storage.putBytes("touch-v1", &calibration, sizeof(calibration));
+      if (storeReady) storage.putBytes(calibrationKey, &calibration, sizeof(calibration));
       Serial.println("Touch: calibration completed");
     } else {
       calibrationStep = 0;
@@ -445,17 +606,27 @@ void handleTouch(const TouchStroke &stroke) {
     return;
   }
   if (!calibrated || fightOpponent || showDefeat) return;
-  switch (classifyGesture(calibration, stroke)) {
+#ifdef SHELF_GOBLIN_WAVESHARE
+  const Gesture gesture = classifyGesture(calibration, stroke, nativeWidth, nativeHeight);
+#else
+  const Gesture gesture = classifyGesture(calibration, stroke, screenWidth, screenHeight);
+#endif
+  switch (gesture) {
+#ifndef SHELF_GOBLIN_WAVESHARE
     case Gesture::Left: page = 1; dirty = true; break;
     case Gesture::Right: page = 0; dirty = true; break;
+#endif
     case Gesture::Hold: startCalibration(); break;
     case Gesture::Tap:
-      if (page == 0 && hitsFightButton(mapTouch(calibration, stroke.first)) &&
-          hitsFightButton(mapTouch(calibration, stroke.last))) seekFight();
+#ifndef SHELF_GOBLIN_WAVESHARE
+      if (page != 0) break;
+#endif
+      if (hitsFightButton(stroke.first) && hitsFightButton(stroke.last)) seekFight();
       break;
     default: break;
   }
 }
+#ifndef SHELF_GOBLIN_WAVESHARE
 float reading(JsonVariant value, float maximum) {
   if (!value.is<float>()) return -1;
   float number = value.as<float>();
@@ -505,107 +676,185 @@ void poll() {
   }
   dirty = true;
 }
+#endif
 void setup() {
   Serial.begin(115200);
   pinMode(0, INPUT_PULLUP);
-  tft.init(); tft.setRotation(1);
-  pinMode(21, OUTPUT); digitalWrite(21, HIGH);
+  tft.init(); tft.setRotation(screenRotation);
+  pinMode(TFT_BL, OUTPUT); digitalWrite(TFT_BL, TFT_BACKLIGHT_ON);
   pet.setColorDepth(16);
   spriteReady = pet.createSprite(160, 110) != nullptr;
   storeReady = storage.begin("shelf-goblin", false);
-  // Keep the existing evolution bank; retired care meters are no longer read.
+#ifdef SHELF_GOBLIN_WAVESHARE
+  experience = addXp(storeReady ? storage.getUInt("xp-v1", 0) : 0, 0);
+#else
   evolution = Evolution(storeReady ? storage.getUInt("health-v1", 0) : 0);
-  calibrated = storeReady && storage.getBytesLength("touch-v1") == sizeof(calibration) &&
-      storage.getBytes("touch-v1", &calibration, sizeof(calibration)) == sizeof(calibration) &&
+#endif
+  calibrated = storeReady && storage.getBytesLength(calibrationKey) == sizeof(calibration) &&
+      storage.getBytes(calibrationKey, &calibration, sizeof(calibration)) == sizeof(calibration) &&
       validCalibration(calibration);
+#ifdef SHELF_GOBLIN_WAVESHARE
+  touchReady = waveshareTouch::begin();
+  orientationReady = waveshareOrientation::begin();
+  Serial.printf("Orientation sensor: %s\n", orientationReady ? "ready" : "unavailable");
+#else
   touchBus.begin(25, 39, 32, 33);
   touchReady = touchscreen.begin(touchBus);
   touchscreen.setRotation(1);
+#endif
   touchEvents = xQueueCreate(8, sizeof(TouchStroke));
   touchReady = touchReady && touchEvents != nullptr;
+#ifdef SHELF_GOBLIN_WAVESHARE
+  if ((touchReady || orientationReady) &&
+      xTaskCreate(sampleTouch, "input", 3072, nullptr, 1, nullptr) != pdPASS) {
+    touchReady = orientationReady = false;
+  }
+#else
   if (touchReady) touchReady = xTaskCreate(sampleTouch, "touch", 3072, nullptr, 1, nullptr) == pdPASS;
+#endif
   if (!calibrated) startCalibration();
+#ifdef SHELF_GOBLIN_WAVESHARE
+  idleStartedAt = millis();
+#endif
+#ifndef SHELF_GOBLIN_WAVESHARE
   message("Starting Wi-Fi...", "Hold BOOT 5s to set up Wi-Fi");
   wifi.setConfigPortalBlocking(false);
   wifi.setDebugOutput(false);
   wifi.setAPCallback([](WiFiManager *) {
-    message("Wi-Fi setup: M920-Display", "Join it; open 192.168.4.1");
+    message(String("Wi-Fi setup: ") + setupNetwork, "Join it; open 192.168.4.1");
   });
-  wifi.autoConnect("M920-Display");
+  wifi.autoConnect(setupNetwork);
+#endif
+  Serial.printf("Shelf Goblin ready: display=%dx%d touch=%s\n",
+      tft.width(), tft.height(), touchReady ? "ready" : "unavailable");
 }
 void loop() {
+#ifndef SHELF_GOBLIN_WAVESHARE
   wifi.process();
+#else
+  constexpr bool portalActive = false;
+#endif
   uint32_t now = millis();
+#ifdef SHELF_GOBLIN_WAVESHARE
+  // Allow the deployment verifier to attach after USB re-enumeration.
+  static uint32_t lastBootSignal = 0;
+  if (now < 30000 && now - lastBootSignal >= 1000) {
+    lastBootSignal = now;
+    Serial.println("Shelf Goblin running");
+  }
+#endif
   if (digitalRead(0) == LOW) {
     if (!pressed) pressed = now;
+#ifndef SHELF_GOBLIN_WAVESHARE
     if (!longHandled && now - pressed >= 5000) {
       longHandled = true;
-      wifi.startConfigPortal("M920-Display");
+      wifi.startConfigPortal(setupNetwork);
     }
+#endif
   } else if (pressed) {
     uint32_t duration = now - pressed;
-    if (!longHandled && !wifi.getConfigPortalActive()) {
-      if (duration >= 1000) startCalibration();
-      else if (duration >= 40 && calibrationActive && calibrated) { calibrationActive = false; dirty = true; }
-    }
-    pressed = 0; longHandled = false;
+#ifndef SHELF_GOBLIN_WAVESHARE
+    if (longHandled || wifi.getConfigPortalActive()) duration = 0;
+#endif
+    if (duration >= 1000) startCalibration();
+    else if (duration >= 40 && calibrationActive && calibrated) { calibrationActive = false; dirty = true; }
+    pressed = 0;
+#ifndef SHELF_GOBLIN_WAVESHARE
+    longHandled = false;
+#endif
   }
-  now = millis();
+#ifndef SHELF_GOBLIN_WAVESHARE
+  const bool portalActive = wifi.getConfigPortalActive();
+#endif
   if (touchReady) {
     TouchStroke stroke;
     while (xQueueReceive(touchEvents, &stroke, 0) == pdTRUE) {
-      if (!wifi.getConfigPortalActive()) handleTouch(stroke);
+      if (!portalActive) handleTouch(stroke);
     }
   }
   now = millis();
-  if (now - lastSave >= 300000) saveEvolution();
-  if (!wifi.getConfigPortalActive()) {
-    if (calibrationActive) {
-      evolution = evolution.paused();
-      if (dirty) renderCalibration();
-      delay(10);
-      return;
-    }
-    // Keep network polling out of the animation so an HTTP timeout cannot delay the reveal.
-    if (fightOpponent) {
-      const uint32_t elapsed = now - fightAt;
-      if (elapsed >= FIGHT_ANIMATION_MS) {
-        fightOpponent = nullptr;
+#ifdef SHELF_GOBLIN_WAVESHARE
+  if (!calibrationActive && !fightOpponent && !showDefeat && !touchInProgress.load()) {
+    const int rotation = pendingRotation.load();
+    if (rotation != waveshareOrientation::noRotation) setScreenRotation(rotation);
+  }
+  if (pressed || calibrationActive || fightOpponent || showDefeat || fightReport.length()) {
+    idleStartedAt = now;
+  } else {
+    const uint32_t reward = idleXpFor(now - idleStartedAt);
+    if (reward) {
+      idleStartedAt += reward * IDLE_XP_INTERVAL_MS;
+      const Form previous = currentForm();
+      saveXp(addXp(experience, reward));
+      if (currentForm() != previous) {
+        fightReport = "Level up from idle XP!";
         fightAt = now;
-        render();
-      } else if (dirty || now - lastBattleFrame >= 80) {
-        if (dirty) render();
-        else drawBattle(elapsed);
-        lastBattleFrame = now;
       }
-      delay(10);
-      return;
     }
-    if (showDefeat) {
-      if (now - fightAt >= DEFEAT_SCREEN_MS) {
-        showDefeat = false;
-        render();
-      } else if (dirty) {
-        render();
-      }
-      delay(10);
-      return;
+  }
+#endif
+#ifndef SHELF_GOBLIN_WAVESHARE
+  if (now - lastSave >= 300000) saveEvolution();
+  if (portalActive) {
+    evolution = evolution.paused();
+    dirty = true;
+    delay(10);
+    return;
+  }
+#endif
+  if (calibrationActive) {
+#ifndef SHELF_GOBLIN_WAVESHARE
+    evolution = evolution.paused();
+#endif
+    if (dirty) renderCalibration();
+    delay(10);
+    return;
+  }
+  // Keep network polling out of the animation so an HTTP timeout cannot delay the reveal.
+  if (fightOpponent) {
+    const uint32_t elapsed = now - fightAt;
+    if (elapsed >= FIGHT_ANIMATION_MS) {
+      fightOpponent = nullptr;
+      fightAt = now;
+      render();
+    } else if (dirty || now - lastBattleFrame >= 80) {
+      if (dirty) render();
+      else drawBattle(elapsed);
+      lastBattleFrame = now;
     }
-    // Avoid blocking requests during a button hold.
-    if (!pressed && !touchDown && (lastPoll == 0 || now - lastPoll >= 5000)) {
-      poll(); lastPoll = millis();
+    delay(10);
+    return;
+  }
+  if (showDefeat) {
+    if (now - fightAt >= DEFEAT_SCREEN_MS) {
+      showDefeat = false;
+      render();
+    } else if (dirty) {
+      render();
     }
-    if (newClass && millis() - classObtainedAt >= 5000) {
-      newClass = nullptr;
-      dirty = true;
-    }
-    if (fightReport.length() && millis() - fightAt >= FIGHT_REPORT_MS) {
-      fightReport = "";
-      dirty = true;
-    }
-    if (dirty) render();
-    else if (page == 0 && now - lastFrame >= 500) drawPet(formFor(evolution.healthMs));
-    if (now - lastFrame >= 500) lastFrame = now;
-  } else { evolution = evolution.paused(); dirty = true; }
+    delay(10);
+    return;
+  }
+#ifndef SHELF_GOBLIN_WAVESHARE
+  // Avoid blocking requests during a button hold.
+  if (!pressed && !touchDown && (lastPoll == 0 || now - lastPoll >= 5000)) {
+    poll(); lastPoll = millis();
+  }
+  if (newClass && millis() - classObtainedAt >= 5000) {
+    newClass = nullptr;
+    dirty = true;
+  }
+#endif
+  if (fightReport.length() && millis() - fightAt >= FIGHT_REPORT_MS) {
+    fightReport = "";
+    dirty = true;
+  }
+  if (dirty) render();
+#ifdef SHELF_GOBLIN_WAVESHARE
+  else if (now - lastFrame >= 500) drawPet(currentForm(), petOffset());
+#else
+  else if (page == 0 && now - lastFrame >= 500) drawPet(currentForm(), petOffset());
+#endif
+  if (now - lastFrame >= 500) lastFrame = now;
   delay(10);
 }

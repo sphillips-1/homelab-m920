@@ -7,26 +7,29 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
 import time
 
-PARTS = (('bootloader.bin', 0x1000, 0x7000), ('partitions.bin', 0x8000, 0x1000),
-         ('boot_app0.bin', 0xE000, 0x2000), ('firmware.bin', 0x10000, 0x140000))
+from esp32_profiles import BOARDS
+
+PARTS = BOARDS['cyd'].parts
 
 
-def validate_artifact(directory, expected_sha):
+def validate_artifact(directory, expected_sha, target='cyd'):
+    board = BOARDS[target]
     manifest = json.loads((directory / 'manifest.json').read_text())
     if not re.fullmatch(r'[0-9a-f]{40}', expected_sha):
         raise ValueError('Invalid expected commit SHA')
     if (manifest.get('schema') != 1 or manifest.get('git_sha') != expected_sha or
-            manifest.get('chip') != 'esp32' or manifest.get('flash_size') != 0x400000):
+            manifest.get('chip') != board.chip or manifest.get('flash_size') != board.flash_size):
         raise ValueError('Artifact does not match this commit and board profile')
     images = manifest.get('images', [])
-    if not isinstance(images, list) or len(images) != len(PARTS):
+    if not isinstance(images, list) or len(images) != len(board.parts):
         raise ValueError('Expected exactly four flash images')
     flash_args = []
-    for image, (name, offset, limit) in zip(images, PARTS):
+    for image, (name, offset, limit) in zip(images, board.parts):
         if image.get('file') != name or image.get('offset') != offset:
             raise ValueError('Unexpected image or offset; refusing to touch device state')
         path = directory / name
@@ -40,59 +43,91 @@ def validate_artifact(directory, expected_sha):
     return manifest, flash_args
 
 
-def esptool(port, *args):
+def wait_for_acm(port):
+    # The native USB controller can re-enumerate when switching boot modes.
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            device = os.stat(port)
+            if stat.S_ISCHR(device.st_mode) and os.major(device.st_rdev) == 166:
+                return
+        except FileNotFoundError:
+            pass
+        time.sleep(0.2)
+    raise RuntimeError('Configured ESP32-S3 USB serial device is unavailable')
+
+
+def esptool(port, *args, chip='esp32'):
+    reset_args = ()
+    if chip == 'esp32s3':
+        wait_for_acm(port)
+        reset_args = ('--before', 'usb-reset')
     # Do not print raw serial/device output: it may include private device data.
-    result = subprocess.run([sys.executable, '-m', 'esptool', '--chip', 'esp32',
-                             '--port', port, '--baud', '460800', *map(str, args)],
-                            text=True, capture_output=True, timeout=300)
+    result = subprocess.run([sys.executable, '-m', 'esptool', '--chip', chip,
+                             '--port', port, '--baud', '460800', *reset_args, *map(str, args)],
+                            text=True, capture_output=True, timeout=600)
     if result.returncode:
         raise RuntimeError(f'esptool {args[0]} failed (exit {result.returncode})')
     return result.stdout
 
 
-def verify_identity(port, expected_mac):
+def verify_identity(tool, port, expected_mac):
     expected_mac = expected_mac.lower()
     if not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}', expected_mac):
         raise ValueError('Invalid expected ESP32 MAC')
-    output = esptool(port, 'read-mac')
+    output = tool(port, 'read-mac')
     found = re.findall(r'MAC:\s*((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})', output)
     if not found or any(mac.lower() != expected_mac for mac in found):
         raise ValueError('Connected ESP32 identity does not match the configured board')
 
 
-def check_boot(port):
+def check_boot(port, native_usb=False):
     import serial
+    if native_usb:
+        wait_for_acm(port)
     with serial.Serial(port, 115200, timeout=0.3) as connection:
-        connection.dtr = False
-        connection.rts = True
-        time.sleep(0.15)
-        connection.rts = False
+        if not native_usb:
+            connection.dtr = False
+            connection.rts = True
+            time.sleep(0.15)
+            connection.rts = False
         deadline = time.monotonic() + 12
         output = bytearray()
         while time.monotonic() < deadline:
             output.extend(connection.read(2048))
         text = output.decode('utf-8', errors='replace')
-        if 'entry ' not in text or any(marker in text for marker in
+        marker = 'Shelf Goblin running' if native_usb else 'entry '
+    if marker not in text or any(crash in text for crash in
                 ('Guru Meditation', 'Brownout', 'abort() was called', 'Backtrace:')):
             raise RuntimeError('Firmware failed the serial boot check')
 
 
-def deploy(directory, backup_root, port, expected_mac, sha):
-    manifest, flash_args = validate_artifact(directory, sha)
+def deploy(directory, backup_root, port, expected_mac, sha, target='cyd'):
+    board = BOARDS[target]
+    native_usb = board.chip == 'esp32s3'
+    manifest, flash_args = validate_artifact(directory, sha, target)
+
+    def tool(port, *args):
+        if native_usb:
+            return esptool(port, *args, chip=board.chip)
+        return esptool(port, *args)
+
     os.umask(0o077)
     backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     # The lock also protects against an operator running two containers at once.
     import fcntl
     with (backup_root / '.flash.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        verify_identity(port, expected_mac)
+        verify_identity(tool, port, expected_mac)
+        if native_usb and 'Detected flash size: 16MB' not in tool(port, 'flash-id'):
+            raise ValueError('Connected ESP32-S3 does not report 16 MB of flash')
         stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
         backup_dir = backup_root / f'{stamp}-{sha[:12]}'
         backup_dir.mkdir(mode=0o700)
         backup = backup_dir / 'previous-flash.bin'
         print('Backing up complete device flash privately on the M920Q.', flush=True)
-        esptool(port, 'read-flash', '0', '0x400000', backup)
-        if backup.stat().st_size != 0x400000:
+        tool(port, 'read-flash', '0', hex(board.flash_size), backup)
+        if backup.stat().st_size != board.flash_size:
             raise RuntimeError('Incomplete backup; refusing to flash')
         backup_hash = hashlib.sha256(backup.read_bytes()).hexdigest()
         record = dict(git_sha=sha, mac=expected_mac.lower(), backup_sha256=backup_hash,
@@ -101,17 +136,22 @@ def deploy(directory, backup_root, port, expected_mac, sha):
         record_path.write_text(json.dumps(record, indent=2) + '\n')
         try:
             print(f'Flashing commit {sha}; NVS is outside all write ranges.', flush=True)
-            esptool(port, 'write-flash', '--flash-mode', 'dio', '--flash-freq', '40m',
-                    '--flash-size', '4MB', *flash_args)
-            esptool(port, 'verify-flash', *flash_args)
-            check_boot(port)
+            flash_options = () if native_usb else (
+                '--flash-mode', 'dio', '--flash-freq', '40m', '--flash-size', '4MB',
+            )
+            tool(port, 'write-flash', *flash_options, *flash_args)
+            tool(port, 'verify-flash', *flash_args)
+            if native_usb:
+                check_boot(port, native_usb=True)
+            else:
+                check_boot(port)
         except Exception:
             print('Deployment failed; restoring the complete pre-flash backup.', flush=True)
             record['status'] = 'failed'
             try:
-                verify_identity(port, expected_mac)
-                esptool(port, 'write-flash', '0', backup)
-                esptool(port, 'verify-flash', '0', backup)
+                verify_identity(tool, port, expected_mac)
+                tool(port, 'write-flash', '0', backup)
+                tool(port, 'verify-flash', '0', backup)
                 record['status'] = 'rolled-back'
             except Exception:
                 record['status'] = 'rollback-failed'
@@ -129,5 +169,6 @@ if __name__ == '__main__':
     parser.add_argument('--port', default='/dev/esp32')
     parser.add_argument('--mac', required=True)
     parser.add_argument('--sha', required=True)
+    parser.add_argument('--target', choices=BOARDS, default='cyd')
     args = parser.parse_args()
-    deploy(args.artifact, args.backups, args.port, args.mac, args.sha)
+    deploy(args.artifact, args.backups, args.port, args.mac, args.sha, args.target)

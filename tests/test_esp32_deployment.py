@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
 
 
 def load(name, filename):
@@ -60,6 +61,40 @@ class DeploymentTest(unittest.TestCase):
             self.assertTrue(offset + size <= 0x9000 or offset >= 0xE000)
         with self.assertRaises(ValueError):
             flasher.validate_artifact(self.artifact, 'b' * 40)
+
+    def test_waveshare_uses_its_own_layout_and_preserves_nvs(self):
+        target = 'waveshare-s3-touch-169'
+        packager.package(self.build, self.build / 'boot_app0.bin', self.artifact, SHA, target)
+        manifest, args = flasher.validate_artifact(self.artifact, SHA, target)
+        self.assertEqual(manifest['chip'], 'esp32s3')
+        self.assertEqual(manifest['flash_size'], 0x1000000)
+        self.assertEqual(args[::2], ['0x0', '0x8000', '0xe000', '0x10000'])
+        for _, offset, size in packager.BOARDS[target].parts:
+            self.assertTrue(offset + size <= 0x9000 or offset >= 0xE000)
+        with self.assertRaises(ValueError):
+            flasher.validate_artifact(self.artifact, SHA)
+
+    def test_waveshare_backs_up_and_verifies_the_16mb_board(self):
+        target = 'waveshare-s3-touch-169'
+        packager.package(self.build, self.build / 'boot_app0.bin', self.artifact, SHA, target)
+
+        def native_tool(port, command, *args, chip):
+            self.assertEqual(chip, 'esp32s3')
+            if command == 'flash-id':
+                return 'Detected flash size: 16MB'
+            if command == 'read-flash':
+                self.assertEqual(args[:2], ('0', '0x1000000'))
+                with Path(args[-1]).open('wb') as backup:
+                    backup.truncate(0x1000000)
+            return self.tool(port, command, *args) if command != 'read-flash' else ''
+
+        with patch.object(flasher, 'esptool', side_effect=native_tool) as tool, \
+                patch.object(flasher, 'check_boot') as boot:
+            flasher.deploy(self.artifact, self.backups, 'USB', MAC, SHA, target)
+        self.assertEqual(self.record()['status'], 'deployed')
+        write = next(call.args for call in tool.call_args_list if call.args[1] == 'write-flash')
+        self.assertEqual(write[2::2], ('0x0', '0x8000', '0xe000', '0x10000'))
+        boot.assert_called_once_with('USB', native_usb=True)
 
     def test_corrupt_binary_never_opens_usb(self):
         (self.artifact / 'firmware.bin').write_bytes(b'corrupted')

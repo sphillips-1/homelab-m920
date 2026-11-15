@@ -10,9 +10,41 @@ appear pink on the owner's display. Keep inversion disabled for this board.
 The panel uses BGR channel order. Set `TFT_RGB_ORDER=TFT_BGR` so the hobgoblin's
 red skin and the red Critical indicator render correctly.
 
+## Waveshare ESP32-S3-Touch-LCD-1.69
+
+The Waveshare target runs Shelf Goblin offline in portrait and landscape. The onboard
+accelerometer rotates the display and touch together when the board settles
+in a new orientation. The current orientation is retained when laid flat.
+Build with `pio run -d hardware/esp32-monitor -e waveshare-s3-touch-169`.
+Use the [M920 USB deployment workflow](../../docs/esp32-deployment.md) to flash
+the connected board. Use USB-C power for bench testing. Follow the prompts if touch calibration is
+needed. Hold BOOT for one second and release to recalibrate.
+
+Tap **FIGHT!**. A win earns 20, 25, or 35 XP against a lower-, equal-,
+or higher-level opponent. A defeat deducts the same amount, down to 0 XP.
+If XP falls below the current level's threshold, the goblin devolves to the
+form for its remaining XP.
+The goblin also earns 1 XP for every five uninterrupted minutes on the pet
+screen while powered on. Battles and touch calibration restart the idle timer.
+XP is saved as it is earned. The previous healthy-time total stays separate
+from XP, so existing Waveshare installs start at level 1 with 0 XP.
+
+| Level | Form | Total XP |
+| --- | --- | ---: |
+| 1 | Baby Goblin | 0 |
+| 2 | Scavenger | 60 |
+| 3 | Adult Goblin | 150 |
+| 4 | Tactician | 280 |
+| 5 | Red Hobgoblin | 460 |
+| 6 | Chieftain | 700 |
+| 7 | Great Chieftain | 1,010 |
+| 8 | Goblin Lord | 1,400 |
+
+The local dual-USB CYD Shelf Goblin build uses the M920Q feed.
+
 ## Setup
 
-The USB-connected board now runs the [CYD audiobook player](../esp32-audiobook/README.md). The following commands are historical bench and recovery references for the Shelf Goblin firmware.
+The CYD target in Actions installs the [CYD audiobook player](../esp32-audiobook/README.md). The following commands are historical bench and recovery references for the Shelf Goblin firmware.
 
 1. Install the server feed described in [the service guide](../../services/esp32-monitor/README.md).
 2. Install PlatformIO 6.2.0, then run `pio run -d hardware/esp32-monitor`.

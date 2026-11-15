@@ -54,6 +54,27 @@ int main() {
   TouchStroke mirroredRight{{2000,3500}, {2000,500}, {2000,2000}, 400, 3000};
   assert(classifyGesture(cal, mirroredRight) == Gesture::Right);
 
+  // The Waveshare reports portrait coordinates on a 280 x 240 landscape UI.
+  constexpr int smallWidth = 280;
+  TouchPoint capacitive[] = {{384, 4080}, {384, 368}, {3456, 4080}};
+  assert(calibrateTouch(capacitive, cal, smallWidth));
+  center = mapTouch(cal, {1920, 2224});
+  assert(center.x == 140 && center.y == 120);
+  assert(confirmsCalibration(cal, {3456, 368}, smallWidth));
+  assert(classifyGesture(cal, mirroredLeft, smallWidth) == Gesture::Left);
+  TouchStroke beyondRight{{1920, 0}, {1920, 0}, {1920, 0}, 200, 0};
+  assert(classifyGesture(cal, beyondRight, smallWidth) == Gesture::Tap);
+  beyondRight.first.y = beyondRight.last.y = -400;
+  assert(classifyGesture(cal, beyondRight, smallWidth) == Gesture::None);
+
+  TouchPoint portrait[] = {{384, 384}, {3456, 384}, {384, 4096}};
+  assert(calibrateTouch(portrait, cal, 240, 280));
+  center = mapTouch(cal, {1920, 2240});
+  assert(center.x == 120 && center.y == 140);
+  assert(confirmsCalibration(cal, {3456, 4096}, 240, 280));
+  TouchStroke bottomTap{{1920, 4320}, {1920, 4320}, {1920, 4320}, 200, 0};
+  assert(classifyGesture(cal, bottomTap, 240, 280) == Gesture::Tap);
+
   TouchPoint skewed[] = {{500, 400}, {3600, 550}, {650, 3600}};
   assert(calibrateTouch(skewed, cal));
   assert(confirmsCalibration(cal, {3750, 3750}));

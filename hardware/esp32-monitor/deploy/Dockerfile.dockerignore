@@ -1,3 +1,4 @@
 **
 !scripts/
 !scripts/deploy-esp32-firmware.py
+!scripts/esp32_profiles.py

@@ -1,67 +1,63 @@
 # ESP32 USB deployment through GitHub Actions
 
-The CYD audiobook player is powered and connected by USB to the M920Q. The pipeline builds the [Bluetooth audiobook firmware](../hardware/esp32-audiobook/README.md) for this board. The existing
-`self-hosted`, `linux`, `x64`, `m920` runner flashes it locally. GitHub-hosted
-runners build and test; no public serial bridge, OTA endpoint, SSH deployment,
-new runner, serial-group change or additional sudo rule is required.
+The existing `self-hosted`, `linux`, `x64`, `m920` runner flashes the
+connected display over USB. GitHub-hosted runners build and test the
+[Waveshare Shelf Goblin](../hardware/esp32-monitor/README.md) and
+[CYD audiobook player](../hardware/esp32-audiobook/README.md).
 
 ## Run a deployment
 
-Push firmware or deployment changes to `main`, or open **Actions → ESP32 firmware
-→ Run workflow**, select **main**, and run it. Pull requests and other branches
-only build/test and publish firmware artifacts. Deployment uses the existing
-`infrastructure` environment and its approval policy. The USB deployment job is
-serialized and never cancels a flash to start a newer one. Before flashing it
-rejects a build that predates a firmware change already merged into main.
+Firmware and deployment changes pushed to main deploy the Waveshare by
+default. Pushes that change the audiobook project without changing the
+monitor project deploy the CYD. To deploy manually, open the **ESP32 firmware** workflow
+in GitHub Actions, select **Run workflow** on **main**, and choose
+`waveshare-s3-touch-169` or `cyd`. Pull requests and pushes to other branches
+build and package both targets. Deployment uses the existing `infrastructure`
+environment and approval policy. Deployments run one at a time and reject
+builds that predate a newer firmware change on main.
 
-The workflow packages the four flash images plus a manifest containing their
-offsets, lengths, SHA-256 checksums and exact Git commit. The deployment job
-downloads the artifact from its own build and validates that commit before USB
-access. It does not build or flash from `/opt/homelab`, update that checkout,
-restart services, or run the Terraform/container deployment pipeline itself.
+The runner downloads the selected board's artifact from the same run. The
+manifest identifies its chip, flash size, offsets, checksums and source commit.
+The workflow verifies those fields before accessing USB.
 
 ## Device binding
 
-Observed on November 5, 2026:
+| Target | USB by-id basename | MAC | Flash |
+| --- | --- | --- | --- |
+| Waveshare ESP32-S3 (observed November 15, 2026) | `usb-Espressif_USB_JTAG_serial_debug_unit_28:84:85:55:4C:1C-if00` | `28:84:85:55:4c:1c` | 16 MB |
+| CYD (observed November 5, 2026) | `usb-1a86_USB_Serial-if00-port0` | `48:9d:31:c0:27:5c` | 4 MB |
 
-- USB by-id: `/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0`
-- Current target: `/dev/ttyUSB0` (do not depend on this name remaining stable)
-- ESP32 MAC: `48:9d:31:c0:27:5c`
-- ESP32-D0WD-V3, 4 MB flash; ST7789 display, inversion disabled.
+To replace a board, set the repository variables `WAVESHARE_SERIAL_DEVICE`
+and `WAVESHARE_MAC` for the Waveshare or `ESP32_SERIAL_DEVICE` and
+`ESP32_MAC` for the CYD. Set the serial variable to the full
+`/dev/serial/by-id/...` path. The flasher checks the chip and MAC before
+backing up or writing.
 
-The workflow defaults to that by-id path and MAC. Repository variables
-`ESP32_SERIAL_DEVICE` and `ESP32_MAC` can override them after a verified hardware
-change. The MAC must match before any flash backup or write; the generic USB
-adapter by-id string alone is not a unique identity. A missing cable, device,
-Docker permission or mismatched MAC fails the job rather than selecting another
-serial port. Use the board's data-capable USB connection.
-
-The runner account currently has Docker access but lacks serial read/write
-permission. A small image installs pinned esptool 5.6.0, then runs with only the
-selected USB character device, read-only firmware, and the backup mount. During
-flashing it has no network, dropped capabilities, no privilege escalation, a
-read-only root filesystem and temporary `/tmp`. Python dependencies live in
-the rebuildable image; device state stays on the ESP32 and in private backups.
+Both targets use a network-disabled Docker flasher with esptool 5.6.0. The
+CYD receives its USB UART device directly. The Waveshare uses its stable
+by-id link through a read-only host device mount with a device cgroup rule
+limited to ACM serial devices. The link follows the same USB identity if
+Linux changes its tty number during a reset.
 
 ## Preservation and recovery
 
-Before every flash, the job reads the complete 4 MB device flash to:
+Before every flash, the job reads the complete device flash (16 MB for Waveshare, 4 MB for CYD) to:
 
 `/srv/homelab/backups/esp32/<UTC timestamp>-<commit>/previous-flash.bin`
 
 Directories and files are private to root (0700/0600). Flash backups can contain
 Wi-Fi credentials. They are never committed, logged, or uploaded to Actions.
 Keep them within the homelab's private backup and retention policy; the workflow
-does not delete old backups. Each uses about 4 MB. A neighboring
+does not delete old backups. Each uses approximately the size of the device flash. A neighboring
 `deployment.json` records the backup checksum, target manifest and result.
 
 Writes cover the bootloader, partition table, OTA boot selector and app0 only.
 The NVS range `0x9000–0xDFFF` is preserved, including Wi-Fi, touch calibration
 and health-based evolution progress. A repeat deployment preserves those settings. Retired care
 meter data may remain in NVS but is no longer read or updated by the firmware.
-Firmware image verification and a 12-second serial boot check must pass before
-the job reports success. This checks for boot entry and known crash markers;
-it does not confirm the physical screen or end-to-end homelab metrics.
+The job verifies the written images and checks serial output for known crash
+markers. The Waveshare reports that its firmware loop is running, and the CYD
+reports ROM boot entry. Physical screen and touch checks are done at the device.
 
 On a flash, verification or boot-check failure, the job attempts to restore and
 verify the full pre-flash image, then still fails the Actions run. The record
