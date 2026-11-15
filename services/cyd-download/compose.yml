@@ -1,0 +1,28 @@
+services:
+  cyd-download:
+    image: homelab-cyd-download
+    build:
+      context: ../..
+      dockerfile: services/cyd-download/Dockerfile
+    container_name: cyd-download
+    restart: unless-stopped
+    command: ["--container", "--bind", "0.0.0.0", "--server", "http://audiobookshelf", "--cache", "/cache"]
+    environment:
+      CYD_ABS_API_KEY: ${CYD_ABS_API_KEY:-}
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "192.168.4.27:8784:8784"
+    volumes:
+      - /srv/homelab/appdata/cyd-download:/cache
+    networks:
+      - homelab
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 2
+
+networks:
+  homelab:
+    external: true
