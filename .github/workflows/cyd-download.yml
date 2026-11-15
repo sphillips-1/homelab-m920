@@ -1,0 +1,55 @@
+name: CYD audiobook downloads
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cyd-audiobook-downloads
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 15
+    env:
+      CYD_ABS_API_KEY: ${{ secrets.CYD_ABS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check download configuration
+        run: |
+          test -n "$CYD_ABS_API_KEY" || { echo 'Set the CYD_ABS_API_KEY environment secret first.' >&2; exit 1; }
+      - name: Build the LAN download helper
+        run: docker compose -f services/cyd-download/compose.yml build
+      - name: Prepare the private cache
+        run: |
+          docker run --rm --network none --user 0:0 \
+            --entrypoint sh -v /srv/homelab/appdata/cyd-download:/cache \
+            homelab-cyd-download -ec 'chown 1000:1000 /cache && chmod 700 /cache'
+      - name: Start the helper and check Audiobookshelf access
+        run: |
+          set -euo pipefail
+          docker compose -f services/cyd-download/compose.yml up -d
+          docker exec -i cyd-download python -B - <<'PY'
+          import time
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          for _ in range(15):
+              try:
+                  token = Path("/cache/cyd-token.txt").read_text().strip()
+                  request = Request("http://127.0.0.1:8784/libraries/0",
+                                    headers={"Authorization": "Bearer " + token})
+                  with urlopen(request, timeout=5) as response:
+                      assert response.read(1) in (b"0", b"1")
+                  print("M920 helper verified access to Audiobookshelf.")
+                  break
+              except (OSError, AssertionError):
+                  time.sleep(1)
+          else:
+              raise SystemExit("Could not browse Audiobookshelf through the M920 helper")
+          PY

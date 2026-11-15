@@ -49,3 +49,7 @@ For a different Bluetooth Classic headset or speaker, put a UTF-8 text file name
 
 - [CYD pin assignments](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/PINS.md)
 - [ESP32-A2DP source library](https://github.com/pschatzmann/ESP32-A2DP/tree/v1.8.8)
+
+## Download from Audiobookshelf
+
+See [M920 download helper setup](../../services/cyd-download/README.md) for Wi-Fi browsing and offline downloads.

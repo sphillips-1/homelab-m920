@@ -36,3 +36,5 @@ Pi-hole SSH authentication was unsuccessful during the health check; no working 
 - Discord webhook: configured privately on M920Q; keep the URL outside Git.
 
 The planned Discord outage monitor on the M920Q should query Pi-hole explicitly at `192.168.4.75` and use an independent DNS path for notification delivery. Keep Discord webhook URLs outside Git. Monitoring was deployed on 2026-10-11; see [monitor operations](../services/pihole-monitor/README.md).
+
+- CYD Audiobookshelf download helper: http://192.168.4.27:8784 on the M920 LAN address. See [setup](../services/cyd-download/README.md).

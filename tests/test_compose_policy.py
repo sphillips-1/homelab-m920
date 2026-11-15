@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 # Existing private-access host ports. Any new publication requires review here.
 PORTS = {"audiobookshelf-gateway": (13378, 80), "authentik-server": (9000, 9000),
-         "calibre-web": (8083, 8083), "jellyfin": (8096, 8096), "beszel": (8090, 8090),
+         "cyd-download": (8784, 8784), "calibre-web": (8083, 8083), "jellyfin": (8096, 8096), "beszel": (8090, 8090),
          "kids": (8092, 8080), "lan-proxy": (80, 8080), "local-ai-ollama": (11434, 11434),
          "local-ai-webui": (3000, 8080)}
 
@@ -39,6 +39,8 @@ class ComposePolicyTest(unittest.TestCase):
                         if name in ("local-ai-ollama", "local-ai-webui"):
                             self.assertEqual(port.get("host_ip"), "127.0.0.1")
                         self.assertEqual(port.get("protocol", "tcp"), "tcp")
+                        if name == "cyd-download":
+                            self.assertEqual(port.get("host_ip"), "192.168.4.27")
                         if name in ("jellyfin", "kids", "lan-proxy"):
                             self.assertNotIn(port.get("host_ip", ""), ("", "0.0.0.0", "::"))
                     for volume in service.get("volumes", []):

@@ -56,7 +56,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate firmware workflow
-        run: docker run --rm -v "$PWD:/repo:ro" --workdir /repo rhysd/actionlint:1.7.12 -color .github/workflows/esp32-firmware.yml
+        run: docker run --rm -v "$PWD:/repo:ro" --workdir /repo rhysd/actionlint:1.7.12 -color .github/workflows/esp32-firmware.yml .github/workflows/cyd-download.yml
       - name: Check health thresholds and missing-data behavior
         run: |
           g++ -std=c++14 -Wall -Wextra -pedantic tests/test_esp32_health.cpp -o /tmp/test-esp32-health

@@ -4,9 +4,11 @@
 #include <TFT_eSPI.h>
 #include <BluetoothA2DPSource.h>
 #include <atomic>
+#include <dirent.h>
 #include <algorithm>
 #include <vector>
 #include "touch_controls.h"
+#include "Downloads.h"
 
 namespace {
 constexpr int sampleRate = 22050;
@@ -26,6 +28,17 @@ constexpr char folder[] = "/Audiobooks";
 TFT_eSPI screen;
 Preferences prefs;
 std::vector<String> chapters;
+String playbackFolder = folder;
+Downloads downloads;
+enum class LibraryView { Player, Offline, Libraries, Catalog, Download };
+LibraryView libraryView = LibraryView::Player;
+std::vector<CatalogEntry> libraryRows;
+String libraryId;
+String downloadTitle;
+int libraryPage = 0;
+unsigned selectedRow = 0;
+bool moreRows = false;
+const char* libraryError = nullptr;
 File track;
 TouchCalibration calibration{};
 TouchPoint targets[] = {{24,24}, {296,24}, {24,216}, {296,216}};
@@ -36,7 +49,32 @@ std::atomic<int> volume{3};
 uint32_t position = 0;
 uint32_t savedAt = 0;
 bool playing = false;
-BluetoothA2DPSource bluetooth;
+A2DPNoVolumeControl passthroughVolume;
+class HeadphoneSource : public BluetoothA2DPSource {
+public:
+    void setHeadphoneLevel(int level) {
+        // The library uses labels 0 and 1 for capability and notification requests.
+        if (!remoteControlConnected.load()) return;
+        const auto requested = static_cast<uint8_t>((level * 127 + 5) / 10);
+        const auto result = esp_avrc_ct_send_set_absolute_volume_cmd(15, requested);
+        if (result != ESP_OK) Serial.printf("Headset volume command: %s\n", esp_err_to_name(result));
+    }
+
+protected:
+    void bt_av_hdl_avrc_ct_evt(uint16_t event, void* data) override {
+        const auto* response = static_cast<const esp_avrc_ct_cb_param_t*>(data);
+        if (event == ESP_AVRC_CT_CONNECTION_STATE_EVT) {
+            remoteControlConnected = response->conn_stat.connected;
+        } else if (event == ESP_AVRC_CT_SET_ABSOLUTE_VOLUME_RSP_EVT) {
+            Serial.printf("Headset accepted volume %u / 127\n", unsigned(response->set_volume_rsp.volume));
+        }
+        BluetoothA2DPSource::bt_av_hdl_avrc_ct_evt(event, data);
+    }
+
+private:
+    std::atomic<bool> remoteControlConnected{false};
+};
+HeadphoneSource bluetooth;
 std::atomic<bool> headphonesConnected{false};
 std::atomic<bool> disconnectPending{false};
 String headphoneName = "WH-1000XM5";
@@ -125,6 +163,9 @@ void initAudio() {
         prefs.putString("headset", headphoneName);
     }
     bluetooth.set_local_name("CYD Audiobook");
+    // AVRCP volume events can also enable the library's PCM attenuation.
+    // Keep the player's gain as the only PCM adjustment.
+    bluetooth.set_volume_control(&passthroughVolume);
     bluetooth.set_ssp_enabled(true);
     bluetooth.set_ssid_callback([](const char* name, esp_bd_addr_t, int) {
         return headphoneName.equals(name);
@@ -144,7 +185,8 @@ void updatePosition() {
 
 void save() {
     if (!prefsReady || !track) return;
-    String record = chapters[chapter] + "\n" + String(position - position % 2);
+    String name = playbackFolder == folder ? chapters[chapter] : playbackFolder + "/" + chapters[chapter];
+    String record = name + "\n" + String(position - position % 2);
     if (prefs.getString("bookmark") != record) prefs.putString("bookmark", record);
     savedAt = millis();
 }
@@ -164,7 +206,7 @@ bool openChapter(int index, uint32_t offset = 0) {
     halt();
     track.close();
     chapter = index;
-    track = SD.open(String(folder) + "/" + chapters[chapter]);
+    track = SD.open(playbackFolder + "/" + chapters[chapter]);
     if (!track || track.size() < 2 || track.size() % 2) {
         track.close();
         error = "Could not open chapter";
@@ -215,6 +257,70 @@ void showTime() {
     if (width) screen.fillRect(12, 117, width, 4, accent);
 }
 
+void drawLibrary() {
+    screen.setTextColor(accent);
+    const char* heading = libraryView == LibraryView::Offline ? "On microSD" :
+        libraryView == LibraryView::Libraries ? "Audiobookshelf libraries" :
+        libraryView == LibraryView::Catalog ? "Audiobookshelf books" : "Download to microSD";
+    screen.drawString(heading, 12, 12, 2);
+    if (libraryView == LibraryView::Download) {
+        auto state = downloads.state.load();
+        screen.setTextColor(TFT_WHITE);
+        String title = downloadTitle;
+        if (title.length() > 40) title = title.substring(0, 37) + "...";
+        screen.drawString(title, 12, 58, 2);
+        String status;
+        switch (state) {
+            case Downloads::Preparing: status = "Preparing audio on host..."; break;
+            case Downloads::Transferring:
+                status = "Parts copied: " + String(downloads.completed.load()) +
+                         " / " + String(downloads.total.load());
+                break;
+            case Downloads::Complete: status = "Ready to play offline"; break;
+            case Downloads::Failed: status = downloads.error() ? downloads.error() : "Download failed"; break;
+            case Downloads::Cancelled: status = "Cancelled. Select again to resume."; break;
+            default: status = "Store this book on the card?"; break;
+        }
+        screen.drawString(status, 12, 93, 2);
+        if (state == Downloads::Preparing || state == Downloads::Transferring) {
+            button(12, 190, 92, "Cancel");
+        } else {
+            button(12, 190, 92, "Back");
+            if (state == Downloads::Idle || state == Downloads::Failed || state == Downloads::Cancelled) {
+                button(114, 190, 194, "Download book", true);
+            } else {
+                button(114, 190, 194, "On microSD", true);
+            }
+        }
+        return;
+    }
+    if (libraryError) {
+        screen.setTextColor(TFT_WHITE);
+        screen.drawString(libraryError, 12, 76, 2);
+    } else {
+        for (unsigned row = 0; row < libraryRows.size(); ++row) {
+            String title = libraryRows[row].title;
+            if (title.length() > 41) title = title.substring(0, 38) + "...";
+            screen.fillRoundRect(12, 40 + row * 35, 296, 30, 5, panel);
+            screen.setTextColor(TFT_WHITE);
+            screen.drawString(title, 19, 47 + row * 35, 2);
+        }
+        if (libraryRows.empty()) {
+            screen.setTextColor(muted);
+            screen.drawString("No books here yet", 12, 76, 2);
+        }
+    }
+    button(12, 190, 72, "Back");
+    if (libraryView == LibraryView::Offline) {
+        if (libraryPage) button(90, 190, 55, "Prev");
+        if (moreRows) button(151, 190, 55, "Next");
+        button(212, 190, 96, "Server");
+    } else {
+        if (libraryPage) button(90, 190, 104, "Previous");
+        if (moreRows) button(204, 190, 104, "Next");
+    }
+}
+
 void draw() {
     screen.fillScreen(background);
     screen.setTextColor(accent);
@@ -225,11 +331,16 @@ void draw() {
         screen.drawFastVLine(p.x, p.y - 14, 29, TFT_WHITE);
         return;
     }
+    if (libraryView != LibraryView::Player) {
+        drawLibrary();
+        return;
+    }
     screen.drawString(browser ? "Chapters" : "Audiobook player", 12, 12, 2);
     if (chapters.empty()) {
         screen.setTextColor(TFT_WHITE);
         screen.drawString(error, 12, 72, 2);
-        screen.drawString("Insert a prepared card and press RST.", 12, 102, 2);
+        screen.drawString("Insert a card and press RST if needed.", 12, 102, 2);
+        button(12, 190, 92, "Books");
         return;
     }
     if (browser) {
@@ -239,9 +350,10 @@ void draw() {
             screen.setTextColor(index == chapter ? accent : TFT_WHITE);
             screen.drawString(titleFor(index, 41), 19, 47 + row * 35, 2);
         }
-        button(12, 190, 92, "Back");
-        button(114, 190, 92, "Page up");
-        button(216, 190, 92, "Page down");
+        button(12, 190, 65, "Back");
+        button(83, 190, 65, "Prev");
+        button(154, 190, 65, "Next");
+        button(225, 190, 83, "Books");
         return;
     }
     screen.setTextColor(TFT_WHITE);
@@ -274,6 +386,132 @@ void seekBy(int seconds) {
     if (resume) play();
 }
 
+bool selectFolder(const String& path);
+
+void offlinePage() {
+    libraryView = LibraryView::Offline;
+    libraryRows.clear();
+    moreRows = false;
+    libraryError = nullptr;
+    unsigned seen = 0;
+    if (SD.exists(folder)) {
+        if (libraryPage == 0) libraryRows.push_back({"", "Books copied to card"});
+        ++seen;
+    }
+    if (DIR* directory = opendir("/sd/Downloads")) {
+        while (dirent* entry = readdir(directory)) {
+            if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
+                String id = entry->d_name;
+                String marker = "/Downloads/" + id + "/title.txt";
+                if (!SD.exists(marker)) continue;
+                File title = SD.open(marker);
+                if (!title || title.size() > 90) continue;
+                if (seen++ < unsigned(libraryPage * 4)) continue;
+                if (libraryRows.size() == 4) {
+                    moreRows = true;
+                    break;
+                }
+                libraryRows.push_back({id, title.readString()});
+            }
+        }
+        closedir(directory);
+    }
+    draw();
+}
+
+void onlinePage() {
+    screen.fillScreen(background);
+    screen.setTextColor(TFT_WHITE);
+    screen.drawCentreString("Connecting to Audiobookshelf...", 160, 110, 2);
+    libraryRows.clear();
+    moreRows = false;
+    if (downloads.catalog(libraryId, libraryPage, libraryRows, moreRows)) libraryError = nullptr;
+    else libraryError = downloads.error();
+    draw();
+}
+
+void openBooks() {
+    halt();
+    save();
+    libraryPage = 0;
+    offlinePage();
+}
+
+void libraryTap(TouchPoint point) {
+    if (libraryView == LibraryView::Download) {
+        if (point.y < 190 || point.y >= 230) return;
+        const auto state = downloads.state.load();
+        if (state == Downloads::Preparing || state == Downloads::Transferring) {
+            if (point.x >= 12 && point.x < 104) downloads.cancel();
+        } else if (point.x >= 12 && point.x < 104) {
+            libraryView = LibraryView::Catalog;
+            onlinePage();
+        } else if (point.x >= 114 && point.x < 308) {
+            if (state == Downloads::Complete) {
+                libraryPage = 0;
+                offlinePage();
+            } else {
+                downloads.start(libraryRows[selectedRow].id);
+                draw();
+            }
+        }
+        return;
+    }
+    if (point.y >= 40 && point.y < 180 && (point.y - 40) % 35 < 30 &&
+        point.x >= 12 && point.x < 308 && !libraryError) {
+        const unsigned row = (point.y - 40) / 35;
+        if (row >= libraryRows.size()) return;
+        const auto& entry = libraryRows[row];
+        if (libraryView == LibraryView::Offline) {
+            const String path = entry.id.isEmpty() ? String(folder) : "/Downloads/" + entry.id;
+            selectFolder(path);
+            browser = false;
+            libraryView = LibraryView::Player;
+            draw();
+        } else if (libraryView == LibraryView::Libraries) {
+            libraryId = entry.id;
+            libraryView = LibraryView::Catalog;
+            libraryPage = 0;
+            onlinePage();
+        } else {
+            downloadTitle = entry.title;
+            selectedRow = row;
+            downloads.state = Downloads::Idle;
+            libraryView = LibraryView::Download;
+            draw();
+        }
+        return;
+    }
+    if (point.y < 190 || point.y >= 230) return;
+    if (point.x >= 12 && point.x < 84) {
+        if (libraryView == LibraryView::Offline) {
+            libraryView = LibraryView::Player;
+            draw();
+        } else if (libraryView == LibraryView::Catalog) {
+            libraryView = LibraryView::Libraries;
+            libraryId = "";
+            libraryPage = 0;
+            onlinePage();
+        } else {
+            downloads.disconnect();
+            libraryPage = 0;
+            offlinePage();
+        }
+    } else if (libraryView == LibraryView::Offline && point.x >= 212) {
+        libraryView = LibraryView::Libraries;
+        libraryId = "";
+        libraryPage = 0;
+        onlinePage();
+    } else {
+        bool offline = libraryView == LibraryView::Offline;
+        if (point.x >= 90 && point.x < (offline ? 145 : 194) && libraryPage) --libraryPage;
+        else if (point.x >= (offline ? 151 : 204) && point.x < (offline ? 206 : 308) && moreRows) ++libraryPage;
+        else return;
+        if (offline) offlinePage();
+        else onlinePage();
+    }
+}
+
 void tap(TouchPoint raw) {
     if (target >= 0) {
         if (target < 3) samples[target++] = raw;
@@ -282,8 +520,15 @@ void tap(TouchPoint raw) {
         draw();
         return;
     }
-    if (chapters.empty()) return;
     TouchPoint p = mapTouch(calibration, raw);
+    if (libraryView != LibraryView::Player) {
+        libraryTap(p);
+        return;
+    }
+    if (chapters.empty()) {
+        if (p.x >= 12 && p.x < 104 && p.y >= 190 && p.y < 230) openBooks();
+        return;
+    }
     if (p.x < 12 || p.x >= 308) return;
     int column = p.x < 109 ? 0 : p.x < 211 ? 1 : 2;
     if (browser) {
@@ -296,9 +541,13 @@ void tap(TouchPoint raw) {
             }
             browser = false;
         } else if (p.y >= 190 && p.y < 230) {
-            if (column == 0) browser = false;
-            if (column == 1 && page >= 4) page -= 4;
-            if (column == 2 && page + 4 < int(chapters.size())) page += 4;
+            if (p.x < 77) browser = false;
+            else if (p.x >= 83 && p.x < 148 && page >= 4) page -= 4;
+            else if (p.x >= 154 && p.x < 219 && page + 4 < int(chapters.size())) page += 4;
+            else if (p.x >= 225) {
+                openBooks();
+                return;
+            }
         }
     } else if (p.y >= 135 && p.y < 175) {
         if (column == 0) seekBy(-15);
@@ -319,6 +568,7 @@ void tap(TouchPoint raw) {
         } else {
             const int level = constrain(volume.load() + (column == 1 ? -1 : 1), 0, 10);
             volume.store(level);
+            if (headphonesConnected.load()) bluetooth.setHeadphoneLevel(level);
             if (prefsReady && prefs.getUChar("volume", 3) != level) prefs.putUChar("volume", level);
         }
     }
@@ -350,7 +600,7 @@ void pollTouch() {
     unsigned captured = count;
     count = 0;
     total = {};
-    if (now - heldSince >= 2000) {
+    if (now - heldSince >= 2000 && libraryView == LibraryView::Player) {
         halt();
         save();
         target = 0;
@@ -410,38 +660,62 @@ void pumpAudio() {
     portEXIT_CRITICAL(&audioLock);
 }
 
+bool selectFolder(const String& path) {
+    halt();
+    track.close();
+    chapters.clear();
+    error = nullptr;
+    playbackFolder = path;
+    Serial.println("MicroSD mounted; scanning chapters");
+    // Read the FAT directory directly so boot does not open every audio file.
+    const String directoryPath = String("/sd") + path;
+    if (DIR* directory = opendir(directoryPath.c_str())) {
+        while (dirent* entry = readdir(directory)) {
+            String name = entry->d_name;
+            if (entry->d_type != DT_DIR && !name.startsWith(".") && name.endsWith(".pcm")) {
+                chapters.push_back(name);
+            }
+        }
+        closedir(directory);
+    }
+    Serial.printf("Chapter scan complete: %u files\n", unsigned(chapters.size()));
+    if (chapters.empty()) {
+        error = "No chapters in this folder";
+        return false;
+    }
+    std::sort(chapters.begin(), chapters.end());
+    String record = prefsReady && prefs.isKey("bookmark") ? prefs.getString("bookmark") : String();
+    int split = record.indexOf('\n');
+    if (split >= 0) {
+        String name = record.substring(0, split);
+        String prefix = path + "/";
+        if (name.startsWith(prefix)) name.remove(0, prefix.length());
+        auto match = std::find(chapters.begin(), chapters.end(), name);
+        if (match != chapters.end()) {
+            return openChapter(match - chapters.begin(), strtoul(record.c_str() + split + 1, nullptr, 10));
+        }
+    }
+    return openChapter(0);
+}
+
+bool cardReady = false;
+
 void loadCard() {
     SPI.begin(18, 19, 23, sdSelect);
     if (!SD.begin(sdSelect, SPI, 10000000)) {
         error = "MicroSD unavailable";
         return;
     }
-    File directory = SD.open(folder);
-    if (directory && directory.isDirectory()) {
-        while (File entry = directory.openNextFile()) {
-            String name = entry.name();
-            if (!entry.isDirectory() && !name.startsWith(".") && name.endsWith(".pcm")) {
-                chapters.push_back(name);
-            }
-        }
-        directory.close();
-    }
-    if (chapters.empty()) {
-        error = "No chapters in /Audiobooks";
-        return;
-    }
-    std::sort(chapters.begin(), chapters.end());
-    String record = prefsReady ? prefs.getString("bookmark") : String();
-    int split = record.indexOf('\n');
-    if (split >= 0) {
-        String name = record.substring(0, split);
-        auto match = std::find(chapters.begin(), chapters.end(), name);
-        if (match != chapters.end()) {
-            openChapter(match - chapters.begin(), strtoul(record.c_str() + split + 1, nullptr, 10));
-            return;
+    cardReady = true;
+    String record = prefsReady && prefs.isKey("bookmark") ? prefs.getString("bookmark") : String();
+    if (record.startsWith("/Downloads/")) {
+        const int end = record.indexOf('/', sizeof("/Downloads/") - 1);
+        if (end > 0) {
+            String path = record.substring(0, end);
+            if (SD.exists(path + "/title.txt") && selectFolder(path)) return;
         }
     }
-    openChapter(0);
+    selectFolder(folder);
 }
 }  // namespace
 
@@ -449,6 +723,10 @@ void setup() {
     Serial.begin(115200);
     screen.init();
     screen.setRotation(1);
+    screen.fillScreen(background);
+    screen.setTextColor(TFT_WHITE);
+    screen.drawCentreString("Reading microSD...", 160, 110, 2);
+    Serial.println("CYD display initialized; checking microSD");
     pinMode(touchSelect, OUTPUT);
     digitalWrite(touchSelect, HIGH);
     pinMode(touchClock, OUTPUT);
@@ -461,7 +739,13 @@ void setup() {
         prefs.getBytes("touch", &calibration, sizeof(calibration)) != sizeof(calibration) ||
         !validCalibration(calibration)) target = 0;
     loadCard();
-    if (!chapters.empty()) initAudio();
+    draw();
+    if (cardReady) {
+        Serial.println("Starting Bluetooth");
+        initAudio();
+    } else {
+        Serial.println(error);
+    }
     Serial.printf("CYD audiobook: %u chapters, Bluetooth target %s\n",
                   unsigned(chapters.size()), headphoneName.c_str());
     draw();
@@ -481,6 +765,17 @@ void loop() {
     }
     pumpAudio();
     pollTouch();
+    if (libraryView == LibraryView::Download) {
+        static auto previousState = Downloads::Idle;
+        static unsigned previousParts = 0;
+        auto current = downloads.state.load();
+        auto parts = downloads.completed.load();
+        if (current != previousState || parts != previousParts) {
+            previousState = current;
+            previousParts = parts;
+            draw();
+        }
+    }
     if (playing && millis() - savedAt >= 15000) save();
     static uint32_t displayAt = 0;
     if (playing && millis() - displayAt >= 1000) {
