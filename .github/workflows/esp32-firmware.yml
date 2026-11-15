@@ -154,7 +154,7 @@ jobs:
               { echo 'Expected a native USB ACM device.' >&2; exit 1; }
             # Track the same by-id link across USB resets, even if the ACM minor changes.
             device_args=(--device-cgroup-rule 'c 166:* rw'
-              --mount type=bind,source=/dev,target=/host-dev,readonly)
+              --mount "type=bind,source=/dev,target=/host-dev,readonly")
             port="/host-dev/${serial#/dev/}"
           else
             device_args=(--device "$device:/dev/esp32:rw")
