@@ -78,7 +78,8 @@ class Library:
             parts = []
             for number, track in enumerate(tracks, 1):
                 content = track["contentUrl"]
-                if not content.startswith(f"/s/item/{book}/"):
+                prefixes = (f"/api/items/{book}/file/", f"/s/item/{book}/")
+                if not content.startswith(prefixes):
                     raise ValueError("Unexpected audio URL")
                 source = temp / "source.audio"
                 path = quote(content, safe="/%")
