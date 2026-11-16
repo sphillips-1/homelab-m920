@@ -1,5 +1,6 @@
 """Serve Audiobookshelf books in the CYD's offline PCM format on a trusted LAN."""
 import argparse
+from base64 import b64encode
 import getpass
 import hmac
 import json
@@ -54,13 +55,43 @@ class Library:
         entries = [item for item in self.json("/api/libraries")["libraries"] if item["mediaType"] == "book"]
         return entries[page * PAGE_SIZE:(page + 1) * PAGE_SIZE], len(entries) > (page + 1) * PAGE_SIZE
 
-    def books(self, library, page):
-        result = self.json(f"/api/libraries/{library}/items?" + urlencode({
-            "limit": PAGE_SIZE, "page": page, "sort": "media.metadata.title", "minified": 1,
-        }))
-        entries = [{"id": item["id"], "name": item["media"]["metadata"].get("title", "Untitled")}
+    def books(self, library, page, series=None):
+        query = {"limit": PAGE_SIZE, "page": page, "minified": 1}
+        if series:
+            query["filter"] = "series." + b64encode(series.encode("ascii")).decode("ascii")
+        else:
+            query["sort"] = "media.metadata.title"
+        result = self.json(f"/api/libraries/{library}/items?" + urlencode(query))
+        entries = [{"id": item["id"], "name": item["media"]["metadata"].get("title") or "Untitled"}
                    for item in result["results"]]
         return entries, result["total"] > (page + 1) * PAGE_SIZE
+
+    def recent(self):
+        seen = set()
+        page = 0
+        while True:
+            sessions = self.json(f"/api/me/listening-sessions?itemsPerPage=20&page={page}")
+            for session in sessions["sessions"]:
+                book = session.get("libraryItemId") or ""
+                if session.get("mediaType") != "book" or not ID.fullmatch(book) or book in seen:
+                    continue
+                seen.add(book)
+                try:
+                    item = self.json(f"/api/items/{book}?minified=1")
+                except HTTPError as error:
+                    if error.code in (403, 404):
+                        continue
+                    raise
+                meta = item["media"]["metadata"]
+                library = item.get("libraryId") or ""
+                series = (next((series for series in meta.get("series") or []
+                                if ID.fullmatch(series.get("id") or "")), {})
+                          if ID.fullmatch(library) else {})
+                return (book, meta.get("title") or session.get("displayTitle") or "Untitled",
+                        library if series else "", series.get("id", ""), series.get("name") or "")
+            page += 1
+            if not sessions["sessions"] or page >= sessions.get("numPages", 1):
+                return None
 
     def prepare(self, book):
         target = self.cache / book
@@ -170,7 +201,15 @@ def handler(library, key):
 
         def get(self):
             path = self.path.strip("/").split("/")
-            if path[0] in ("libraries", "books"):
+            if path == ["recent"]:
+                recent = library.recent()
+                if recent:
+                    book, title, collection, series, name = recent
+                    self.reply(200, "\t".join((book, label(title), collection, series, label(name))))
+                else:
+                    self.reply(200, "")
+                return
+            if path[0] in ("libraries", "books", "series"):
                 page = int(path[-1])
                 if not 0 <= page <= 10000:
                     raise ValueError("Invalid page")
@@ -178,6 +217,9 @@ def handler(library, key):
                     entries, more = library.libraries(page)
                 elif path[0] == "books" and len(path) == 3 and ID.fullmatch(path[1]):
                     entries, more = library.books(path[1], page)
+                elif (path[0] == "series" and len(path) == 4 and
+                      ID.fullmatch(path[1]) and ID.fullmatch(path[2])):
+                    entries, more = library.books(path[1], page, series=path[2])
                 else:
                     raise ValueError("Invalid catalog request")
                 rows = [f"{item['id']}\t{label(item['name'])}" for item in entries if ID.fullmatch(item["id"])]

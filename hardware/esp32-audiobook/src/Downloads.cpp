@@ -60,14 +60,38 @@ bool Downloads::fail(const char* reason) {
 
 bool Downloads::connect() {
     if (WiFi.status() == WL_CONNECTED) return true;
+    static std::atomic<uint8_t> disconnectReason{0};
+    static const auto eventId = WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+        disconnectReason = info.wifi_sta_disconnected.reason;
+        Serial.printf("CYD Wi-Fi disconnected: reason %u\n", unsigned(disconnectReason.load()));
+    }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    (void)eventId;
+    disconnectReason = 0;
     WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), password.c_str());
-    const uint32_t deadline = millis() + 12000;
+    if (!WiFi.mode(WIFI_STA)) {
+        Serial.printf("CYD Wi-Fi radio init failed; heap %u\n", unsigned(ESP.getFreeHeap()));
+        return fail("Could not start Wi-Fi radio");
+    }
+    WiFi.setAutoReconnect(true);
+    const auto initial = WiFi.begin(ssid.c_str(), password.c_str());
+    Serial.printf("CYD Wi-Fi joining; initial status %d, heap %u\n", int(initial), unsigned(ESP.getFreeHeap()));
+    const uint32_t deadline = millis() + 18000;
     while (WiFi.status() != WL_CONNECTED && int32_t(deadline - millis()) > 0 && !cancelled) delay(100);
-    return WiFi.status() == WL_CONNECTED || fail("Wi-Fi connection failed");
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("CYD Wi-Fi received an IP address");
+        return true;
+    }
+    const auto reason = disconnectReason.load();
+    Serial.printf("CYD Wi-Fi join failed: status %d, reason %u\n", int(WiFi.status()), unsigned(reason));
+    WiFi.mode(WIFI_OFF);
+    switch (reason) {
+        case WIFI_REASON_NO_AP_FOUND: return fail("2.4 GHz network not found");
+        case WIFI_REASON_AUTH_FAIL:
+        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+        case WIFI_REASON_HANDSHAKE_TIMEOUT: return fail("Wi-Fi password or security rejected");
+        default: return fail("Wi-Fi connection timed out");
+    }
 }
-
 void Downloads::disconnect() {
     WiFi.mode(WIFI_OFF);
 }
@@ -88,13 +112,43 @@ int Downloads::request(const String& path, String& body, size_t maxBytes, bool p
     return code;
 }
 
-bool Downloads::catalog(const String& library, unsigned page, std::vector<CatalogEntry>& rows, bool& more) {
+bool Downloads::recent(RecentListen& result) {
+    result = {};
     message = nullptr;
     cancelled = false;
     if (!configure()) return fail("Check network.txt on microSD");
     if (!connect()) return false;
     String body;
-    String path = library.isEmpty() ? "/libraries/" : "/books/" + library + "/";
+    const int code = request("/recent", body, 512);
+    if (code != 200) return fail(code == 401 ? "Check the host access token" : "Listening history unavailable");
+    if (body.isEmpty()) return true;
+
+    String fields[5];
+    int start = 0;
+    for (unsigned i = 0; i < 4; ++i) {
+        int end = body.indexOf('\t', start);
+        if (end < 0) return fail("Invalid listening history");
+        fields[i] = body.substring(start, end);
+        start = end + 1;
+    }
+    fields[4] = body.substring(start);
+    if (!validId(fields[0]) || fields[1].isEmpty() ||
+        (!fields[3].isEmpty() && (!validId(fields[2]) || !validId(fields[3])))) {
+        return fail("Invalid listening history");
+    }
+    result = {{fields[0], fields[1]}, fields[2], fields[3], fields[4]};
+    return true;
+}
+
+bool Downloads::catalog(const String& library, unsigned page, std::vector<CatalogEntry>& rows,
+                        bool& more, const String& series) {
+    message = nullptr;
+    cancelled = false;
+    if (!configure()) return fail("Check network.txt on microSD");
+    if (!connect()) return false;
+    String body;
+    String path = !series.isEmpty() ? "/series/" + library + "/" + series + "/" :
+        library.isEmpty() ? "/libraries/" : "/books/" + library + "/";
     const int code = request(path + String(page), body, 768);
     if (code != 200) return fail(code == 401 ? "Check the host access token" : "Audiobook host unavailable");
 

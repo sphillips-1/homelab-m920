@@ -30,14 +30,20 @@ Preferences prefs;
 std::vector<String> chapters;
 String playbackFolder = folder;
 Downloads downloads;
-enum class LibraryView { Player, Offline, Libraries, Catalog, Download };
+enum class LibraryView { Player, Offline, Server, Libraries, Catalog, Series, Download };
 LibraryView libraryView = LibraryView::Player;
 std::vector<CatalogEntry> libraryRows;
 String libraryId;
 String downloadTitle;
 int libraryPage = 0;
-unsigned selectedRow = 0;
+RecentListen recentListen;
+const char* recentError = nullptr;
+String selectedBookId;
+LibraryView downloadFrom = LibraryView::Catalog;
 bool moreRows = false;
+constexpr uint32_t wifiBootMagic = 0x43594457;
+RTC_NOINIT_ATTR uint32_t wifiBootRequest;
+bool wifiOnlyBoot = false;
 const char* libraryError = nullptr;
 File track;
 TouchCalibration calibration{};
@@ -257,12 +263,40 @@ void showTime() {
     if (width) screen.fillRect(12, 117, width, 4, accent);
 }
 
+String fittedTitle(String text, int width) {
+    if (screen.textWidth(text, 2) <= width) return text;
+    const auto border = width - screen.textWidth("...", 2);
+    while (!text.isEmpty() && screen.textWidth(text, 2) > border) text.remove(text.length() - 1);
+    return text + "...";
+}
+
 void drawLibrary() {
     screen.setTextColor(accent);
+    if (libraryView == LibraryView::Server) {
+        screen.drawString("Audiobookshelf", 12, 12, 2);
+        screen.setTextColor(muted);
+        screen.drawString("Most recent listen", 12, 42, 2);
+        if (!recentListen.book.id.isEmpty()) {
+            bool hasSeries = !recentListen.series.isEmpty();
+            int bookWidth = hasSeries ? 208 : 296;
+            screen.fillRoundRect(12, 63, bookWidth, 40, 7, panel);
+            screen.setTextColor(TFT_WHITE);
+            screen.drawString(fittedTitle(recentListen.book.title, bookWidth - 16), 20, 75, 2);
+            if (hasSeries) button(228, 63, 80, "Series");
+        } else {
+            screen.setTextColor(TFT_WHITE);
+            screen.drawString(recentError ? fittedTitle(recentError, 296) : "No listening history yet", 12, 75, 2);
+        }
+        button(12, 190, 72, "Back");
+        button(94, 190, 214, "Browse libraries", true);
+        return;
+    }
     const char* heading = libraryView == LibraryView::Offline ? "On microSD" :
         libraryView == LibraryView::Libraries ? "Audiobookshelf libraries" :
         libraryView == LibraryView::Catalog ? "Audiobookshelf books" : "Download to microSD";
-    screen.drawString(heading, 12, 12, 2);
+    screen.drawString(libraryView == LibraryView::Series
+        ? fittedTitle(recentListen.seriesTitle.isEmpty() ? "Series" : recentListen.seriesTitle, 296)
+        : String(heading), 12, 12, 2);
     if (libraryView == LibraryView::Download) {
         auto state = downloads.state.load();
         screen.setTextColor(TFT_WHITE);
@@ -425,8 +459,33 @@ void onlinePage() {
     screen.drawCentreString("Connecting to Audiobookshelf...", 160, 110, 2);
     libraryRows.clear();
     moreRows = false;
-    if (downloads.catalog(libraryId, libraryPage, libraryRows, moreRows)) libraryError = nullptr;
+    const bool series = libraryView == LibraryView::Series;
+    if (downloads.catalog(series ? recentListen.library : libraryId, libraryPage, libraryRows, moreRows,
+                          series ? recentListen.series : String())) libraryError = nullptr;
     else libraryError = downloads.error();
+    draw();
+}
+
+void switchRadioMode(bool wifi) {
+    halt();
+    save();
+    screen.fillScreen(background);
+    screen.setTextColor(TFT_WHITE);
+    screen.drawCentreString(wifi ? "Starting Wi-Fi..." : "Starting Bluetooth...", 160, 110, 2);
+    wifiBootRequest = wifi ? wifiBootMagic : 0;
+    ESP.restart();
+}
+
+void openServer() {
+    if (!wifiOnlyBoot) {
+        switchRadioMode(true);
+        return;
+    }
+    libraryView = LibraryView::Server;
+    screen.fillScreen(background);
+    screen.setTextColor(TFT_WHITE);
+    screen.drawCentreString("Loading Audiobookshelf...", 160, 110, 2);
+    recentError = downloads.recent(recentListen) ? nullptr : downloads.error();
     draw();
 }
 
@@ -437,21 +496,53 @@ void openBooks() {
     offlinePage();
 }
 
+void chooseDownload(const CatalogEntry& entry) {
+    downloadTitle = entry.title;
+    selectedBookId = entry.id;
+    downloadFrom = libraryView;
+    downloads.state = Downloads::Idle;
+    libraryView = LibraryView::Download;
+    draw();
+}
+
 void libraryTap(TouchPoint point) {
+    if (libraryView == LibraryView::Server) {
+        if (point.y >= 63 && point.y < 103 && !recentListen.book.id.isEmpty()) {
+            if (!recentListen.series.isEmpty() && point.x >= 228 && point.x < 308) {
+                libraryView = LibraryView::Series;
+                libraryPage = 0;
+                onlinePage();
+            } else if (point.x >= 12 && point.x < (recentListen.series.isEmpty() ? 308 : 220)) {
+                chooseDownload(recentListen.book);
+            }
+        } else if (point.y >= 190 && point.y < 230) {
+            if (point.x >= 12 && point.x < 84) {
+                downloads.disconnect();
+                libraryPage = 0;
+                offlinePage();
+            } else if (point.x >= 94 && point.x < 308) {
+                libraryView = LibraryView::Libraries;
+                libraryId = "";
+                libraryPage = 0;
+                onlinePage();
+            }
+        }
+        return;
+    }
     if (libraryView == LibraryView::Download) {
         if (point.y < 190 || point.y >= 230) return;
         const auto state = downloads.state.load();
         if (state == Downloads::Preparing || state == Downloads::Transferring) {
             if (point.x >= 12 && point.x < 104) downloads.cancel();
         } else if (point.x >= 12 && point.x < 104) {
-            libraryView = LibraryView::Catalog;
-            onlinePage();
+            libraryView = downloadFrom;
+            draw();
         } else if (point.x >= 114 && point.x < 308) {
             if (state == Downloads::Complete) {
                 libraryPage = 0;
                 offlinePage();
             } else {
-                downloads.start(libraryRows[selectedRow].id);
+                downloads.start(selectedBookId);
                 draw();
             }
         }
@@ -464,7 +555,10 @@ void libraryTap(TouchPoint point) {
         const auto& entry = libraryRows[row];
         if (libraryView == LibraryView::Offline) {
             const String path = entry.id.isEmpty() ? String(folder) : "/Downloads/" + entry.id;
-            selectFolder(path);
+            if (selectFolder(path) && wifiOnlyBoot) {
+                switchRadioMode(false);
+                return;
+            }
             browser = false;
             libraryView = LibraryView::Player;
             draw();
@@ -474,17 +568,17 @@ void libraryTap(TouchPoint point) {
             libraryPage = 0;
             onlinePage();
         } else {
-            downloadTitle = entry.title;
-            selectedRow = row;
-            downloads.state = Downloads::Idle;
-            libraryView = LibraryView::Download;
-            draw();
+            chooseDownload(entry);
         }
         return;
     }
     if (point.y < 190 || point.y >= 230) return;
     if (point.x >= 12 && point.x < 84) {
         if (libraryView == LibraryView::Offline) {
+            if (wifiOnlyBoot) {
+                switchRadioMode(false);
+                return;
+            }
             libraryView = LibraryView::Player;
             draw();
         } else if (libraryView == LibraryView::Catalog) {
@@ -493,15 +587,11 @@ void libraryTap(TouchPoint point) {
             libraryPage = 0;
             onlinePage();
         } else {
-            downloads.disconnect();
-            libraryPage = 0;
-            offlinePage();
+            libraryView = LibraryView::Server;
+            draw();
         }
     } else if (libraryView == LibraryView::Offline && point.x >= 212) {
-        libraryView = LibraryView::Libraries;
-        libraryId = "";
-        libraryPage = 0;
-        onlinePage();
+        openServer();
     } else {
         bool offline = libraryView == LibraryView::Offline;
         if (point.x >= 90 && point.x < (offline ? 145 : 194) && libraryPage) --libraryPage;
@@ -721,6 +811,8 @@ void loadCard() {
 
 void setup() {
     Serial.begin(115200);
+    wifiOnlyBoot = wifiBootRequest == wifiBootMagic;
+    wifiBootRequest = 0;
     screen.init();
     screen.setRotation(1);
     screen.fillScreen(background);
@@ -740,7 +832,12 @@ void setup() {
         !validCalibration(calibration)) target = 0;
     loadCard();
     draw();
-    if (cardReady) {
+    if (wifiOnlyBoot) {
+        Serial.println("CYD Wi-Fi mode; Bluetooth is off");
+        openServer();
+        if (recentError) Serial.printf("CYD catalog: %s\n", recentError);
+        else Serial.printf("CYD catalog: recent listen %s\n", recentListen.book.id.isEmpty() ? "empty" : "loaded");
+    } else if (cardReady) {
         Serial.println("Starting Bluetooth");
         initAudio();
     } else {
@@ -762,6 +859,14 @@ void loop() {
     if (connected != wasConnected) {
         wasConnected = connected;
         draw();
+    }
+    // A direct USB check uses the same catalog entry point as the Server button.
+    if (Serial.available() && Serial.read() == '?' && libraryView != LibraryView::Download && target < 0) {
+        openServer();
+        if (wifiOnlyBoot) {
+            if (recentError) Serial.printf("CYD catalog: %s\n", recentError);
+            else Serial.printf("CYD catalog: recent listen %s\n", recentListen.book.id.isEmpty() ? "empty" : "loaded");
+        }
     }
     pumpAudio();
     pollTouch();
