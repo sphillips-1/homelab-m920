@@ -46,7 +46,7 @@ The local dual-USB CYD Shelf Goblin build uses the M920Q feed.
 
 ## Setup
 
-The CYD target in Actions installs the [CYD audiobook player](../esp32-audiobook/README.md). The following commands are historical bench and recovery references for the Shelf Goblin firmware.
+The CYD target in Actions installs the [M920Q status display](../cyd-status/README.md). The following commands are historical bench and recovery references for the Shelf Goblin firmware.
 
 1. Install the server feed described in [the service guide](../../services/esp32-monitor/README.md).
 2. Install PlatformIO 6.2.0, then run `pio run -d hardware/esp32-monitor`.

@@ -3,12 +3,12 @@
 The existing `self-hosted`, `linux`, `x64`, `m920` runner flashes the
 connected display over USB. GitHub-hosted runners build and test the
 [Waveshare Shelf Goblin](../hardware/esp32-monitor/README.md) and
-[CYD audiobook player](../hardware/esp32-audiobook/README.md).
+[CYD M920Q status display](../hardware/cyd-status/README.md).
 
 ## Run a deployment
 
 Firmware and deployment changes pushed to main deploy the Waveshare by
-default. Pushes that change the audiobook project without changing the
+default. Pushes that change the CYD status project without changing the
 monitor project deploy the CYD. To deploy manually, open the **ESP32 firmware** workflow
 in GitHub Actions, select **Run workflow** on **main**, and choose
 `waveshare-s3-touch-169` or `cyd`. Pull requests and pushes to other branches

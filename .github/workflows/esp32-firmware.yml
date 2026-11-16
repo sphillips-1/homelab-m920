@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - hardware/esp32-monitor/**
-      - hardware/esp32-audiobook/**
+      - hardware/cyd-status/**
       - tests/test_esp32_health.cpp
       - tests/test_esp32_touch.cpp
       - tests/test_esp32_deployment.py
@@ -15,7 +15,7 @@ on:
   pull_request:
     paths:
       - hardware/esp32-monitor/**
-      - hardware/esp32-audiobook/**
+      - hardware/cyd-status/**
       - tests/test_esp32_health.cpp
       - tests/test_esp32_touch.cpp
       - tests/test_esp32_deployment.py
@@ -44,7 +44,7 @@ jobs:
       matrix:
         include:
           - target: cyd
-            project: hardware/esp32-audiobook
+            project: hardware/cyd-status
           - target: waveshare-s3-touch-169
             project: hardware/esp32-monitor
     env:
@@ -108,7 +108,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == push ]] &&
              git cat-file -e "$PREVIOUS_SHA^{commit}" 2>/dev/null &&
              git diff --quiet "$PREVIOUS_SHA" "$GITHUB_SHA" -- hardware/esp32-monitor &&
-             [[ -n "$(git diff --name-only "$PREVIOUS_SHA" "$GITHUB_SHA" -- hardware/esp32-audiobook)" ]]; then
+             [[ -n "$(git diff --name-only "$PREVIOUS_SHA" "$GITHUB_SHA" -- hardware/cyd-status)" ]]; then
             target=cyd
           fi
           echo "TARGET=$target" >> "$GITHUB_ENV"
@@ -118,8 +118,8 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin main
           project=hardware/esp32-monitor
-          if [[ "$TARGET" == cyd ]]; then project=hardware/esp32-audiobook; fi
-          latest=$(git log -1 --format=%H origin/main -- "$project" hardware/esp32-monitor/deploy tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/esp32_profiles.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
+          if [[ "$TARGET" == cyd ]]; then project=hardware/cyd-status; fi
+          latest=$(git log -1 --format=%H origin/main -- "$project" hardware/esp32-monitor/src/health.h hardware/esp32-monitor/deploy tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/esp32_profiles.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
           git merge-base --is-ancestor "$latest" "$GITHUB_SHA" || { echo 'A newer firmware change is already on main; deploy the newer run.' >&2; exit 1; }
       - name: Download verified firmware from this run
         uses: actions/download-artifact@v4

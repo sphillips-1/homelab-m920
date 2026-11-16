@@ -21,9 +21,7 @@ py -3 -X utf8 tools/prepare_card.py @archives --include B0CS3XXW7C --card E:\
 
 These three archives together contain all 435 numbered chapters in the box set, including opening and closing credits. The filter selects only this box set from the larger library export. For a quick check, use a separate staging folder with --limit 2. If conversion is interrupted, rerun with the same input set, destination and --resume.
 
-## Deploy from the M920Q
-
-The [ESP32 firmware workflow](../../docs/esp32-deployment.md) deploys this project over USB on the M920Q. The commands below are for a separate Windows bench connection.
+The [ESP32 firmware workflow](../../docs/esp32-deployment.md) deploys the [M920Q status display](../cyd-status/README.md) to the server-connected CYD. The audiobook player can be built for a separate bench connection.
 
 ## Build and upload locally
 
