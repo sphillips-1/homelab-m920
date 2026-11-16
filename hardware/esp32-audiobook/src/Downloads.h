@@ -9,10 +9,19 @@ struct CatalogEntry {
     String title;
 };
 
+struct RecentListen {
+    CatalogEntry book;
+    String library;
+    String series;
+    String seriesTitle;
+};
+
 class Downloads {
 public:
     bool configure();
-    bool catalog(const String& library, unsigned page, std::vector<CatalogEntry>& rows, bool& more);
+    bool recent(RecentListen& result);
+    bool catalog(const String& library, unsigned page, std::vector<CatalogEntry>& rows, bool& more,
+                 const String& series = "");
     bool start(const String& book);
     void cancel() { cancelled = true; }
     void disconnect();

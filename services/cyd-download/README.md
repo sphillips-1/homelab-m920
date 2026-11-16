@@ -49,8 +49,8 @@ The prompt saves Wi-Fi details and the helper token in network.txt on the card.
 Treat that file as private. The Audiobookshelf API key stays on the M920.
 
 Eject the card, insert it in the CYD, and restart. Choose **Chapters → Books →
-Server**, pick a library and book, then select **Download book**. A download
+Server**. The CYD restarts into Wi-Fi mode and shows the Audiobookshelf account's most recent listen. Open it, choose **Series** to see its series in reading order, or choose **Browse libraries**. Select a book, then choose **Download book**. A download
 keeps finished parts if interrupted. Select the same book to resume. When it
-finishes, select **On microSD** and open the book. The card needs about 159 MB
+finishes, select **On microSD** and open the book. The CYD restarts into Bluetooth playback mode. The card needs about 159 MB
 per hour of audio. The helper uses sequential parts of up to about 15 minutes
 for long source files so they fit comfortably on FAT32.
