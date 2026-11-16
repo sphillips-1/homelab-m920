@@ -4,9 +4,9 @@
 
 constexpr uint32_t HEALTHY_HOUR_MS = 60UL * 60 * 1000;
 constexpr uint32_t HEALTHY_DAY_MS = 24UL * HEALTHY_HOUR_MS;
-constexpr uint32_t MAX_HEALTH_MS = 35UL * HEALTHY_DAY_MS;
+constexpr uint32_t MAX_HEALTH_MS = 42UL * HEALTHY_DAY_MS;
 constexpr uint32_t MAX_OBSERVATION_GAP_MS = 20000;
-enum class Form { Baby, Scavenger, Adult, Tactician, Hobgoblin, Chieftain, GreatChieftain, GoblinLord, Count };
+enum class Form { Baby, Scavenger, Adult, Tactician, Hobgoblin, Chieftain, GreatChieftain, GoblinLord, GoblinKing, Count };
 struct Milestone { uint32_t thresholdMs; const char *name; const char *className; };
 constexpr Milestone MILESTONES[] = {
     {0, "Baby Goblin", nullptr},
@@ -17,6 +17,7 @@ constexpr Milestone MILESTONES[] = {
     {10UL * HEALTHY_DAY_MS, "Chieftain", "Chieftain"},
     {21UL * HEALTHY_DAY_MS, "Great Chieftain", "Great Chieftain"},
     {28UL * HEALTHY_DAY_MS, "Goblin Lord", "Goblin Lord"},
+    {35UL * HEALTHY_DAY_MS, "Goblin King", "Goblin King"},
 };
 constexpr unsigned FORM_COUNT = sizeof(MILESTONES) / sizeof(MILESTONES[0]);
 static_assert(FORM_COUNT == static_cast<unsigned>(Form::Count), "Each form needs a milestone");

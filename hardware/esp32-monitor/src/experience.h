@@ -1,7 +1,7 @@
 #pragma once
 #include "combat.h"
 
-constexpr uint32_t XP_THRESHOLDS[] = {0, 60, 150, 280, 460, 700, 1010, 1400};
+constexpr uint32_t XP_THRESHOLDS[] = {0, 60, 150, 280, 460, 700, 1010, 1400, 1900};
 static_assert(sizeof(XP_THRESHOLDS) / sizeof(XP_THRESHOLDS[0]) == FORM_COUNT,
               "Each form needs an XP threshold");
 

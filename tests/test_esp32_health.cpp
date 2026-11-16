@@ -2,7 +2,7 @@
 // g++ -std=c++14 -fsyntax-only tests/test_esp32_health.cpp
 #include "../hardware/esp32-monitor/src/health.h"
 #include "../hardware/esp32-monitor/src/evolution.h"
-#include "../hardware/esp32-monitor/src/combat.h"
+#include "../hardware/esp32-monitor/src/experience.h"
 constexpr Readings good{20, 40, 45, 30, 50, 8, 10, 0};
 static_assert(assess(good, true).mood == Mood::Healthy, "Stopped containers can be intentional");
 static_assert(assess(good, false).mood == Mood::Offline, "Cached readings cannot imply online health");
@@ -49,7 +49,8 @@ static_assert(thresholds(), "Health threshold or alert precedence regression");
 
 constexpr bool formThresholds() {
   constexpr uint32_t expected[] = {0, 8 * HEALTHY_HOUR_MS, HEALTHY_DAY_MS, 3 * HEALTHY_DAY_MS,
-      7 * HEALTHY_DAY_MS, 10 * HEALTHY_DAY_MS, 21 * HEALTHY_DAY_MS, 28 * HEALTHY_DAY_MS};
+      7 * HEALTHY_DAY_MS, 10 * HEALTHY_DAY_MS, 21 * HEALTHY_DAY_MS, 28 * HEALTHY_DAY_MS,
+      35 * HEALTHY_DAY_MS};
   if (sizeof(expected) / sizeof(expected[0]) != FORM_COUNT) return false;
   for (unsigned i = 0; i < FORM_COUNT; ++i) {
     if (formFor(expected[i]) != static_cast<Form>(i)) return false;
@@ -58,7 +59,10 @@ constexpr bool formThresholds() {
   return true;
 }
 static_assert(formThresholds(), "Every stage uses the same boundary in both directions");
-static_assert(MAX_HEALTH_MS == 35 * HEALTHY_DAY_MS, "Final form has a week of buffer");
+static_assert(formForXp(1400) == Form::GoblinLord, "Existing Lord saves keep their form");
+static_assert(formForXp(1899) == Form::GoblinLord && formForXp(1900) == Form::GoblinKing,
+    "Goblin King requires 1900 XP");
+static_assert(MAX_HEALTH_MS == 42 * HEALTHY_DAY_MS, "Final form has a week of buffer");
 static_assert(formFor(Evolution(14 * HEALTHY_DAY_MS).healthMs) == Form::Chieftain, "Keep existing banks");
 static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Warning) == HEALTHY_DAY_MS + 1, "Warning drop estimate");
 static_assert(timeToDrop(11 * HEALTHY_DAY_MS, Mood::Critical) == 6 * HEALTHY_HOUR_MS + 1, "Critical drop estimate");

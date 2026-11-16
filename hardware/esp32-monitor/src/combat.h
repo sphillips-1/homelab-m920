@@ -13,6 +13,7 @@ constexpr Opponent OPPONENTS[][2] = {
     {{"Raskghar Hunter", MonsterShape::Beast}, {"Armored Ogre", MonsterShape::Biped}},
     {{"Young Wyvern", MonsterShape::Winged}, {"Minotaur Champion", MonsterShape::Biped}},
     {{"Wyvern Lord", MonsterShape::Winged}, {"Adult Creler", MonsterShape::Crawler}},
+    {{"Ancient Dragon", MonsterShape::Winged}, {"Frost Giant", MonsterShape::Biped}},
 };
 static_assert(sizeof(OPPONENTS) / sizeof(OPPONENTS[0]) == FORM_COUNT, "Each stage needs opponents");
 

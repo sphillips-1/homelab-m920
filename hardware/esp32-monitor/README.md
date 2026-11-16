@@ -41,6 +41,7 @@ from XP, so existing Waveshare installs start at level 1 with 0 XP.
 | 6 | Chieftain | 700 |
 | 7 | Great Chieftain | 1,010 |
 | 8 | Goblin Lord | 1,400 |
+| 9 | Goblin King | 1,900 |
 
 The local dual-USB CYD Shelf Goblin build uses the M920Q feed.
 
@@ -83,11 +84,12 @@ and hobgoblin milestones change the pet's appearance while retaining its class.
 | 10 days | Hobgoblin with a tribal banner | `[Chieftain]` |
 | 21 days | Hobgoblin with a wyvern-scale mantle and several pennants | `[Great Chieftain]` |
 | 28 days | Hobgoblin with wyvern armor and a green chest flame | `[Goblin Lord]` |
+| 35 days | Hobgoblin with a gold crown, wyvern armor and a green chest flame | `[Goblin King]` |
 
 Healthy and Busy observations earn one second of health time per observed
 second. Warning conditions drain one second per second; Critical conditions
 drain four. Crossing the same thresholds downward devolves the pet. The bank
-is capped at 35 days, giving the Goblin Lord a week's buffer. The display shows
+is capped at 42 days, giving the Goblin King a week's buffer. The display shows
 the current bank and time to the next form, or the estimated time to drop at the
 current alert severity. Earning a new class briefly displays a class announcement.
 Saved banks map directly onto the new thresholds, so an existing 14-day bank
@@ -96,7 +98,7 @@ starts at `[Chieftain]`.
 ### Seek a Fight
 
 Tap **Seek a Fight** on the goblin screen to face a random opponent. Combat
-levels are the eight milestones above, starting with Baby Goblin at level 1.
+levels are the nine milestones above, starting with Baby Goblin at level 1.
 The game draws uniformly from the goblin's level and the neighboring levels
 that exist, then chooses one of two opponents for the selected level.
 
@@ -106,7 +108,7 @@ that exist, then chooses one of two opponents for the selected level.
 | Equal | 65% | Advance one milestone |
 | One above | 40% | Advance one milestone |
 
-An advancement sets the bank to the next threshold. A Goblin Lord stays at
+An advancement sets the bank to the next threshold. A Goblin King stays at
 its current bank after winning. Any loss kills the goblin and immediately
 rebirths it as a Baby Goblin with an empty bank. The new bank is saved as soon
 as it changes. A 3.6-second animation shows the goblin facing the named
