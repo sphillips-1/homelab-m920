@@ -37,15 +37,20 @@ class Library:
         self.opener = build_opener(NoRedirect())
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.lock = Lock()
+        self.progress_lock = Lock()
         self.jobs = {}
 
-    def request(self, path):
+    def request(self, path, payload=None):
         # Keep the Audiobookshelf key on the host and restrict it to the configured origin.
         if not path.startswith("/") or path.startswith("//"):
             raise ValueError("Invalid Audiobookshelf path")
-        return self.opener.open(Request(self.url + path, headers={
-            "Authorization": "Bearer " + self.key,
-        }), timeout=30)
+        headers = {"Authorization": "Bearer " + self.key}
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+        return self.opener.open(Request(
+            self.url + path, headers=headers, data=payload,
+            method="PATCH" if payload is not None else "GET",
+        ), timeout=30)
 
     def json(self, path):
         with self.request(path) as response:
@@ -92,6 +97,31 @@ class Library:
             page += 1
             if not sessions["sessions"] or page >= sessions.get("numPages", 1):
                 return None
+
+    def sync_progress(self, book, position_ms, duration_ms, finished):
+        seconds = position_ms / 1000
+        duration = duration_ms / 1000
+        path = f"/api/me/progress/{book}"
+        with self.progress_lock:
+            try:
+                remote = self.json(path)
+            except HTTPError as error:
+                if error.code != 404:
+                    raise
+                remote = {}
+            # The CYD may have been offline for days. Keep any farther server
+            # position and never clear a finished status during an upload.
+            if remote.get("isFinished") or (not finished and (remote.get("currentTime") or 0) >= seconds):
+                return
+            payload = json.dumps({
+                "currentTime": seconds,
+                "duration": duration,
+                "progress": min(1, seconds / duration),
+                "isFinished": finished,
+            }).encode("utf-8")
+            with self.request(path, payload) as response:
+                if response.status != 200:
+                    raise ValueError("Unexpected progress update response")
 
     def prepare(self, book):
         target = self.cache / book
@@ -181,12 +211,39 @@ def handler(library, key):
         def do_POST(self):
             if not self.authorized():
                 return
+            progress = re.fullmatch(r"/progress/([A-Za-z0-9_-]{1,64})", self.path)
+            if progress:
+                self.sync_progress(progress[1])
+                return
             match = re.fullmatch(r"/book/([A-Za-z0-9_-]{1,64})", self.path)
             if not match:
                 self.reply(404, "Not found")
                 return
             library.start(match[1])
             self.reply(202, "Preparing")
+
+        def sync_progress(self, book):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                if not 1 <= length <= 48:
+                    raise ValueError
+                body = self.rfile.read(length).decode("ascii")
+                match = re.fullmatch(r"(\d{1,12}),(\d{1,12}),([01])", body)
+                if not match:
+                    raise ValueError
+                position, duration, finished = (int(field) for field in match.groups())
+                if not 0 < position <= duration or (finished and position != duration):
+                    raise ValueError
+            except ValueError:
+                self.reply(400, "Invalid playback progress")
+                return
+            try:
+                library.sync_progress(book, position, duration, bool(finished))
+            except (OSError, URLError, ValueError) as error:
+                print(f"Progress upload failed: {type(error).__name__}", flush=True)
+                self.reply(502, "Progress could not be saved")
+                return
+            self.reply(200, "Saved")
 
         def do_GET(self):
             if not self.authorized():

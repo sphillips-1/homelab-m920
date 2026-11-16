@@ -5,6 +5,7 @@
 #include <BluetoothA2DPSource.h>
 #include <atomic>
 #include <dirent.h>
+#include <sys/stat.h>
 #include <algorithm>
 #include <vector>
 #include "touch_controls.h"
@@ -28,6 +29,7 @@ constexpr char folder[] = "/Audiobooks";
 TFT_eSPI screen;
 Preferences prefs;
 std::vector<String> chapters;
+std::vector<uint64_t> chapterOffsets;
 String playbackFolder = folder;
 Downloads downloads;
 enum class LibraryView { Player, Offline, Server, Libraries, Catalog, Series, Download };
@@ -189,11 +191,29 @@ void updatePosition() {
     portEXIT_CRITICAL(&audioLock);
 }
 
+void queueServerProgress() {
+    if (chapterOffsets.size() != chapters.size() + 1) return;
+    const uint64_t current = chapterOffsets[chapter] + position;
+    const uint64_t total = chapterOffsets.back();
+    const uint64_t currentMs = current * 1000 / (sampleRate * 2);
+    const uint64_t totalMs = total * 1000 / (sampleRate * 2);
+    if (!currentMs || current > total) return;
+    File log = SD.open(playbackFolder + "/progress.log", FILE_APPEND);
+    if (log) {
+        // A leading newline separates this record from an interrupted write.
+        log.printf("\n%llu,%llu,%u\n", static_cast<unsigned long long>(currentMs),
+                   static_cast<unsigned long long>(totalMs), unsigned(current == total));
+    }
+}
+
 void save() {
     if (!prefsReady || !track) return;
     String name = playbackFolder == folder ? chapters[chapter] : playbackFolder + "/" + chapters[chapter];
     String record = name + "\n" + String(position - position % 2);
-    if (prefs.getString("bookmark") != record) prefs.putString("bookmark", record);
+    if (prefs.getString("bookmark") != record) {
+        queueServerProgress();
+        prefs.putString("bookmark", record);
+    }
     savedAt = millis();
 }
 
@@ -286,6 +306,11 @@ void drawLibrary() {
         } else {
             screen.setTextColor(TFT_WHITE);
             screen.drawString(recentError ? fittedTitle(recentError, 296) : "No listening history yet", 12, 75, 2);
+        }
+        if (downloads.progressPending() || downloads.syncedProgress()) {
+            screen.setTextColor(muted);
+            screen.drawString(downloads.progressPending() ? "Some progress will retry later"
+                : "Playback progress synced", 12, 131, 2);
         }
         button(12, 190, 72, "Back");
         button(94, 190, 214, "Browse libraries", true);
@@ -754,6 +779,7 @@ bool selectFolder(const String& path) {
     halt();
     track.close();
     chapters.clear();
+    chapterOffsets.clear();
     error = nullptr;
     playbackFolder = path;
     Serial.println("MicroSD mounted; scanning chapters");
@@ -774,6 +800,21 @@ bool selectFolder(const String& path) {
         return false;
     }
     std::sort(chapters.begin(), chapters.end());
+    if (path.startsWith("/Downloads/")) {
+        uint64_t bytes = 0;
+        chapterOffsets.reserve(chapters.size() + 1);
+        for (const auto& name : chapters) {
+            struct stat metadata {};
+            String file = directoryPath + "/" + name;
+            if (stat(file.c_str(), &metadata) != 0 || metadata.st_size <= 0) {
+                chapterOffsets.clear();
+                break;
+            }
+            chapterOffsets.push_back(bytes);
+            bytes += metadata.st_size;
+        }
+        if (!chapterOffsets.empty()) chapterOffsets.push_back(bytes);
+    }
     String record = prefsReady && prefs.isKey("bookmark") ? prefs.getString("bookmark") : String();
     int split = record.indexOf('\n');
     if (split >= 0) {

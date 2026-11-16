@@ -1,4 +1,5 @@
 #include "Downloads.h"
+#include <dirent.h>
 
 #include <HTTPClient.h>
 #include <SD.h>
@@ -96,11 +97,12 @@ void Downloads::disconnect() {
     WiFi.mode(WIFI_OFF);
 }
 
-int Downloads::request(const String& path, String& body, size_t maxBytes, bool post) {
+int Downloads::request(const String& path, String& body, size_t maxBytes, bool post,
+                       const String& payload) {
     WiFiClient client;
     HTTPClient http;
     if (!beginRequest(http, client, host + path, token)) return -1;
-    int code = post ? http.POST("") : http.GET();
+    int code = post ? http.POST(payload) : http.GET();
     int bytes = http.getSize();
     if (code > 0 && bytes >= 0 && size_t(bytes) <= maxBytes) {
         body = http.getString();
@@ -112,13 +114,55 @@ int Downloads::request(const String& path, String& body, size_t maxBytes, bool p
     return code;
 }
 
+void Downloads::syncProgress() {
+    DIR* directory = opendir("/sd/Downloads");
+    if (!directory) return;
+    while (dirent* entry = readdir(directory)) {
+        String id = entry->d_name;
+        if (entry->d_type != DT_DIR || !validId(id)) continue;
+        String path = "/Downloads/" + id + "/progress.log";
+        if (!SD.exists(path)) continue;
+        File log = SD.open(path);
+        if (!log) {
+            pendingProgress = true;
+            continue;
+        }
+        uint64_t position = 0;
+        String latest;
+        while (log.available()) {
+            String line = log.readStringUntil('\n');
+            unsigned long long current = 0, duration = 0;
+            unsigned finished = 0;
+            char trailing;
+            if (sscanf(line.c_str(), "%llu,%llu,%u%c", &current, &duration, &finished, &trailing) == 3 &&
+                current > 0 && current <= duration && finished <= 1 &&
+                (!finished || current == duration) && current >= position) {
+                position = current;
+                latest = line;
+            }
+        }
+        log.close();
+        if (latest.isEmpty()) continue;
+        String response;
+        if (request("/progress/" + id, response, 128, true, latest) == 200 && SD.remove(path)) {
+            ++uploaded;
+        } else {
+            pendingProgress = true;
+        }
+    }
+    closedir(directory);
+}
+
 bool Downloads::recent(RecentListen& result) {
     result = {};
+    uploaded = 0;
+    pendingProgress = false;
     message = nullptr;
     cancelled = false;
     if (!configure()) return fail("Check network.txt on microSD");
     if (!connect()) return false;
     String body;
+    syncProgress();
     const int code = request("/recent", body, 512);
     if (code != 200) return fail(code == 401 ? "Check the host access token" : "Listening history unavailable");
     if (body.isEmpty()) return true;

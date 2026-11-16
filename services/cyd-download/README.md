@@ -54,3 +54,7 @@ keeps finished parts if interrupted. Select the same book to resume. When it
 finishes, select **On microSD** and open the book. The CYD restarts into Bluetooth playback mode. The card needs about 159 MB
 per hour of audio. The helper uses sequential parts of up to about 15 minutes
 for long source files so they fit comfortably on FAT32.
+
+## Playback progress
+
+The CYD queues positions for books downloaded from Audiobookshelf. Open **Server** after offline listening to upload queued progress to the account that owns the configured API key. A failed upload stays queued. The server keeps its current position when it is farther ahead and preserves completed books. Files copied manually to /Audiobooks have no Audiobookshelf item ID.

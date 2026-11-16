@@ -20,6 +20,8 @@ class Downloads {
 public:
     bool configure();
     bool recent(RecentListen& result);
+    unsigned syncedProgress() const { return uploaded; }
+    bool progressPending() const { return pendingProgress; }
     bool catalog(const String& library, unsigned page, std::vector<CatalogEntry>& rows, bool& more,
                  const String& series = "");
     bool start(const String& book);
@@ -34,11 +36,15 @@ public:
 
 private:
     bool connect();
-    int request(const String& path, String& body, size_t maxBytes, bool post = false);
+    int request(const String& path, String& body, size_t maxBytes, bool post = false,
+                const String& payload = "");
+    void syncProgress();
     bool fetch(const String& path, const String& file, uint32_t expected);
     void transfer();
     bool fail(const char* reason);
 
+    unsigned uploaded = 0;
+    bool pendingProgress = false;
     String ssid;
     String password;
     String host;
