@@ -1,15 +1,15 @@
 # Hardware inventory
 
-Consolidated on 2026-10-31 from repository documentation. This is a record of
-documented equipment, not a fresh physical audit. Unknown specifications remain
-unconfirmed. Update this file when hardware is added, replaced, or retired.
+Consolidated on 2026-10-31 from repository documentation. The M920Q CPU, system
+model, OS-visible memory, and attached storage were checked over SSH on
+2026-11-17. Update this file when hardware is added, replaced, or retired.
 Maintain LAN addresses in the [network inventory](network-inventory.md).
 
 ## Compute and monitoring
 
 | Device | Role and documented configuration | Unconfirmed details |
 | --- | --- | --- |
-| Lenovo ThinkCentre M920Q | Primary homelab server, hostname `homelab`; Debian 13, Docker, Tailscale; Intel Quick Sync used by Jellyfin | Exact CPU, installed RAM, internal disk model and capacity |
+| Lenovo ThinkCentre M920Q | Primary homelab server, Lenovo machine type/model `10RS0014US`; Intel Core i5-8500T (6 cores, 6 threads); 15.46 GiB RAM visible to Linux; Debian 13, Docker, Tailscale; Intel Quick Sync used by Jellyfin | Installed DIMM count, capacity, and speed |
 | Raspberry Pi Zero 2 W | Pi-hole DNS server; paired with Geekworm X306 V1.5 UPS and an 18650 battery; identified as Zero 2 W in the owner's enclosure project | microSD model and capacity; installed header/heatsink details |
 | Raspberry Pi 4 | Owner-confirmed hardware; existing carrier design targets Model B mechanical layout | Board revision, RAM, current role, cooling hardware, and installed accessories |
 | ESP32-2432S028 dual-USB display | M920Q desk status monitor; ESP32-D0WD-V3 revision 3.1, 4 MB flash; firmware uses ST7789 panel profile | Separate battery/UPS installation |
@@ -34,13 +34,13 @@ the [UPS notes](network-inventory.md#pi-zero-battery-backup).
 
 | Device | Purpose and mount | Documented configuration |
 | --- | --- | --- |
-| M920Q internal disk | Operating system, rebuildable infrastructure under `/opt/homelab`, application state under `/srv/homelab/appdata` | Model, interface, and capacity unrecorded |
-| External media drive | Media filesystem at `/srv/homelab/storage`; bind mounts beneath `/srv/homelab/media` | Model, capacity, and connection details unrecorded |
-| Dedicated torrent USB device | Complete and incomplete downloads at `/srv/homelab/media/torrents-m920` | 116 GiB ext4 filesystem, label `AUDIOBOOKS`; filesystem UUID `e440863e-34ce-4c29-b05a-c5dfda01a743` |
+| M920Q internal disk | Operating system, rebuildable infrastructure under `/opt/homelab`, application state under `/srv/homelab/appdata` | Toshiba Memory `KBG40ZNT256G`, 256 GB NVMe SSD (238.5 GiB) |
+| External media drive | ext4 at `/srv/homelab/storage`; bind mounts beneath `/srv/homelab/media` | `CT1000P3SSD8`, 1 TB SSD attached via USB (931.5 GiB) |
+| Dedicated torrent USB device | Complete and incomplete downloads at `/srv/homelab/media/torrents-m920` | Reports model `USB Flash Drive`, with 124.6 GB (116.1 GiB) of block-device capacity; ext4, label `AUDIOBOOKS`, filesystem UUID `e440863e-34ce-4c29-b05a-c5dfda01a743` |
 
-The 116 GiB value describes the documented filesystem, not a confirmed marketed
-device capacity. Sources: [storage layout](storage.md) and
-[torrent storage guide](../services/qbittorrent-m920/README.md#dedicated-torrent-usb).
+Disk capacities are reported by Linux. See the [storage layout](storage.md) and
+[torrent storage guide](../services/qbittorrent-m920/README.md#dedicated-torrent-usb)
+for mount configuration.
 
 ## Mounting and fabrication
 
@@ -126,8 +126,23 @@ Pixel resolution does **not** specify the physical display aperture. Similar
 ESP32-2432S028 boards have different panel and connector layouts; a generic ESP32
 DevKit or single-USB case is not a verified mechanical match.
 
-No dimensioned drawing or caliper measurements for this exact board revision
-are recorded. Before making a fitted case, record:
+The owner's supplied `2u vert mount & esp32 dev board screen mount (2).stl`
+provides a mounting template matching the photographed white plate. Mesh-derived
+measurements (millimetres assumed; not caliper measurements of the PCB):
+
+- Screen plate footprint: approximately 86.45 x 88.5 mm, up to 4 mm thick.
+- Inner four screen mounting holes: approximately **42 x 78.5 mm centre spacing**,
+  **4 mm diameter** in the printed plate. These match the four board fasteners
+  visible in the owner's photo. The plate hole size does not establish the PCB's
+  hole diameter, screw thread, or insert size.
+- Outer four attachment holes: approximately **78.5 x 59.5 mm centre spacing**,
+  approximately 4 mm diameter; these attach the plate to its mount.
+- Source photo: `1000005053.jpg`, supplied in the blade-design chat.
+- The combined STL also includes a rack panel, another plate and a small fitting;
+  those are separate bodies, not part of the screen footprint.
+
+No dimensioned drawing or caliper measurements of the PCB itself are recorded.
+Before making a fitted case, record:
 
 | Measurement | Needed for |
 | --- | --- |
