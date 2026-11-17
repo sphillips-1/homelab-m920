@@ -306,9 +306,17 @@ void drawPet(Form form, int offsetX = 0, bool defeated = false) {
     pet.fillRect(76, y + 60, 8, 7, TFT_YELLOW);
   }
   if (hob) {
-    const uint16_t armor = form == Form::GoblinLord ? 0x3ACB : 0xBDF7;
-    pet.fillRect(left - 1, y - 5, width + 2, 10, armor);
-    pet.fillRect(75, y - 12, 10, 9, TFT_RED);
+    const uint16_t armor = form >= Form::GoblinLord ? 0x3ACB : 0xBDF7;
+    if (form == Form::GoblinKing) {
+      pet.fillRect(left - 1, y - 6, width + 2, 10, TFT_GOLD);
+      for (int x = 58; x <= 102; x += 22) {
+        pet.fillTriangle(x - 9, y - 5, x + 9, y - 5, x, y - 16, TFT_GOLD);
+      }
+      pet.fillRect(77, y - 5, 7, 6, TFT_RED);
+    } else {
+      pet.fillRect(left - 1, y - 5, width + 2, 10, armor);
+      pet.fillRect(75, y - 12, 10, 9, TFT_RED);
+    }
     pet.fillRect(43, y + 39, 18, 9, armor);
     pet.fillRect(99, y + 39, 18, 9, armor);
   } else if (small) {
@@ -339,7 +347,7 @@ void drawPet(Form form, int offsetX = 0, bool defeated = false) {
       pet.fillTriangle(43, y + 48, 60, y + 43, 41, y + 73, 0x3ACB);
       pet.fillTriangle(117, y + 48, 100, y + 43, 119, y + 73, 0x3ACB);
     }
-    if (form == Form::GoblinLord) {
+    if (form >= Form::GoblinLord) {
       const int flame = 4 + (millis() / 500) % 2;
       pet.fillTriangle(72, y + 58, 88, y + 58, 80, y + 43 - flame, TFT_GREEN);
       pet.fillCircle(80, y + 54, 3, TFT_YELLOW);
@@ -497,7 +505,7 @@ void render() {
   tft.drawCentreString(name, detailsX, tall ? 170 : 78, !tall && tft.textWidth(name, 2) > 110 ? 1 : 2);
 
   const unsigned rank = static_cast<unsigned>(form);
-  const String progress = form == Form::GoblinLord ? "MAX LEVEL  |  " + String(experience) + " XP" :
+  const String progress = rank == FORM_COUNT - 1 ? "MAX LEVEL  |  " + String(experience) + " XP" :
       String(experience) + " / " + String(XP_THRESHOLDS[rank + 1]) + " XP";
   tft.setTextColor(accent, bg);
   tft.drawCentreString(progress, detailsX, tall ? 192 : 106, 2);
@@ -547,7 +555,7 @@ void render() {
     if (dropMs) {
       tft.setTextColor(healthColor(), bg);
       tft.drawString("Drop in " + countdown(dropMs), 182, 146, 1);
-    } else if (form != Form::GoblinLord) {
+    } else if (static_cast<unsigned>(form) < FORM_COUNT - 1) {
       const auto &next = milestone(static_cast<Form>(static_cast<unsigned>(form) + 1));
       tft.drawString(String("Next: ") + next.name, 182, 146, 1);
       const String remaining = countdown(next.thresholdMs - evolution.healthMs);
