@@ -13,10 +13,12 @@ Maintain LAN addresses in the [network inventory](network-inventory.md).
 | Raspberry Pi Zero 2 W | Pi-hole DNS server; paired with Geekworm X306 V1.5 UPS and an 18650 battery; identified as Zero 2 W in the owner's enclosure project | microSD model and capacity; installed header/heatsink details |
 | Raspberry Pi 4 | Owner-confirmed hardware; existing carrier design targets Model B mechanical layout | Board revision, RAM, current role, cooling hardware, and installed accessories |
 | ESP32-2432S028 dual-USB display | M920Q desk status monitor; ESP32-D0WD-V3 revision 3.1, 4 MB flash; firmware uses ST7789 panel profile | Separate battery/UPS installation |
+| Waveshare ESP32-S3-Touch-LCD-1.69 | XTerminal-S3 development board; ESP32-S3R8, 16 MiB flash, 8 MiB PSRAM, 1.69-inch 240 × 280 capacitive touchscreen, USB-C | Physical board revision, battery installation, and enclosure fit |
 
 Sources: [repository overview](../README.md),
 [network inventory](network-inventory.md), and
-[display firmware guide](../hardware/esp32-monitor/README.md).
+[display firmware guide](../hardware/esp32-monitor/README.md). The Waveshare
+specifications come from the [manufacturer's board documentation](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.69).
 The display's COM3 reference is a historical flashing port, not a permanent
 device identifier.
 
