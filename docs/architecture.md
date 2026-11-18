@@ -111,6 +111,16 @@ publishes port 8096 only on the detected physical LAN address. Jellyfin has no
 Cloudflare route, public DNS record, Access policy, Authentik dependency,
 Tailscale Serve/Funnel configuration, or router port forward.
 
+## ESP32 displays
+
+The [Waveshare Shelf Goblin](../hardware/esp32-monitor/README.md#waveshare-esp32-s3-touch-lcd-169)
+runs offline on the ESP32-S3-Touch-LCD-1.69. Battles and powered-on idle time
+drive XP, which the board stores locally in NVS. The accelerometer rotates
+the display and touch input together. The separate
+[CYD status display](../hardware/cyd-status/README.md) reads M920Q health
+metrics over the LAN. Both firmware targets use the
+[GitHub Actions USB deployment workflow](esp32-deployment.md).
+
 ## Kids intranet
 
 The [Curiosity Club](../services/kids/README.md) serves keyboard browser games,

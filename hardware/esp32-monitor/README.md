@@ -12,24 +12,35 @@ red skin and the red Critical indicator render correctly.
 
 ## Waveshare ESP32-S3-Touch-LCD-1.69
 
-This panel uses BGR channel order. Keep `TFT_RGB_ORDER=TFT_BGR` so red and blue render correctly.
-
-The Waveshare target runs Shelf Goblin offline in portrait and landscape. The onboard
+The Waveshare target runs Shelf Goblin as a standalone pixel-art battle pet.
+The goblin blinks and bobs, and the pet screen shows its current form and XP.
+Play works entirely offline over USB-C power. The onboard
 accelerometer rotates the display and touch together when the board settles
 in a new orientation. The current orientation is retained when laid flat.
+Keep `TFT_RGB_ORDER=TFT_BGR` so red and blue render correctly.
 Build with `pio run -d hardware/esp32-monitor -e waveshare-s3-touch-169`.
 Use the [M920 USB deployment workflow](../../docs/esp32-deployment.md) to flash
 the connected board. Use USB-C power for bench testing. Follow the prompts if touch calibration is
 needed. Hold BOOT for one second and release to recalibrate.
 
-Tap **FIGHT!**. A win earns 20, 25, or 35 XP against a lower-, equal-,
-or higher-level opponent. A defeat deducts the same amount, down to 0 XP.
-If XP falls below the current level's threshold, the goblin devolves to the
-form for its remaining XP.
+Tap **FIGHT!** to draw an opponent uniformly from the current level and its
+available neighboring levels, then choose one of two named monsters at that
+level. The face-off lasts 3.6 seconds. A loss shows the defeated form with
+X-shaped eyes and a **DEFEATED** banner for two seconds before revealing the
+form for the remaining XP.
+
+| Opponent level | Win chance | XP gained on a win or lost on a defeat |
+| --- | ---: | ---: |
+| One below | 85% | 20 |
+| Equal | 65% | 25 |
+| One above | 40% | 35 |
+
+XP stays between 0 and 1,900. Crossing a threshold evolves or devolves the
+goblin to the form for its new XP.
 The goblin also earns 1 XP for every five uninterrupted minutes on the pet
 screen while powered on. Battles and touch calibration restart the idle timer.
-XP is saved as it is earned. The previous healthy-time total stays separate
-from XP, so existing Waveshare installs start at level 1 with 0 XP.
+The firmware saves XP changes in ESP32 NVS under `xp-v1`. An installation
+without saved XP starts at level 1 with 0 XP.
 
 | Level | Form | Total XP |
 | --- | --- | ---: |
@@ -43,9 +54,12 @@ from XP, so existing Waveshare installs start at level 1 with 0 XP.
 | 8 | Goblin Lord | 1,400 |
 | 9 | Goblin King | 1,900 |
 
-The local dual-USB CYD Shelf Goblin build uses the M920Q feed.
+## Legacy CYD Shelf Goblin mode
 
-## Setup
+The following instructions describe the local dual-USB CYD Shelf Goblin build,
+which uses the M920Q feed.
+
+### Setup
 
 The CYD target in Actions installs the [M920Q status display](../cyd-status/README.md). The following commands are historical bench and recovery references for the Shelf Goblin firmware.
 
