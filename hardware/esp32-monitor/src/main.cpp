@@ -21,6 +21,10 @@
 #include "health.h"
 #include "evolution.h"
 #include "combat.h"
+#include "scene_art.h"
+#ifdef SHELF_GOBLIN_WAVESHARE
+#include "display_link.h"
+#endif
 #include "touch_controls.h"
 
 TFT_eSPI tft;
@@ -36,6 +40,30 @@ std::atomic<bool> touchInProgress{false};
 constexpr char calibrationKey[] = "touch-portrait";
 uint32_t experience = 0;
 uint32_t idleStartedAt = 0;
+uint32_t lastCyd = 0, lastChannelCheck = 0;
+uint32_t patrolAt = 0, nextPatrol = 0;
+bool patrolling = false, linkedFight = false;
+Form patrolForm = Form::Baby;
+
+bool cydAvailable(uint32_t now) {
+  return lastCyd && now - lastCyd < displayLink::timeoutMs;
+}
+
+void schedulePatrol(uint32_t now) {
+  nextPatrol = now + 180000 + esp_random() % 240001;
+}
+
+void findCyd() {
+  displayLink::Received packet;
+  if (displayLink::read(packet)) lastCyd = packet.at;
+  const uint32_t now = millis();
+  if (!cydAvailable(now) && now - lastChannelCheck >= 350) {
+    static uint8_t channel = 0;
+    channel = channel % 11 + 1;
+    esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+    lastChannelCheck = now;
+  }
+}
 Form currentForm() { return formForXp(experience); }
 #else
 constexpr int screenWidth = 320, screenHeight = 240, screenRotation = 1;
@@ -81,7 +109,11 @@ FightButton fightButton() {
   return {175, 198, 135, 34};
 #endif
 }
+#ifdef SHELF_GOBLIN_WAVESHARE
+constexpr uint32_t FIGHT_ANIMATION_MS = displayLink::fightMs;
+#else
 constexpr uint32_t FIGHT_ANIMATION_MS = 3600;
+#endif
 constexpr uint32_t DEFEAT_SCREEN_MS = 2000;
 constexpr uint32_t FIGHT_REPORT_MS = 5000;
 const uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
@@ -240,6 +272,7 @@ void seekFight() {
   fightOpponent = &OPPONENTS[foeRank][esp_random() % 2];
   const unsigned roll = esp_random() % 100;
 #ifdef SHELF_GOBLIN_WAVESHARE
+  linkedFight = spriteReady && cydAvailable(millis());
   const uint32_t amount = battleXp(rank, foeRank);
   showDefeat = roll >= winChance(rank, foeRank);
   if (showDefeat) {
@@ -281,109 +314,13 @@ bool hitsFightButton(TouchPoint raw) {
 }
 void drawPet(Form form, int offsetX = 0, bool defeated = false) {
   if (!spriteReady) return;
-  pet.fillSprite(bg);
-  const bool small = form < Form::Adult;
-  const bool hob = form >= Form::Hobgoblin;
-  int y = (small ? 32 : hob ? 17 : 22) + ((millis() / 500) % 2 ? 2 : 0);
-  uint16_t skin = hob ? TFT_RED : TFT_GREEN;
-  uint16_t cloth = hob ? 0x3186 : small ? 0xE6FA : 0x92A8;
-  int width = small ? 64 : hob ? 64 : 56;
-  int left = 80 - width / 2;
-  int headHeight = small ? 42 : 38;
-  pet.fillEllipse(80, 99, 46, 5, 0x18C3);
-  pet.fillTriangle(24, y + 5, left + 9, y + 14, left, y + 31, skin);
-  pet.fillTriangle(136, y + 5, 151 - left, y + 14, 160 - left, y + 31, skin);
-  pet.fillRect(left, y, width, headHeight, skin);
-  pet.fillRect(left - 6, y + 10, width + 12, 23, skin);
-  pet.fillRect(56, y + headHeight, 48, small ? 15 : 33, cloth);
-  pet.fillRect(49, y + (small ? 57 : 71), 22, 7, skin);
-  pet.fillRect(89, y + (small ? 57 : 71), 22, 7, skin);
-  if (!small) {
-    pet.fillRect(45, y + 42, 11, 23, skin);
-    pet.fillRect(104, y + 42, 11, 23, skin);
-    pet.fillRect(54, y + 37, 52, 6, hob ? 0xBDF7 : TFT_ORANGE);
-    pet.fillRect(56, y + 61, 48, 5, 0x6204);
-    pet.fillRect(76, y + 60, 8, 7, TFT_YELLOW);
-  }
-  if (hob) {
-    const uint16_t armor = form >= Form::GoblinLord ? 0x3ACB : 0xBDF7;
-    if (form == Form::GoblinKing) {
-      pet.fillRect(left - 1, y - 6, width + 2, 10, TFT_GOLD);
-      for (int x = 58; x <= 102; x += 22) {
-        pet.fillTriangle(x - 9, y - 5, x + 9, y - 5, x, y - 16, TFT_GOLD);
-      }
-      pet.fillRect(77, y - 5, 7, 6, TFT_RED);
-    } else {
-      pet.fillRect(left - 1, y - 5, width + 2, 10, armor);
-      pet.fillRect(75, y - 12, 10, 9, TFT_RED);
-    }
-    pet.fillRect(43, y + 39, 18, 9, armor);
-    pet.fillRect(99, y + 39, 18, 9, armor);
-  } else if (small) {
-    pet.fillRect(71, y - 4, 6, 7, 0x4C63);
-  }
-  if (form == Form::Scavenger || form == Form::Adult) {
-    // Patchwork satchel and the first scavenged tool.
-    pet.drawLine(62, y + 39, 101, y + 54, 0x6204);
-    pet.fillRoundRect(97, y + 42, 21, 16, 3, 0xA344);
-    pet.fillRect(103, y + 45, 8, 5, TFT_ORANGE);
-    pet.drawLine(114, y + 48, 124, y + 36, 0xBDF7);
-    pet.fillCircle(124, y + 35, 3, 0xBDF7);
-  } else if (form == Form::Tactician || form == Form::Hobgoblin) {
-    // A folded map and a crossbow carry over when the Tactician grows into a Hob.
-    pet.fillRect(24, y + 47, 23, 18, 0xE6D0);
-    pet.drawLine(31, y + 49, 31, y + 62, 0xA344);
-    pet.drawLine(39, y + 49, 39, y + 62, 0xA344);
-    pet.fillRect(123, y + 42, 5, 28, 0xA344);
-    pet.drawLine(108, y + 52, 125, y + 43, TFT_YELLOW);
-    pet.drawLine(125, y + 43, 143, y + 52, TFT_YELLOW);
-    pet.drawFastHLine(108, y + 52, 36, 0xDEFB);
-  } else if (form >= Form::Chieftain) {
-    pet.fillRect(124, 6, 4, 84, 0xA344);
-    pet.fillTriangle(128, 8, 156, 8, 128, 27, TFT_RED);
-    if (form >= Form::GreatChieftain) {
-      pet.fillTriangle(128, 24, 152, 24, 128, 41, TFT_GOLD);
-      pet.fillTriangle(128, 39, 148, 39, 128, 54, TFT_CYAN);
-      pet.fillTriangle(43, y + 48, 60, y + 43, 41, y + 73, 0x3ACB);
-      pet.fillTriangle(117, y + 48, 100, y + 43, 119, y + 73, 0x3ACB);
-    }
-    if (form >= Form::GoblinLord) {
-      const int flame = 4 + (millis() / 500) % 2;
-      pet.fillTriangle(72, y + 58, 88, y + 58, 80, y + 43 - flame, TFT_GREEN);
-      pet.fillCircle(80, y + 54, 3, TFT_YELLOW);
-    }
-  }
-  bool blink = (millis() / 500) % 9 == 0;
-  for (int eye = 56; eye <= 90; eye += 34) {
-    if (defeated) {
-      for (int stroke = 0; stroke < 3; ++stroke) {
-        pet.drawLine(eye, y + 14 + stroke, eye + 13, y + 24 + stroke, TFT_BLACK);
-        pet.drawLine(eye, y + 24 + stroke, eye + 13, y + 14 + stroke, TFT_BLACK);
-      }
-    } else {
-      pet.fillRect(eye, y + 15, 14, blink ? 3 : 10, TFT_BLACK);
-    }
-  }
-  if (defeated) {
-    pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
-#ifndef SHELF_GOBLIN_WAVESHARE
-  } else if (health.mood == Mood::Critical || health.mood == Mood::Warning) {
-    pet.drawLine(55, y + 8, 70, y + 12, TFT_BLACK);
-    pet.drawLine(90, y + 12, 105, y + 8, TFT_BLACK);
-    pet.drawLine(70, y + 34, 80, y + 29, TFT_BLACK);
-    pet.drawLine(80, y + 29, 90, y + 34, TFT_BLACK);
-  } else if (!online || health.mood == Mood::Unknown) {
-    pet.fillRect(72, y + 32, 16, 3, TFT_BLACK);
+#ifdef SHELF_GOBLIN_WAVESHARE
+  sceneArt::goblin(pet, form, bg, (millis() / 500) % 2 ? 2 : 0, defeated);
+#else
+  sceneArt::goblin(pet, form, bg, (millis() / 500) % 2 ? 2 : 0, defeated,
+      health.mood == Mood::Critical || health.mood == Mood::Warning,
+      !online || health.mood == Mood::Unknown);
 #endif
-  } else {
-    pet.fillRect(68, y + 30, 24, 4, TFT_BLACK);
-    pet.fillRect(72, y + 34, 16, 4, TFT_BLACK);
-    pet.fillRect(70, y + 30, 4, 5, TFT_WHITE);
-  }
-  if (hob) {
-    pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
-    pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
-  }
   pet.pushSprite(8 + offsetX, 61);
 }
 
@@ -392,57 +329,21 @@ void drawBattle(uint32_t elapsed) {
   const bool clash = elapsed >= 800 && elapsed < 3000;
   const unsigned beat = (elapsed / 120) % 6;
 #ifdef SHELF_GOBLIN_WAVESHARE
+  if (linkedFight) {
+    const int lunge = clash ? (beat < 3 ? 24 : -12) : 0;
+    tft.fillRect(0, 61, screenWidth, 110, bg);
+    drawPet(fightForm, screenWidth - 142 + lunge, showDefeat && elapsed >= 3000);
+    if (clash && (beat == 2 || beat == 5)) {
+      tft.drawLine(screenWidth - 24, 106, screenWidth - 2, 129, TFT_YELLOW);
+      tft.drawLine(screenWidth - 24, 129, screenWidth - 2, 106, TFT_YELLOW);
+    }
+    return;
+  }
   // The goblin sprite repaints the left side, including its overlap with the opponent.
   tft.fillRect(168, 61, screenWidth - 168, 110, bg);
 #endif
   drawPet(fightForm, clash && beat < 3 ? 12 : 0);
-  pet.fillSprite(bg);
-  const int x = clash && beat >= 3 ? 60 : 74;
-  const int y = 54 + ((elapsed / 180) % 2 ? 3 : 0);
-  const int size = 12 + 2 * fightOpponentRank;
-  const uint16_t color = fightOpponentRank >= 6 ? TFT_PURPLE : TFT_ORANGE;
-  pet.fillEllipse(77, 98, 47, 5, 0x18C3);
-  switch (fightOpponent->shape) {
-    case MonsterShape::Beast:
-      pet.fillEllipse(x + 10, y + 14, size + 11, size / 2, color);
-      pet.fillTriangle(x + 28, y + 12, x + 46, y - 4, x + 34, y + 19, color);
-      pet.fillTriangle(x - 15, y - 5, x - 10, y - 21, x, y, color);
-      pet.fillRect(x + 3, y + 17, 6, 19, color);
-      pet.fillRect(x + 20, y + 17, 6, 19, color);
-      break;
-    case MonsterShape::Crawler:
-      pet.fillEllipse(x + 10, y + 10, size + 9, size / 2 + 4, color);
-      for (int leg = 0; leg < 4; ++leg) {
-        const int root = x - 6 + 10 * leg;
-        const int foot = root - 18 + 12 * leg;
-        pet.drawLine(root, y + 12, foot, y + 22, color);
-        pet.drawLine(foot, y + 22, foot, y + 34, color);
-      }
-      pet.fillTriangle(x - 11, y + 4, x - 24, y + 1, x - 11, y + 11, TFT_WHITE);
-      break;
-    case MonsterShape::Winged: {
-      const int wing = (elapsed / 120) % 2 ? 9 : 26;
-      pet.fillTriangle(x, y + 5, x + 30, y - wing - 8, x + 48, y + 5, color);
-      pet.fillTriangle(x + 3, y + 8, x - 8, y - wing, x + 20, y + 3, TFT_MAGENTA);
-      pet.fillEllipse(x + 13, y + 10, size + 4, 10, color);
-      pet.fillTriangle(x + 21, y + 12, x + 47, y + 19, x + 35, y + 7, color);
-      break;
-    }
-    case MonsterShape::Biped:
-      pet.fillRoundRect(x - 4, y + 2, size + 10, 28, 5, color);
-      pet.fillRect(x, y + 27, 8, 14, color);
-      pet.fillRect(x + size - 2, y + 27, 8, 14, color);
-      pet.fillRect(x - 21, y + 7, 23, 7, color);
-      pet.fillRect(x - 21, y - 9, 4, 36, TFT_LIGHTGREY);
-      break;
-  }
-  pet.fillEllipse(x - 6, y, size / 2 + 4, 9, color);
-  pet.fillCircle(x - 12, y - 2, 2, TFT_WHITE);
-  if (clash && (beat == 2 || beat == 5)) {
-    pet.drawLine(3, 45, 24, 68, TFT_YELLOW);
-    pet.drawLine(3, 68, 24, 45, TFT_YELLOW);
-    pet.drawFastHLine(0, 56, 27, TFT_WHITE);
-  }
+  sceneArt::monster(pet, *fightOpponent, fightOpponentRank, elapsed, bg);
 #ifdef SHELF_GOBLIN_WAVESHARE
   pet.pushSprite(screenWidth - 160, 61, bg);
 #else
@@ -615,6 +516,9 @@ void handleTouch(const TouchStroke &stroke) {
   }
   if (!calibrated || fightOpponent || showDefeat) return;
 #ifdef SHELF_GOBLIN_WAVESHARE
+  if (patrolling) return;
+#endif
+#ifdef SHELF_GOBLIN_WAVESHARE
   const Gesture gesture = classifyGesture(calibration, stroke, nativeWidth, nativeHeight);
 #else
   const Gesture gesture = classifyGesture(calibration, stroke, screenWidth, screenHeight);
@@ -723,6 +627,10 @@ void setup() {
   if (!calibrated) startCalibration();
 #ifdef SHELF_GOBLIN_WAVESHARE
   idleStartedAt = millis();
+  schedulePatrol(idleStartedAt);
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  displayLink::begin(displayLink::cydMac);
 #endif
 #ifndef SHELF_GOBLIN_WAVESHARE
   message("Starting Wi-Fi...", "Hold BOOT 5s to set up Wi-Fi");
@@ -782,6 +690,62 @@ void loop() {
   }
   now = millis();
 #ifdef SHELF_GOBLIN_WAVESHARE
+  findCyd();
+  now = millis();
+  displayLink::Frame frame;
+  if (fightOpponent && linkedFight && !cydAvailable(now)) {
+    linkedFight = false;
+    dirty = true;
+  }
+  if (fightOpponent && linkedFight && now - fightAt < displayLink::fightMs) {
+    frame.scene = displayLink::Fight;
+    frame.elapsed = now - fightAt;
+    frame.rank = fightOpponentRank;
+    frame.opponent = fightOpponent == &OPPONENTS[fightOpponentRank][1];
+    frame.defeated = !showDefeat;
+  }
+  if (patrolling && (now - patrolAt >= displayLink::patrolMs || !cydAvailable(now) || calibrationActive)) {
+    patrolling = false;
+    schedulePatrol(now);
+    dirty = true;
+  }
+  if (!patrolling && !pressed && !calibrationActive && !touchInProgress.load() &&
+      !fightOpponent && !showDefeat && !fightReport.length() &&
+      spriteReady && cydAvailable(now) && static_cast<int32_t>(now - nextPatrol) >= 0) {
+    patrolling = true;
+    patrolAt = now;
+    patrolForm = currentForm();
+    dirty = true;
+  }
+  if (patrolling) {
+    frame.scene = displayLink::Patrol;
+    frame.elapsed = now - patrolAt;
+    frame.form = static_cast<uint8_t>(patrolForm);
+    const int travel = screenWidth - screenCenter() + 80;
+    frame.patrolX = displayLink::walkDistance(frame.elapsed, travel) - travel;
+  }
+  displayLink::send(frame, now, 65);
+  if (patrolling) {
+    if (dirty) {
+      tft.fillScreen(bg);
+      dirty = false;
+    }
+    if (now - lastBattleFrame >= 65) {
+      lastBattleFrame = now;
+      const int x = screenWidth + frame.patrolX;
+      tft.fillRect(0, 61, screenWidth, 110, bg);
+      if (x < screenWidth && spriteReady) {
+        sceneArt::patrol(pet, patrolForm, bg, frame.elapsed, true);
+        pet.pushSprite(x, 61);
+      }
+      tft.fillRect(screenCenter() - 82, 181, 164, 34, 0x6204);
+      tft.drawRoundRect(screenCenter() - 82, 181, 164, 34, 4, TFT_GOLD);
+      tft.setTextColor(TFT_WHITE, 0x6204);
+      tft.drawCentreString("out on patrol", screenCenter(), 190, 2);
+    }
+    delay(10);
+    return;
+  }
   if (!calibrationActive && !fightOpponent && !showDefeat && !touchInProgress.load()) {
     const int rotation = pendingRotation.load();
     if (rotation != waveshareOrientation::noRotation) setScreenRotation(rotation);

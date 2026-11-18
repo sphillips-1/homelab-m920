@@ -212,3 +212,26 @@ Release the mapping afterward with `subst H: /d`.
 Panel references: [ESPHome CYD profiles](https://github.com/esphome/esphome/blob/dev/esphome/components/mipi_spi/models/cyd.py),
 [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI),
 [WiFiManager](https://github.com/tzapu/WiFiManager).
+
+## Paired rack displays
+
+With the Waveshare mounted to the left of the CYD, a fight shows the Goblin on
+the Waveshare and its opponent on the CYD. Both animate the clash using the
+Waveshare's fight clock. XP and combat results are still owned by the Waveshare.
+
+When the CYD is available, the Goblin takes a patrol every three to seven minutes
+of scheduled time, waiting for any fight or touch setup to finish. He walks
+across the shared edge, inspects the condensed CYD metrics for seven seconds,
+then walks home. The Waveshare shows an **out on patrol** sign during the visit.
+
+The two boards exchange short ESP-NOW messages addressed to the documented
+station MACs in `src/display_link.h`. The Waveshare searches channels 1 through 11
+for the CYD's heartbeat and follows the CYD's Wi-Fi channel. The Waveshare
+needs no Wi-Fi credentials. If the CYD is unavailable, fights play on the
+Waveshare and patrols wait. The CYD automatically returns to its full metrics
+screen when an animation finishes or its updates expire.
+
+Build and flash both targets through the **ESP32 firmware** GitHub Actions
+workflow to activate pairing. Select `waveshare-s3-touch-169` and `cyd` in
+separate runs on `main`. Update both firmware images if either board's station
+MAC changes.
