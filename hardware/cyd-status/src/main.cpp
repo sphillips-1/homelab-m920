@@ -167,7 +167,7 @@ void drawScene(displayLink::Scene scene, uint32_t elapsed, bool changed, bool up
       display.drawCentreString(String(opponent.name) + "  L" + String(frame.rank + 1), 160, 181, 2);
     }
     sceneArt::monster(actor, opponent, frame.rank, elapsed, arena, frame.defeated && elapsed >= 3000);
-    actor.pushSprite(-18, 61);
+    actor.pushSprite((display.width() - actor.width()) / 2, 61);
   } else {
     if (changed) {
       display.fillScreen(TFT_BLACK);
