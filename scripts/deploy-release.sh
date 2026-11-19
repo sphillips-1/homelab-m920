@@ -113,7 +113,8 @@ while IFS= read -r compose_file; do
     if [[ "${compose_file}" == "${REPO_DIR}/services/lan-proxy/compose.yml" && ! -f "${REPO_DIR}/services/lan-proxy/.env" ]]; then
         continue
     fi
-    docker compose -f "${compose_file}" pull
+    # Buildable images (such as CYD download) are built by their own workflows.
+    docker compose -f "${compose_file}" pull --ignore-buildable
 done < <(find "${REPO_DIR}/services" -name compose.yml -type f -print | sort)
 
 log "Deploying services"
