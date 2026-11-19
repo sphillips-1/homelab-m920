@@ -16,8 +16,16 @@ compose config --quiet
 # Official prebuilt images; there is no local Dockerfile to build.
 compose up -d --wait --wait-timeout 300 ollama
 
-for model in qwen2.5-coder:3b deepseek-coder:1.3b; do
+for model in qwen2.5-coder:3b deepseek-coder:1.3b qwen3:1.7b; do
     if ! compose exec -T ollama ollama show "${model}" >/dev/null 2>&1; then
+        if [[ "${model}" == qwen3:1.7b ]]; then
+            # Allow space for the model download and leave room on the appdata filesystem.
+            available_kib="$(df -Pk /srv/homelab/appdata/local-ai/ollama | awk 'NR == 2 {print $4}')"
+            if (( available_kib < 5 * 1024 * 1024 )); then
+                echo "ERROR: Qwen3 requires at least 5 GiB free on the Ollama model filesystem." >&2
+                exit 1
+            fi
+        fi
         echo "==> Downloading ${model}"
         timeout 1200 docker compose -f "${COMPOSE_FILE}" exec -T ollama ollama pull "${model}"
     fi
