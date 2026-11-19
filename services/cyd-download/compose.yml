@@ -1,6 +1,7 @@
 services:
   cyd-download:
     image: homelab-cyd-download
+    pull_policy: never
     build:
       context: ../..
       dockerfile: services/cyd-download/Dockerfile
