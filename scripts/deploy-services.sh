@@ -182,7 +182,17 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-readest-sso.py"
 log "Configuring Jellyfin host-specific LAN and GPU values"
 bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
-deploy_service "jellyfin"
+if bash "${REPO_DIR}/scripts/check-m920-video-storage.sh"; then
+    jellyfin_dir="${SERVICES_DIR}/jellyfin"
+    VIDEO_LAN_IP="$(sed -n 's/^JELLYFIN_LAN_IP=//p' "${jellyfin_dir}/.env")" \
+        docker compose -f "${SERVICES_DIR}/holyarrs/compose.yml" up -d --wait --wait-timeout 120
+    docker compose --env-file "${jellyfin_dir}/.env" \
+        -f "${jellyfin_dir}/compose.yml" -f "${jellyfin_dir}/compose.video.yml" \
+        up -d --wait --wait-timeout 120
+else
+    log "Video storage unavailable, deploying Jellyfin with its existing library mounts"
+    deploy_service "jellyfin"
+fi
 log "Reconciling Jellyfin Intel Quick Sync transcoding"
 bash "${REPO_DIR}/scripts/configure-jellyfin-transcoding.sh"
 if [[ -f "${SERVICES_DIR}/jellyfin/.intro-skipper.env" ]]; then

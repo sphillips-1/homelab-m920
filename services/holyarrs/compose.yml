@@ -1,0 +1,70 @@
+name: holyarrs
+
+x-video-mounts:
+  data: &video-data
+    type: bind
+    source: /srv/homelab/video-data
+    target: /data
+    bind:
+      create_host_path: false
+  required: &video-storage-required
+    type: bind
+    # This directory exists only on the mounted SSD. Require it on Docker restarts.
+    source: /srv/homelab/video-data/downloads/complete
+    target: /video-storage-required
+    read_only: true
+    bind:
+      create_host_path: false
+
+services:
+  holyarrs:
+    image: holyarrs/holyarrs:1.2.0@sha256:169d2c90773011fcdce576e44ff40f71e1ddef18408fc367d870bfa57325323e
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      UMASK: "027"
+      TZ: America/New_York
+    ports:
+      - "${VIDEO_LAN_IP:?Set VIDEO_LAN_IP to the M920 LAN address}:6262:6262"
+    volumes:
+      - /srv/homelab/appdata/holyarrs:/config
+      - *video-data
+      - *video-storage-required
+    healthcheck:
+      test: ["CMD", "/holyarrs", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - homelab
+
+  qbittorrent-video:
+    image: lscr.io/linuxserver/qbittorrent:5.2.3_v2.0.14-ls475
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      UMASK: "027"
+      TZ: America/New_York
+      WEBUI_PORT: "8088"
+    ports:
+      - "${VIDEO_LAN_IP:?Set VIDEO_LAN_IP to the M920 LAN address}:8088:8088"
+    volumes:
+      - /srv/homelab/appdata/qbittorrent-video:/config
+      - *video-data
+      - *video-storage-required
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8088/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    external: true

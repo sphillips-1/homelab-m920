@@ -1,0 +1,15 @@
+services:
+  jellyfin:
+    volumes:
+      - type: bind
+        source: /srv/homelab/video-data/media/movies
+        target: /media/video-movies
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/homelab/video-data/media/tv
+        target: /media/video-tv
+        read_only: true
+        bind:
+          create_host_path: false
