@@ -52,9 +52,9 @@ does not delete old backups. Each uses approximately the size of the device flas
 `deployment.json` records the backup checksum, target manifest and result.
 
 Writes cover the bootloader, partition table, OTA boot selector and app0 only.
-The NVS range `0x9000–0xDFFF` is preserved, including Wi-Fi, touch calibration
-and health-based evolution progress. A repeat deployment preserves those settings. Retired care
-meter data may remain in NVS but is no longer read or updated by the firmware.
+The NVS range `0x9000–0xDFFF` is preserved on both boards. This includes the
+Waveshare Goblin's XP and touch calibration and the CYD status display's
+Wi-Fi credentials. The Waveshare's current form is derived from its saved XP.
 The job verifies the written images and checks serial output for known crash
 markers. The Waveshare reports that its firmware loop is running, and the CYD
 reports ROM boot entry. Physical screen and touch checks are done at the device.
