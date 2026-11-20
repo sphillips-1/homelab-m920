@@ -58,7 +58,7 @@ private investigator. Keep any existing destinations in the list.
 generic://ai-investigator-webhook:8080/beszel?template=json&disabletls=yes
 ```
 
-Enable a Disk alert on the `m920q` system. Start at 85% for 10 minutes. Beszel
+Enable a Disk alert on the `m920` system. Start at 85% for 10 minutes. Beszel
 sends all configured notification types to the URL. The receiver accepts only
 the M920Q disk threshold and recovery titles, verifies that requests originate
 from the Beszel hub on the Docker network, and suppresses repeated events in

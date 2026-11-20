@@ -170,10 +170,10 @@ async def receive_beszel(request: Request):
         event = BeszelNotification.model_validate_json(body)
     except ValidationError:
         raise HTTPException(422, "Invalid Beszel notification") from None
-    status = {
-        "m920q disk usage above threshold": "firing",
-        "m920q disk usage below threshold": "resolved",
-    }.get(event.title.strip().casefold())
+    system, _, condition = event.title.strip().casefold().partition(" disk usage ")
+    status = {"above threshold": "firing", "below threshold": "resolved"}.get(condition)
+    if system not in {"m920", "m920q"}:
+        status = None
     if status is None:
         return {"ignored": True}
     return await process(receive_beszel_disk, status, event.message)

@@ -130,10 +130,10 @@ def main(alertmanager):
         assert any(message == "FIRING PilotTimeout\nSynthetic disk alert" for message in final)
         assert len(Ollama.calls) == 2
         beszel = agent.removesuffix("/alerts") + "/beszel"
-        disk = {"title": "m920q disk usage above threshold", "message": "Test disk usage reached 86%."}
+        disk = {"title": "m920 disk usage above threshold", "message": "Test disk usage reached 86%."}
         assert json.loads(http(beszel, disk)) == {"duplicate": False}
-        assert json.loads(http(beszel, disk)) == {"duplicate": True}
-        assert json.loads(http(beszel, dict(disk, title="m920q disk usage below threshold"))) == {"duplicate": False}
+        assert json.loads(http(beszel, dict(disk, title="m920q disk usage above threshold"))) == {"duplicate": True}
+        assert json.loads(http(beszel, dict(disk, title="m920 disk usage below threshold"))) == {"duplicate": False}
         assert json.loads(http(beszel, dict(disk, title="m920q CPU above threshold"))) == {"ignored": True}
         assert [message.splitlines()[0] for message in Discord.messages[-2:]] == [
             "FIRING M920Q disk usage", "RESOLVED M920Q disk usage",
