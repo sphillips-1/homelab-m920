@@ -27,7 +27,7 @@ services:
       UMASK: "027"
       TZ: America/New_York
     ports:
-      - "${VIDEO_LAN_IP:?Set VIDEO_LAN_IP to the M920 LAN address}:6262:6262"
+      - "${VIDEO_LAN_IP:-192.168.4.27}:6262:6262"
     volumes:
       - /srv/homelab/appdata/holyarrs:/config
       - *video-data
@@ -53,7 +53,7 @@ services:
       TZ: America/New_York
       WEBUI_PORT: "8088"
     ports:
-      - "${VIDEO_LAN_IP:?Set VIDEO_LAN_IP to the M920 LAN address}:8088:8088"
+      - "${VIDEO_LAN_IP:-192.168.4.27}:8088:8088"
     volumes:
       - /srv/homelab/appdata/qbittorrent-video:/config
       - *video-data

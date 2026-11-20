@@ -11,8 +11,9 @@ the existing audiobook workflow. Both video services join the external
    `infrastructure` environment. Run
    `bash scripts/check-m920-video-storage.sh` before applying either Compose
    project. Confirm TCP ports 6262 and 8088 are free before publishing them.
-2. Set `VIDEO_LAN_IP` to the current M920 LAN address from the network
-   inventory. Apply this Compose project and wait for both health checks.
+2. The Compose default uses the M920 LAN address from the network inventory.
+   Set `VIDEO_LAN_IP` if that address changes. Apply this Compose project and
+   wait for both health checks.
    Open HolyArrs at port 6262 and video qBittorrent at port 8088 on that
    address. Set up authentication before enabling requests. Keep both
    ports off Cloudflared and router forwarding.

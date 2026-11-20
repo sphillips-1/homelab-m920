@@ -17,8 +17,6 @@ jobs:
   validate-containers:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      VIDEO_LAN_IP: 192.168.4.27
     steps:
       - uses: actions/checkout@v5
       - name: Create validation-only environment files
