@@ -1,0 +1,12 @@
+route:
+  receiver: investigator
+  group_by: ['...']
+  group_wait: 1s
+  group_interval: 30s
+  repeat_interval: 5m
+receivers:
+  - name: investigator
+    webhook_configs:
+      - url: http://investigator:8080/alerts
+        send_resolved: true
+        timeout: 22s

@@ -180,6 +180,23 @@ jobs:
         run: git -C /opt/homelab status --short
       - name: Deploy exact main commit
         run: sudo --non-interactive /usr/local/sbin/homelab-deploy "${{ github.sha }}"
+      - name: Deploy AI investigator Discord pilot
+        env:
+          AI_INVESTIGATOR_DISCORD_WEBHOOK: ${{ secrets.AI_INVESTIGATOR_DISCORD_WEBHOOK }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$AI_INVESTIGATOR_DISCORD_WEBHOOK" ]]; then
+            echo "AI investigator pilot skipped because its Discord webhook secret is unset."
+            exit 0
+          fi
+          pilot=/opt/homelab/services/ai-investigator
+          printf '%s\n' "$AI_INVESTIGATOR_DISCORD_WEBHOOK" |
+            docker run --rm -i --network none \
+              --mount type=bind,source=/srv/homelab/appdata,target=/appdata \
+              --mount "type=bind,source=$pilot/provision-webhook.py,target=/provision-webhook.py,readonly" \
+              python:3.13-slim python -B /provision-webhook.py
+          docker compose -f "$pilot/compose.pilot.yml" up -d --build --force-recreate investigator
+          docker compose -f "$pilot/compose.pilot.yml" up -d --wait --wait-timeout 60
       - name: Provision private Discord audiobook approval configuration
         env:
           DISCORD_APPROVAL_CONFIG: ${{ secrets.DISCORD_MEDIA_APPROVAL_CONFIG }}

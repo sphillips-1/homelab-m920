@@ -1,0 +1,49 @@
+name: ai-investigator
+
+services:
+  alertmanager:
+    image: quay.io/prometheus/alertmanager:v0.28.1
+    command: ["--config.file=/etc/alertmanager/pilot.yml", "--storage.path=/tmp/pilot", "--cluster.listen-address="]
+    tmpfs:
+      - /tmp/pilot
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/pilot.yml:ro
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks: [pilot]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  investigator:
+    build: .
+    environment:
+      INCIDENT_DB: /data/incidents.sqlite3
+      OLLAMA_URL: http://local-ai-ollama:11434
+      DISCORD_WEBHOOK_FILE: /run/secrets/discord-webhook.url
+    volumes:
+      - /srv/homelab/appdata/ai-investigator:/data
+      - type: bind
+        source: /srv/homelab/appdata/ai-investigator/discord-webhook.url
+        target: /run/secrets/discord-webhook.url
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [pilot, inference]
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  pilot:
+    internal: true
+  inference:
+    external: true
+    name: local-ai_local-ai
