@@ -28,7 +28,11 @@ services:
         read_only: true
         bind:
           create_host_path: false
-    networks: [pilot, inference]
+    networks:
+      pilot:
+      inference:
+      homelab:
+        aliases: [ai-investigator-webhook]
     mem_limit: 128m
     cpus: 0.5
     restart: unless-stopped
@@ -47,3 +51,5 @@ networks:
   inference:
     external: true
     name: local-ai_local-ai
+  homelab:
+    external: true

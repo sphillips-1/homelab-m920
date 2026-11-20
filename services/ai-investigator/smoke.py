@@ -111,6 +111,7 @@ def main(alertmanager):
         start(sys.executable, "-m", "uvicorn", "app:app", "--port", str(app_port),
               env=dict(os.environ, INCIDENT_DB=str(db), DISCORD_WEBHOOK_FILE=str(webhook),
                        OLLAMA_URL=f"http://127.0.0.1:{ollama.server_port}",
+                       ALERTMANAGER_HOST="127.0.0.1", BESZEL_HOST="127.0.0.1",
                        PYTHONDONTWRITEBYTECODE="1"))
         wait_for(lambda: http(am + "/-/ready"))
 
@@ -128,9 +129,18 @@ def main(alertmanager):
         final = wait_for(lambda: Discord.messages if len(Discord.messages) == 2 else None)
         assert any(message == "FIRING PilotTimeout\nSynthetic disk alert" for message in final)
         assert len(Ollama.calls) == 2
+        beszel = agent.removesuffix("/alerts") + "/beszel"
+        disk = {"title": "m920q disk usage above threshold", "message": "Test disk usage reached 86%."}
+        assert json.loads(http(beszel, disk)) == {"duplicate": False}
+        assert json.loads(http(beszel, disk)) == {"duplicate": True}
+        assert json.loads(http(beszel, dict(disk, title="m920q disk usage below threshold"))) == {"duplicate": False}
+        assert json.loads(http(beszel, dict(disk, title="m920q CPU above threshold"))) == {"ignored": True}
+        assert [message.splitlines()[0] for message in Discord.messages[-2:]] == [
+            "FIRING M920Q disk usage", "RESOLVED M920Q disk usage",
+        ]
         with closing(sqlite3.connect(db)) as connection:
-            assert connection.execute("SELECT COUNT(*) FROM incidents WHERE delivered=1").fetchone() == (2,)
-        print("Alertmanager delivery, SQLite history, Discord payload, deduplication, and timeout fallback passed.")
+            assert connection.execute("SELECT COUNT(*) FROM incidents WHERE delivered=1").fetchone() == (4,)
+        print("Alertmanager and Beszel delivery, SQLite history, deduplication, and fallback passed.")
 
 
 if __name__ == "__main__":

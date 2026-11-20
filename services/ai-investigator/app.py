@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import socket
 import sqlite3
 import urllib.request
 from contextlib import closing
@@ -29,6 +30,11 @@ class Alert(BaseModel):
 
 class Notification(BaseModel):
     alerts: list[Alert] = Field(min_length=1, max_length=1)
+
+
+class BeszelNotification(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    message: str = Field(min_length=1, max_length=2048)
 
 
 @app.get("/health")
@@ -96,20 +102,78 @@ def investigate(alert):
         return {"duplicate": False}
 
 
-@app.post("/alerts")
-async def receive(request: Request):
+async def read_payload(request):
     body = bytearray()
     async for chunk in request.stream():
         if len(body) + len(chunk) > 16_384:
             raise HTTPException(413, "Alert payload too large")
         body.extend(chunk)
-    try:
-        alert = Notification.model_validate_json(body).alerts[0]
-    except ValidationError as error:
-        raise HTTPException(422, "Invalid Alertmanager notification") from error
+    return body
+
+
+async def process(handler, *args):
     if not worker.acquire(blocking=False):
         raise HTTPException(503, "Investigator is busy")
     try:
-        return await run_in_threadpool(investigate, alert)
+        return await run_in_threadpool(handler, *args)
     finally:
         worker.release()
+
+
+async def require_source(request, hostname):
+    try:
+        addresses = await run_in_threadpool(socket.getaddrinfo, hostname, None)
+    except socket.gaierror:
+        raise HTTPException(503, "Alert source unavailable") from None
+    if not request.client or all(request.client.host != item[4][0] for item in addresses):
+        raise HTTPException(403, "Unrecognized alert source")
+
+
+@app.post("/alerts")
+async def receive(request: Request):
+    await require_source(request, os.environ.get("ALERTMANAGER_HOST", "alertmanager"))
+    body = await read_payload(request)
+    try:
+        alert = Notification.model_validate_json(body).alerts[0]
+    except ValidationError:
+        raise HTTPException(422, "Invalid Alertmanager notification") from None
+    return await process(investigate, alert)
+
+
+def receive_beszel_disk(status, evidence):
+    with closing(sqlite3.connect(os.environ["INCIDENT_DB"])) as db, db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS beszel_disk_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                status TEXT NOT NULL, sequence INTEGER NOT NULL
+            )
+        """)
+        db.execute("""
+            INSERT INTO beszel_disk_state VALUES (1, ?, 1)
+            ON CONFLICT(id) DO UPDATE SET status = excluded.status, sequence = sequence + 1
+            WHERE status != excluded.status
+        """, (status,))
+        sequence = db.execute("SELECT sequence FROM beszel_disk_state WHERE id = 1").fetchone()[0]
+    return investigate(Alert(
+        status=status,
+        startsAt=f"beszel-disk-{sequence}",
+        labels={"alertname": "M920Q disk usage", "source": "beszel"},
+        annotations={"summary": evidence},
+    ))
+
+
+@app.post("/beszel")
+async def receive_beszel(request: Request):
+    await require_source(request, os.environ.get("BESZEL_HOST", "beszel"))
+    body = await read_payload(request)
+    try:
+        event = BeszelNotification.model_validate_json(body)
+    except ValidationError:
+        raise HTTPException(422, "Invalid Beszel notification") from None
+    status = {
+        "m920q disk usage above threshold": "firing",
+        "m920q disk usage below threshold": "resolved",
+    }.get(event.title.strip().casefold())
+    if status is None:
+        return {"ignored": True}
+    return await process(receive_beszel_disk, status, event.message)

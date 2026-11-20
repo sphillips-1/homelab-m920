@@ -48,3 +48,19 @@ needs outbound HTTPS to Discord. Alertmanager publishes a loopback port for
 synthetic alerts and reaches the investigator on a private Docker network.
 Use SSH forwarding for the test port. Review channel membership and set an
 incident retention policy before sending alerts that contain real evidence.
+
+## Beszel disk alerts
+
+In Beszel **Settings → Notifications**, add a generic notification URL for the
+private investigator. Keep any existing destinations in the list.
+
+```text
+generic://ai-investigator-webhook:8080/beszel?template=json&disabletls=yes
+```
+
+Enable a Disk alert on the `m920q` system. Start at 85% for 10 minutes. Beszel
+sends all configured notification types to the URL. The receiver accepts only
+the M920Q disk threshold and recovery titles, verifies that requests originate
+from the Beszel hub on the Docker network, and suppresses repeated events in
+the same state. Apply through the normal Deploy workflow before saving the new
+notification destination in Beszel.
