@@ -17,6 +17,8 @@ jobs:
   validate-containers:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      VIDEO_LAN_IP: 192.168.4.27
     steps:
       - uses: actions/checkout@v5
       - name: Create validation-only environment files
@@ -39,6 +41,7 @@ jobs:
             echo "Validating ${compose_file}"
             docker compose -f "${compose_file}" config --quiet
           done < <(find services -name compose.yml -type f -print | sort)
+          docker compose -f services/jellyfin/compose.yml -f services/jellyfin/compose.video.yml config --quiet
       - name: Check shell scripts
         run: shellcheck scripts/*.sh
       - name: Check Compose storage, ports, and optional profiles

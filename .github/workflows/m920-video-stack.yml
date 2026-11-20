@@ -1,0 +1,50 @@
+name: M920 Video Stack
+
+on:
+  push:
+    branches: [codex/m920-video-storage]
+    paths: [.github/workflows/m920-video-stack.yml, services/holyarrs/**, services/jellyfin/compose.video.yml, scripts/check-m920-video-storage.sh]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy-video:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Deploy video services and Jellyfin mounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/check-m920-video-storage.sh
+          docker network inspect homelab >/dev/null
+
+          # Carry forward the running Jellyfin container's LAN and render settings.
+          JELLYFIN_LAN_IP=$(docker inspect --format '{{(index (index .HostConfig.PortBindings "8096/tcp") 0).HostIp}}' jellyfin)
+          JELLYFIN_RENDER_DEVICE=$(docker inspect --format '{{(index .HostConfig.Devices 0).PathOnHost}}' jellyfin)
+          JELLYFIN_RENDER_GID=$(docker inspect --format '{{index .HostConfig.GroupAdd 0}}' jellyfin)
+          [[ $JELLYFIN_LAN_IP =~ ^192\.168\.4\.[0-9]+$ && $JELLYFIN_RENDER_DEVICE == /dev/dri/renderD* && $JELLYFIN_RENDER_GID =~ ^[0-9]+$ ]]
+          export JELLYFIN_LAN_IP JELLYFIN_RENDER_DEVICE JELLYFIN_RENDER_GID
+          export VIDEO_LAN_IP="$JELLYFIN_LAN_IP"
+
+          jellyfin=(docker compose --env-file /dev/null -p jellyfin -f /opt/homelab/services/jellyfin/compose.yml)
+          video_jellyfin=("${jellyfin[@]}" -f "$GITHUB_WORKSPACE/services/jellyfin/compose.video.yml")
+          video=(docker compose --env-file /dev/null -f services/holyarrs/compose.yml)
+          "${video_jellyfin[@]}" config --quiet
+          "${video[@]}" up -d --wait --wait-timeout 120
+          if ! "${video_jellyfin[@]}" up -d --wait --wait-timeout 120 jellyfin; then
+            echo 'Jellyfin with the video mounts failed. Restoring the base configuration.' >&2
+            "${jellyfin[@]}" up -d --wait --wait-timeout 120 jellyfin
+            exit 1
+          fi
+          "${video[@]}" ps
+          "${video_jellyfin[@]}" ps jellyfin

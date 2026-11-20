@@ -1,0 +1,30 @@
+name: M920 Video Storage
+
+on:
+  push:
+    branches: [codex/m920-video-storage]
+    paths: [.github/workflows/m920-video-storage.yml, scripts/setup-m920-video-storage.sh]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  configure-storage:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify and run the installed storage command
+        shell: bash
+        run: |
+          set -euo pipefail
+          command_path=/usr/local/sbin/homelab-setup-video-storage
+          cmp -- scripts/setup-m920-video-storage.sh "$command_path"
+          sudo --non-interactive "$command_path"
