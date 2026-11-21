@@ -1,0 +1,45 @@
+name: M920 Video Login Recovery
+
+on:
+  push:
+    branches: [codex/holyarrs-sso]
+    paths: [.github/workflows/m920-video-login-recovery.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  restart-video-downloader:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 5
+    steps:
+      - name: Renew the video qBittorrent startup login
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=holyarrs-qbittorrent-video-1
+          source=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{.Source}}{{end}}{{end}}' "$name")
+          [[ $source == /srv/homelab/appdata/qbittorrent-video ]]
+          config="$source/qBittorrent/qBittorrent.conf"
+          [[ -f $config && ! -L $config ]]
+          if grep -Eq '^WebUI\\(Password_PBKDF2|Password_ha1|Username)=' "$config"; then
+            echo 'A permanent login was configured after the audit. Aborting this startup-password refresh.' >&2
+            exit 1
+          fi
+          docker restart --time 60 "$name" >/dev/null
+          started=$(docker inspect --format '{{.State.StartedAt}}' "$name")
+          for attempt in {1..20}; do
+            if [[ $(docker inspect --format '{{.State.Health.Status}}' "$name") == healthy ]] &&
+               docker logs --since "$started" "$name" 2>&1 | grep -F 'temporary password is provided for this session' >/dev/null; then
+              echo 'Video qBittorrent is healthy and has issued a new temporary login.'
+              exit 0
+            fi
+            sleep 3
+          done
+          echo 'Could not verify the new video qBittorrent login.' >&2
+          exit 1
