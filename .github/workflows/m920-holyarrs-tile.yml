@@ -3,7 +3,7 @@ name: M920 HolyArrs Tile
 on:
   push:
     branches: [codex/holyarrs-authentik-tile]
-    paths: [.github/workflows/m920-holyarrs-tile.yml]
+    paths: [.github/workflows/m920-holyarrs-tile.yml, services/holyarrs/https.conf]
 
 permissions:
   contents: read
@@ -16,14 +16,46 @@ jobs:
   publish-tile:
     runs-on: [self-hosted, linux, x64, m920]
     environment: infrastructure
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Deploy the same-origin SSO launch page
+        shell: bash
+        run: |
+          set -euo pipefail
+          state=/srv/homelab/appdata/holyarrs-tls
+          source="$PWD/services/holyarrs/https.conf"
+          image=nginx:1.29.1-alpine
+          docker run --rm --network none \
+            -v "$source:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$state/live:/etc/letsencrypt/live:ro" \
+            -v "$state/archive:/etc/letsencrypt/archive:ro" \
+            "$image" nginx -t
+          compose=(docker compose -f services/holyarrs/compose.yml -f services/holyarrs/compose.sso.yml)
+          docker run --rm -i --network none -v "$state:/tls" "$image" sh -ec \
+            'cp /tls/https.conf /tls/https.conf.before-launch; cat > /tls/https.conf.new; mv /tls/https.conf.new /tls/https.conf' \
+            < "$source"
+          check_launch() {
+            curl --fail --silent --show-error --max-time 15 --retry 3 --retry-connrefused \
+                https://holyarrs.shelfgoblin.dev/sso/launch |
+                grep -F '/sso/launch.js' >/dev/null &&
+            curl --fail --silent --show-error --max-time 15 https://holyarrs.shelfgoblin.dev/sso/launch.js |
+                grep -F '/api/v1/auth/oidc/start' >/dev/null
+          }
+          if ! "${compose[@]}" up -d --no-deps --force-recreate holyarrs-https || ! check_launch; then
+            docker run --rm --network none -v "$state:/tls" "$image" sh -ec \
+              'mv /tls/https.conf.before-launch /tls/https.conf'
+            "${compose[@]}" up -d --no-deps --force-recreate holyarrs-https
+            exit 1
+          fi
       - name: Publish the existing HolyArrs tile
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 15 \
-            --output /dev/null https://holyarrs.shelfgoblin.dev/
+            --output /dev/null https://holyarrs.shelfgoblin.dev/sso/launch
           docker exec -i authentik-worker ak shell <<'PY'
           from authentik.core.api.applications import user_app_cache_key
           from authentik.core.models import Application, User
@@ -36,11 +68,11 @@ jobs:
           ).exists():
               raise RuntimeError("Expected HolyArrs administrator policy is missing.")
           app.meta_hide = False
-          app.meta_launch_url = "https://holyarrs.shelfgoblin.dev"
+          app.meta_launch_url = "https://holyarrs.shelfgoblin.dev/sso/launch"
           app.meta_icon = "fa://fa-film"
           app.save(update_fields=["meta_hide", "meta_launch_url", "meta_icon"])
           app.refresh_from_db()
-          if app.meta_hide or app.meta_launch_url != "https://holyarrs.shelfgoblin.dev":
+          if app.meta_hide or app.meta_launch_url != "https://holyarrs.shelfgoblin.dev/sso/launch":
               raise RuntimeError("The HolyArrs tile did not persist.")
           for user in User.objects.filter(is_active=True):
               if user.is_superuser:

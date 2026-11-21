@@ -42,7 +42,7 @@ with transaction.atomic():
         slug="holyarrs",
         defaults={
             "name": "HolyArrs", "provider": provider, "meta_hide": False,
-            "meta_launch_url": "https://holyarrs.shelfgoblin.dev",
+            "meta_launch_url": "https://holyarrs.shelfgoblin.dev/sso/launch",
             "meta_icon": "fa://fa-film",
             "policy_engine_mode": "all",
         },
