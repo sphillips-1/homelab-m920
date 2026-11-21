@@ -41,8 +41,9 @@ with transaction.atomic():
     app, _ = Application.objects.update_or_create(
         slug="holyarrs",
         defaults={
-            "name": "HolyArrs", "provider": provider, "meta_hide": True,
+            "name": "HolyArrs", "provider": provider, "meta_hide": False,
             "meta_launch_url": "https://holyarrs.shelfgoblin.dev",
+            "meta_icon": "fa://fa-film",
             "policy_engine_mode": "all",
         },
     )

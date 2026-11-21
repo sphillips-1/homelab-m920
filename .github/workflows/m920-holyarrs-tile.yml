@@ -1,0 +1,44 @@
+name: M920 HolyArrs Tile
+
+on:
+  push:
+    branches: [codex/holyarrs-authentik-tile]
+    paths: [.github/workflows/m920-holyarrs-tile.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  publish-tile:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 5
+    steps:
+      - name: Publish the existing HolyArrs tile
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 \
+            --output /dev/null https://holyarrs.shelfgoblin.dev/
+          docker exec -i authentik-worker ak shell <<'PY'
+          from authentik.core.models import Application
+          from authentik.policies.models import PolicyBinding
+
+          app = Application.objects.get(slug="holyarrs", provider__name="HolyArrs OIDC")
+          if not PolicyBinding.objects.filter(
+              target=app, policy__name="holyarrs-administrator", enabled=True
+          ).exists():
+              raise RuntimeError("Expected HolyArrs administrator policy is missing.")
+          app.meta_hide = False
+          app.meta_launch_url = "https://holyarrs.shelfgoblin.dev"
+          app.meta_icon = "fa://fa-film"
+          app.save(update_fields=["meta_hide", "meta_launch_url", "meta_icon"])
+          app.refresh_from_db()
+          if app.meta_hide or app.meta_launch_url != "https://holyarrs.shelfgoblin.dev":
+              raise RuntimeError("The HolyArrs tile did not persist.")
+          print("Verified the visible HolyArrs tile and its launch URL.")
+          PY
