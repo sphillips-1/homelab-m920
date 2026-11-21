@@ -1,0 +1,64 @@
+name: M920 HolyArrs SSO
+
+on:
+  push:
+    branches: [codex/holyarrs-sso]
+    paths:
+      - .github/workflows/m920-holyarrs-sso.yml
+      - services/holyarrs/**
+      - scripts/reconcile-holyarrs-sso.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Provision the LAN certificate
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash scripts/check-m920-video-storage.sh
+          [[ -n $CLOUDFLARE_API_TOKEN ]]
+          umask 077
+          credentials=$(mktemp)
+          trap 'rm -f -- "$credentials"' EXIT
+          printf 'dns_cloudflare_api_token = %s\n' "$CLOUDFLARE_API_TOKEN" > "$credentials"
+          state=/srv/homelab/appdata/holyarrs-tls
+          docker run --rm -v "$state:/etc/letsencrypt" \
+            --mount "type=bind,source=$credentials,target=/run/cloudflare.ini,readonly" \
+            certbot/dns-cloudflare:v5.10.0 certonly --non-interactive --agree-tos \
+            --register-unsafely-without-email --keep-until-expiring \
+            --dns-cloudflare --dns-cloudflare-credentials /run/cloudflare.ini \
+            --dns-cloudflare-propagation-seconds 45 -d holyarrs.shelfgoblin.dev
+          docker run --rm -i --network none -v "$state:/tls" \
+            nginx:1.29.1-alpine sh -ec 'cat > /tls/https.conf.new; mv /tls/https.conf.new /tls/https.conf' \
+            < services/holyarrs/https.conf
+      - name: Deploy and verify HolyArrs OIDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i authentik-worker ak shell < scripts/reconcile-holyarrs-sso.py
+          issuer=https://auth.shelfgoblin.dev/application/o/holyarrs/
+          curl --fail --silent --show-error --max-time 15 "${issuer}.well-known/openid-configuration" |
+            python3 -c 'import json, sys; assert json.load(sys.stdin)["issuer"] == sys.argv[1]' "$issuer"
+          compose=(docker compose -f services/holyarrs/compose.yml -f services/holyarrs/compose.sso.yml)
+          "${compose[@]}" config --quiet
+          "${compose[@]}" up -d --wait --wait-timeout 90 --no-deps holyarrs holyarrs-https
+          "${compose[@]}" exec -T holyarrs-https nginx -s reload
+          curl --fail --silent --show-error --max-time 15 \
+            --resolve holyarrs.shelfgoblin.dev:443:192.168.4.27 \
+            --output /dev/null https://holyarrs.shelfgoblin.dev/
