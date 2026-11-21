@@ -1,0 +1,24 @@
+name: M920 Video Library Cutover
+
+on:
+  push:
+    branches: [codex/m920-video-library-cutover]
+    paths: [.github/workflows/m920-video-library-cutover.yml, scripts/cutover-m920-video-library.sh]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  cut-over:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - run: bash scripts/cutover-m920-video-library.sh

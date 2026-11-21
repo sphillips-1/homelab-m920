@@ -3,13 +3,13 @@ services:
     volumes:
       - type: bind
         source: /srv/homelab/video-data/media/movies
-        target: /media/video-movies
+        target: /media/movies
         read_only: true
         bind:
           create_host_path: false
       - type: bind
         source: /srv/homelab/video-data/media/tv
-        target: /media/video-tv
+        target: /media/tv
         read_only: true
         bind:
           create_host_path: false

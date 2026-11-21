@@ -1,0 +1,8 @@
+services:
+  audiobook-importer:
+    volumes:
+      - type: bind
+        source: /srv/homelab/video-data/media
+        target: /jellymedia
+        bind:
+          create_host_path: false

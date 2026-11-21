@@ -3,6 +3,10 @@ set -euo pipefail
 
 repo=/opt/homelab
 compose=(docker compose -f "${repo}/services/qbittorrent-m920/compose.yml")
+if [[ -d /srv/homelab/video-data/media/.jellyfin-imports ]] &&
+   bash "${repo}/scripts/check-m920-video-storage.sh"; then
+    compose+=(-f "${repo}/services/qbittorrent-m920/compose.video.yml")
+fi
 bash "${repo}/scripts/check-m920-torrent-storage.sh"
 "${compose[@]}" up -d --wait --wait-timeout 180 qbittorrent
 # Recreate namespace-sharing services after the app's network is ready. Docker's
