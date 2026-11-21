@@ -1,13 +1,19 @@
-"""Reconcile HolyArrs as an administrator-only Authentik OIDC application."""
+"""Reconcile HolyArrs as a group-restricted Authentik OIDC application."""
 
 from django.db import transaction
-from authentik.core.models import Application
-from authentik.policies.expression.models import ExpressionPolicy
+from authentik.core.models import Application, Group, User
+from authentik.policies.engine import PolicyEngine
 from authentik.policies.models import PolicyBinding
 from authentik.providers.oauth2.models import OAuth2Provider, RedirectURI, ScopeMapping
 
 
 with transaction.atomic():
+    group, created = Group.objects.get_or_create(name="holyarrs-users")
+    if created:
+        initial_users = list(User.objects.filter(pk__in=(7, 8), is_active=True))
+        if len(initial_users) != 2:
+            raise RuntimeError("Expected both existing HolyArrs launch accounts to be active.")
+        group.users.add(*initial_users)
     template = OAuth2Provider.objects.get(name="Audiobookshelf OIDC")
     if not template.signing_key:
         raise RuntimeError("Expected an asymmetric signing key on Audiobookshelf OIDC.")
@@ -47,13 +53,17 @@ with transaction.atomic():
             "policy_engine_mode": "all",
         },
     )
-    policy, _ = ExpressionPolicy.objects.update_or_create(
-        name="holyarrs-administrator",
-        defaults={"expression": "return bool(request.user.is_active and request.user.is_superuser)"},
-    )
     PolicyBinding.objects.update_or_create(
         target=app, order=0,
-        defaults={"policy": policy, "user": None, "group": None, "enabled": True,
+        defaults={"policy": None, "user": None, "group": group, "enabled": True,
                   "negate": False, "failure_result": False, "timeout": 30},
     )
+    if PolicyBinding.objects.filter(target=app, enabled=True).count() != 1:
+        raise RuntimeError("Unexpected extra HolyArrs policy bindings.")
+    for user in User.objects.filter(is_active=True):
+        engine = PolicyEngine(app, user)
+        engine.use_cache = False
+        engine.build()
+        if engine.result.passing != group.users.filter(pk=user.pk).exists():
+            raise RuntimeError("HolyArrs access did not match its Authentik group.")
 print("HolyArrs Authentik application reconciled.")

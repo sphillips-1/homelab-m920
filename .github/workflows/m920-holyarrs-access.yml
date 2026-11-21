@@ -1,0 +1,54 @@
+name: M920 HolyArrs Access
+
+on:
+  push:
+    branches: [codex/holyarrs-authentik-tile]
+    paths:
+      - .github/workflows/m920-holyarrs-access.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Restrict the Authentik application before enabling enrollment
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i authentik-worker ak shell < scripts/reconcile-holyarrs-sso.py |
+            grep -F 'HolyArrs Authentik application reconciled.'
+          docker exec -i authentik-worker ak shell <<'PY' | grep -F 'Verified the two HolyArrs members.'
+          from authentik.core.models import Application, Group
+          from authentik.policies.models import PolicyBinding
+          from authentik.core.api.applications import user_app_cache_key
+          from django.core.cache import cache
+          app = Application.objects.get(slug="holyarrs")
+          group = Group.objects.get(name="holyarrs-users")
+          assert set(group.users.values_list("pk", flat=True)) == {7, 8}
+          binding = PolicyBinding.objects.get(target=app, enabled=True)
+          assert binding.group_id == group.pk and not binding.negate
+          cache.delete_many(cache.keys(user_app_cache_key("*")) or [])
+          print("Verified the two HolyArrs members.")
+          PY
+      - name: Enable member enrollment in HolyArrs
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/check-m920-video-storage.sh
+          docker compose -f services/holyarrs/compose.yml -f services/holyarrs/compose.sso.yml \
+            up -d --no-deps --wait --wait-timeout 90 holyarrs
+          docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' holyarrs-holyarrs-1 |
+            grep -Fx HOLYARRS_OIDC_ALLOW_JOIN=true
+          curl --fail --silent --show-error --max-time 15 https://holyarrs.shelfgoblin.dev/api/v1/auth/state |
+            python3 -c 'import json, sys; assert "oidc" in json.load(sys.stdin)["ways"]'
