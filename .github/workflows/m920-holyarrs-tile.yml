@@ -25,8 +25,10 @@ jobs:
           curl --fail --silent --show-error --max-time 15 \
             --output /dev/null https://holyarrs.shelfgoblin.dev/
           docker exec -i authentik-worker ak shell <<'PY'
-          from authentik.core.models import Application
+          from authentik.core.api.applications import user_app_cache_key
+          from authentik.core.models import Application, User
           from authentik.policies.models import PolicyBinding
+          from django.core.cache import cache
 
           app = Application.objects.get(slug="holyarrs", provider__name="HolyArrs OIDC")
           if not PolicyBinding.objects.filter(
@@ -40,5 +42,9 @@ jobs:
           app.refresh_from_db()
           if app.meta_hide or app.meta_launch_url != "https://holyarrs.shelfgoblin.dev":
               raise RuntimeError("The HolyArrs tile did not persist.")
+          for user in User.objects.filter(is_active=True):
+              if user.is_superuser:
+                  key = user_app_cache_key(str(user.pk))
+                  cache.delete_many([key, *(cache.keys(key + "/*") or [])])
           print("Verified the visible HolyArrs tile and its launch URL.")
           PY
