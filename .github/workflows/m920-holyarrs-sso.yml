@@ -62,3 +62,34 @@ jobs:
           curl --fail --silent --show-error --max-time 15 \
             --resolve holyarrs.shelfgoblin.dev:443:192.168.4.27 \
             --output /dev/null https://holyarrs.shelfgoblin.dev/
+          python3 - <<'PY'
+          import http.cookiejar
+          import json
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          origin = "https://holyarrs.shelfgoblin.dev"
+          opener = urllib.request.build_opener(
+              urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
+          request = urllib.request.Request(
+              origin + "/api/v1/auth/oidc/start", data=b"{}",
+              headers={"Content-Type": "application/json", "Origin": origin})
+          with opener.open(request, timeout=15) as response:
+              auth_url = json.load(response)["auth_url"]
+          state = urllib.parse.parse_qs(urllib.parse.urlsplit(auth_url).query)["state"][0]
+          callback = urllib.parse.urlencode({"state": state, "error": "access_denied"})
+          try:
+              opener.open(origin + "/api/v1/auth/oidc/callback?" + callback, timeout=15)
+          except urllib.error.HTTPError as exc:
+              if exc.code == 303 and exc.headers.get("Location") == "/login?sso=failed":
+                  print("HTTPS callback accepted the browser cookie and state.")
+              else:
+                  raise SystemExit(f"Unexpected callback response HTTP {exc.code}") from None
+          else:
+              raise SystemExit("Expected a redirect from the callback.")
+          PY

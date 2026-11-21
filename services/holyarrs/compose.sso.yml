@@ -2,11 +2,16 @@ services:
   holyarrs:
     environment:
       HOLYARRS_ALLOWED_HOSTS: holyarrs.shelfgoblin.dev
+      HOLYARRS_TRUSTED_PROXIES: 172.30.93.2/32
       HOLYARRS_OIDC_ENABLED: "true"
       HOLYARRS_OIDC_ISSUER: https://auth.shelfgoblin.dev/application/o/holyarrs/
       HOLYARRS_OIDC_CLIENT_ID: holyarrs-lan
       HOLYARRS_OIDC_REDIRECT_URL: https://holyarrs.shelfgoblin.dev/api/v1/auth/oidc/callback
       HOLYARRS_OIDC_ALLOW_JOIN: "false"
+    networks:
+      homelab: {}
+      holyarrs-proxy:
+        ipv4_address: 172.30.93.3
   holyarrs-https:
     image: nginx:1.29.1-alpine
     restart: unless-stopped
@@ -17,4 +22,11 @@ services:
       - /srv/homelab/appdata/holyarrs-tls/live:/etc/letsencrypt/live:ro
       - /srv/homelab/appdata/holyarrs-tls/archive:/etc/letsencrypt/archive:ro
     networks:
-      - homelab
+      holyarrs-proxy:
+        ipv4_address: 172.30.93.2
+
+networks:
+  holyarrs-proxy:
+    ipam:
+      config:
+        - subnet: 172.30.93.0/29
