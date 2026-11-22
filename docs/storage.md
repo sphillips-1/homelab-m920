@@ -66,6 +66,24 @@ Directory layout
     └── database/
 Audiobook storage
 
+The production deployment consolidates the physical audiobook tree under
+`/srv/homelab/storage/video-data/media/audiobooks`. It is visible at
+`/srv/homelab/video-data/media/audiobooks` and through the stable
+`/srv/homelab/media/audiobooks` bind mount. The deployment moves the directory
+on the same filesystem to preserve inodes and keeps a verified hard-linked
+rollback tree at `/srv/homelab/storage/audiobooks`. Those links share blocks
+with the active library. The independent Audiobookshelf database and metadata
+backup, pre-cutover fstab, and identity checks are in
+`/srv/homelab/backups/audiobook-cutover.*`.
+
+The first cutover pauses the importer and Audiobookshelf and changes only the
+host bind backing their existing `/audiobooks` path. Before resuming imports it
+checks catalog IDs, paths, availability, and retained progress records.
+The migration script restores the old mount if those checks fail. For a later
+rollback, remove the cutover invocation from the rollback release and reconcile
+imports and changes made since cutover into the retained tree before switching
+the bind back.
+
 The canonical audiobook storage location is:
 
 /srv/homelab/media/audiobooks/Books

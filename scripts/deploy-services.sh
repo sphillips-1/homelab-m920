@@ -244,6 +244,9 @@ bash "${REPO_DIR}/scripts/init-local-ai.sh"
 
 deploy_cloudflared
 
+log "Consolidating audiobook storage"
+bash "${REPO_DIR}/scripts/cutover-m920-audiobooks.sh"
+
 log "Service deployment complete"
 
 echo
