@@ -65,3 +65,10 @@ Upstream references: [HolyArrs installation](https://docs.holyarrs.com/start/ins
 [download clients](https://docs.holyarrs.com/start/connect/),
 [Jellyfin integration](https://docs.holyarrs.com/library/media-servers/),
 and [LinuxServer qBittorrent](https://docs.linuxserver.io/images/docker-qbittorrent/).
+## Audiobook library
+
+The HolyArrs owner can open **Library → Audiobooks** to browse the existing
+Audiobookshelf catalog and open an item in Audiobookshelf for playback. HolyArrs
+reads title, author, and narrator through the private downloader gateway. The
+existing importer holds the Audiobookshelf credential and serves the read-only
+catalog. The book files and listening state stay with Audiobookshelf.

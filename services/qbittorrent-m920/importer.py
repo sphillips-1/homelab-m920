@@ -502,6 +502,32 @@ def start_job(payload):
         raise
     return {'id': job}
 
+def audiobook_library(page):
+    token = os.environ['AUDIOBOOKSHELF_API_TOKEN']
+    base = os.getenv('AUDIOBOOKSHELF_URL', 'http://audiobookshelf:80').rstrip('/')
+
+    def get(path):
+        request = urllib.request.Request(base + path, headers={'Authorization': 'Bearer ' + token})
+        with urllib.request.urlopen(request, timeout=8) as response:
+            return json.loads(response.read(2 << 20))
+
+    libraries = get('/api/libraries')['libraries']
+    books = [library for library in libraries if library.get('mediaType') == 'book']
+    # The homelab uses one audiobook library. Require it to be unambiguous.
+    if len(books) != 1:
+        raise ValueError('Expected one Audiobookshelf book library.')
+    library_id = urllib.parse.quote(books[0]['id'], safe='')
+    query = urllib.parse.urlencode({'minified': 1, 'limit': 50, 'page': page, 'sort': 'media.metadata.title'})
+    result = get(f'/api/libraries/{library_id}/items?{query}')
+    items = []
+    for item in result['results']:
+        metadata = (item.get('media') or {}).get('metadata') or {}
+        items.append({'id': item['id'], 'title': metadata.get('title') or 'Untitled',
+                      'author': metadata.get('authorName') or '',
+                      'narrator': metadata.get('narratorName') or ''})
+    return {'items': items, 'total': result['total'], 'limit': 50}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
@@ -524,6 +550,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/health':
             self.send(200, {'ok': True})
+            return
+        route = urllib.parse.urlsplit(self.path)
+        if route.path == '/internal/audiobook-library':
+            try:
+                page = int(urllib.parse.parse_qs(route.query).get('page', ['0'])[0])
+                if not 0 <= page <= 10000:
+                    raise ValueError('Invalid catalog page.')
+                self.send(200, audiobook_library(page))
+            except (ValueError, KeyError, OSError):
+                self.send(503, {'error': 'The audiobook catalog is unavailable.'})
             return
         if not self.authorized():
             self.send(403, {'error': 'Sign in with your approved account.'})
