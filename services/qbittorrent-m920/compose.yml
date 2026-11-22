@@ -36,6 +36,11 @@ services:
     container_name: qbittorrent-gateway
     restart: unless-stopped
     network_mode: service:qbittorrent
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 3 -S -O /dev/null http://127.0.0.1:8093/api/v2/torrents/info 2>&1 | grep -q 'HTTP/1.1 403'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     depends_on:
       qbittorrent:
         condition: service_healthy
