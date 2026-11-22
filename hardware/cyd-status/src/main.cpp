@@ -20,7 +20,7 @@ TFT_eSPI display;
 WiFiManager wifi;
 SPIClass touchBus(VSPI);
 XPT2046_Touchscreen touchscreen(33, 36);
-bool touchReady = false, touchDown = false, campPage = false;
+bool touchReady = false, touchDown = false, campPage = true;
 uint32_t touchAt = 0;
 uint32_t lastPoll = 0;
 uint32_t pressedAt = 0;
@@ -237,7 +237,7 @@ void setup() {
   touchReady = touchscreen.begin(touchBus);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, TFT_BACKLIGHT_ON);
-  render({}, {Mood::Offline, "Connecting to Wi-Fi"}, "--");
+  renderCamp();
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   wifi.setConnectTimeout(8);

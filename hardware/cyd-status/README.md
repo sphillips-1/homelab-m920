@@ -14,8 +14,8 @@ the pet's XP and determines fight outcomes. See [paired rack displays](../esp32-
 
 ## Group Camp
 
-Tap the CYD screen or give BOOT a short press to switch between Metrics and
-Camp. A long BOOT hold still opens Wi-Fi setup. Existing Goblin fight and
+The CYD opens to Group Camp at startup. Tap the screen or give BOOT a short
+press to switch between Camp and Metrics. A long BOOT hold opens Wi-Fi setup. Existing Goblin fight and
 patrol animations briefly use the display, then return to the selected page.
 
 Nearby idle pets visit automatically and stay for 25–45 seconds. Up to three
