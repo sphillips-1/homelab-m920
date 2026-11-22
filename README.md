@@ -9,6 +9,7 @@ The M920Q runs Debian 13 with Docker and Tailscale.
 - `/opt/homelab` — this repository and rebuildable infrastructure
 - `/srv/homelab/appdata` — persistent application configuration and databases
 - `/srv/homelab/media` — media libraries
+- `/srv/homelab/video-data` — SSD-backed downloads and movie and TV libraries for the HolyArrs stack
 - `/srv/homelab/backups` — local backups
 
 ## Principles
@@ -27,6 +28,7 @@ Deployed and managed by this repository:
 - Audiobookshelf
 - Calibre-Web
 - Jellyfin (LAN-only, with Intel Quick Sync transcoding)
+- HolyArrs and a dedicated video qBittorrent instance (LAN-only, deployed from `main` when the video SSD passes preflight)
 - Authentik with Google OAuth identity
 - Cloudflare DNS and Tunnel Terraform
 - Cloudflare Tunnel
@@ -73,3 +75,10 @@ single application identity provider: proxy authentication protects
 Calibre-Web and native OIDC protects Audiobookshelf browser/mobile clients.
 Cloudflare remains the DNS, proxy, and outbound-only Tunnel edge. Tailscale
 remains the preferred private path.
+
+## HolyArrs video stack
+
+- Open [HolyArrs](https://holyarrs.shelfgoblin.dev/) on the homelab LAN or choose **HolyArrs** in the [Authentik portal](https://auth.shelfgoblin.dev/). The tile reuses an existing HolyArrs session or starts native OIDC sign-in. First sign-in can enroll members of the `holyarrs-users` Authentik group. The LAN HTTPS proxy handles the OIDC callback. The base Compose service binds port `6262` to the LAN, and the dedicated [video qBittorrent Web UI](http://192.168.4.27:8088/) uses its own login. Both services stay off the Cloudflare Tunnel and router port forwarding. See the [network inventory](docs/network-inventory.md) for the M920Q address.
+- HolyArrs talks to `http://qbittorrent-video:8088` on the Docker `homelab` network and watches the `holyarrs` category. Both containers mount the same SSD-backed directory at `/data`. Video qBittorrent saves to `/data/downloads/complete` and `/data/downloads/incomplete`. HolyArrs imports completed downloads into `/data/media/movies` and `/data/media/tv`, where it can hardlink files so the originals remain available for seeding. Video qBittorrent has separate configuration and download paths from the audiobook downloader.
+- HolyArrs can request a Jellyfin library refresh through `http://jellyfin:8096` using a private API key. The Jellyfin override in `main` adds read-only mounts at `/media/video-movies` and `/media/video-tv`. The `codex/m920-video-library-cutover` workflow consolidates the existing libraries and the separate approval-based video importer on the same SSD folders, with Jellyfin reading them at `/media/movies` and `/media/tv`. The cutover checks that existing library files are present as hardlinks before switching the mounts and restores the previous mounts if the switch fails.
+- GitHub Actions runs the storage preflight before applying the video stack. If the SSD check fails, the deployment in `main` uses Jellyfin's base library mounts and skips applying the HolyArrs stack. LAN HTTPS, the Authentik tile, and group enrollment are configured in the branch-specific workflows on `codex/holyarrs-sso` and `codex/holyarrs-authentik-tile`. Keep the SSO Compose override in the deployment path when reapplying the stack with HTTPS and OIDC enabled. See the [HolyArrs service guide](services/holyarrs/README.md) for application settings and import verification.
