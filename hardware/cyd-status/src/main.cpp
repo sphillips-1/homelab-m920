@@ -3,10 +3,13 @@
 #include <HTTPClient.h>
 #include <TFT_eSPI.h>
 #include <WiFiManager.h>
+#include <XPT2046_Touchscreen.h>
 
+#include "../../esp32-monitor/src/cyd_camp.h"
 #include "../../esp32-monitor/src/health.h"
 #include "../../esp32-monitor/src/display_link.h"
 #include "../../esp32-monitor/src/scene_art.h"
+#include "../../esp32-monitor/src/virtual_pet_art.h"
 
 namespace {
 constexpr char statusUrl[] = "http://192.168.4.27:8091/status";
@@ -15,6 +18,10 @@ constexpr uint32_t refreshMs = 5000;
 constexpr int bootPin = 0;
 TFT_eSPI display;
 WiFiManager wifi;
+SPIClass touchBus(VSPI);
+XPT2046_Touchscreen touchscreen(33, 36);
+bool touchReady = false, touchDown = false, campPage = false;
+uint32_t touchAt = 0;
 uint32_t lastPoll = 0;
 uint32_t pressedAt = 0;
 bool pressing = false;
@@ -85,7 +92,40 @@ void render(const Readings &data, Health health, const String &uptime) {
   row(174, "Uptime", uptime);
   row(197, "Wi-Fi", WiFi.status() == WL_CONNECTED ? String(WiFi.RSSI()) + " dBm" : String("--"));
   display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  display.drawString("Hold BOOT 5s for Wi-Fi setup", 12, 221, 1);
+  display.drawString("Tap for Camp  |  Hold BOOT 5s for Wi-Fi setup", 12, 221, 1);
+}
+
+void renderCamp() {
+  constexpr uint16_t ground = 0x19e7, sky = 0x18c9;
+  display.fillScreen(ground);
+  display.fillRect(0, 0, 320, 60, sky);
+  display.fillCircle(283, 31, 11, TFT_YELLOW);
+  display.setTextColor(TFT_WHITE, sky);
+  display.drawString("GROUP CAMP", 12, 11, 2);
+  display.drawFastHLine(12, 34, 296, TFT_DARKGREY);
+  bool occupied = false;
+  for (unsigned i = 0; i < 3; ++i) {
+    const auto &guest = cydCamp::guests[i];
+    if (!guest.active) continue;
+    occupied = true;
+    const int center = 57 + 103 * i;
+    if (actorReady) {
+      if (i == 0) sceneArt::goblin(actor, static_cast<Form>(guest.form), ground, 0);
+      else virtualPet::draw(actor, i == 1, guest.form, ground, 0, false, virtualPet::revealMs);
+      actor.pushSprite(center - 80, 59, ground);
+    }
+    display.setTextColor(TFT_WHITE, ground);
+    display.drawCentreString(cydCamp::formName(i, guest.form), center, 170, 1);
+  }
+  if (!occupied) {
+    display.setTextColor(TFT_WHITE, ground);
+    display.drawCentreString("Choose CYD Camp on a pet", 160, 106, 2);
+  }
+  display.fillEllipse(160, 204, 17, 5, TFT_BROWN);
+  display.fillTriangle(148, 204, 162, 182, 171, 204, TFT_ORANGE);
+  display.fillTriangle(155, 204, 162, 191, 166, 204, TFT_YELLOW);
+  display.setTextColor(TFT_WHITE, ground);
+  display.drawCentreString("Tap for Metrics", 160, 223, 1);
 }
 
 Sample poll(bool connected) {
@@ -193,6 +233,8 @@ void setup() {
   pinMode(bootPin, INPUT_PULLUP);
   display.init();
   display.setRotation(1);
+  touchBus.begin(25, 39, 32, 33);
+  touchReady = touchscreen.begin(touchBus);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, TFT_BACKLIGHT_ON);
   render({}, {Mood::Offline, "Connecting to Wi-Fi"}, "--");
@@ -211,7 +253,8 @@ void setup() {
   WiFi.setSleep(false);
   actor.setColorDepth(16);
   actorReady = actor.createSprite(160, 110) != nullptr;
-  if (actorReady) displayLink::begin(displayLink::waveshareMac);
+  displayLink::begin(displayLink::waveshareMac, cydCamp::receive);
+  cydCamp::begin();
   pollRequests = xQueueCreate(1, sizeof(bool));
   pollResults = xQueueCreate(1, sizeof(Sample));
   if (pollRequests && pollResults &&
@@ -224,6 +267,7 @@ void setup() {
 void loop() {
   wifi.process();
   const uint32_t now = millis();
+  bool toggle = false;
   if (digitalRead(bootPin) == LOW) {
     if (!pressing) pressedAt = now;
     pressing = true;
@@ -232,12 +276,18 @@ void loop() {
       if (!wifi.getConfigPortalActive()) wifi.startConfigPortal(setupNetwork);
     }
   } else {
+    toggle = pressing && !setupRequested && now - pressedAt >= 40 && now - pressedAt < 1000;
     pressing = false;
     setupRequested = false;
   }
 
   const bool portalActive = wifi.getConfigPortalActive();
   const bool connected = WiFi.status() == WL_CONNECTED;
+  const bool touching = touchReady && touchscreen.touched();
+  if (touching && !touchDown) touchAt = now;
+  if (!touching && touchDown && now - touchAt >= 40 && now - touchAt < 800) toggle = true;
+  touchDown = touching;
+  const bool guestsChanged = cydCamp::hostTick(now, !portalActive);
   if (!portalActive) {
     bool updated = false;
     if (portalWasActive || connected != wasConnected || now - lastPoll >= refreshMs) {
@@ -260,9 +310,13 @@ void loop() {
       scene = remote.frame.scene;
     }
     if (pollResults && xQueueReceive(pollResults, &latest, 0) == pdTRUE) updated = true;
-    const bool changed = scene != drawnScene || portalWasActive;
+    if (toggle && scene == displayLink::Idle) campPage = !campPage;
+    const bool changed = scene != drawnScene || portalWasActive ||
+        (toggle && scene == displayLink::Idle);
     if (scene == displayLink::Idle) {
-      if (changed || updated || connected != wasConnected) {
+      if (campPage) {
+        if (changed || guestsChanged) renderCamp();
+      } else if (changed || updated || connected != wasConnected) {
         render(latest.data, latest.health, uptimeText(latest));
       }
     } else if (changed || updated || now - lastAnimation >= 65) {

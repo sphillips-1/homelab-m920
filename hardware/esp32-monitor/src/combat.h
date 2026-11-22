@@ -18,7 +18,9 @@ constexpr Opponent OPPONENTS[][2] = {
 static_assert(sizeof(OPPONENTS) / sizeof(OPPONENTS[0]) == FORM_COUNT, "Each stage needs opponents");
 
 constexpr unsigned firstOpponentRank(unsigned rank) { return rank ? rank - 1 : 0; }
-constexpr unsigned lastOpponentRank(unsigned rank) { return rank + 1 < FORM_COUNT ? rank + 1 : rank; }
+constexpr unsigned lastOpponentRank(unsigned rank, unsigned count = FORM_COUNT) {
+  return rank + 1 < count ? rank + 1 : rank;
+}
 constexpr unsigned winChance(unsigned rank, unsigned foeRank) {
   return foeRank < rank ? 85 : foeRank == rank ? 65 : 40;
 }

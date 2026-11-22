@@ -25,9 +25,14 @@ static QueueHandle_t inbox;
 static const uint8_t *peer;
 static bool ready;
 static uint32_t lastSent;
+using PacketHandler = void (*)(const uint8_t *, const uint8_t *, int);
+static PacketHandler otherPacket;
 
 inline void receive(const uint8_t *mac, const uint8_t *bytes, int length) {
-  if (length != sizeof(Frame) || memcmp(mac, peer, 6) != 0) return;
+  if (length != sizeof(Frame) || memcmp(mac, peer, 6) != 0) {
+    if (otherPacket) otherPacket(mac, bytes, length);
+    return;
+  }
   Received packet;
   memcpy(&packet.frame, bytes, sizeof(Frame));
   const auto &f = packet.frame;
@@ -39,8 +44,9 @@ inline void receive(const uint8_t *mac, const uint8_t *bytes, int length) {
   xQueueOverwrite(inbox, &packet);
 }
 
-inline void begin(const uint8_t *mac) {
+inline void begin(const uint8_t *mac, PacketHandler handler = nullptr) {
   peer = mac;
+  otherPacket = handler;
   inbox = xQueueCreate(1, sizeof(Received));
   if (!inbox || esp_now_init() != ESP_OK) return;
   esp_now_peer_info_t info{};

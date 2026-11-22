@@ -16,8 +16,8 @@ constexpr uint32_t battleXp(unsigned rank, unsigned foeRank) {
   return foeRank < rank ? 20 : foeRank == rank ? 25 : 35;
 }
 
-constexpr uint32_t addXp(uint32_t xp, uint32_t reward) {
-  return xp >= MAX_XP || reward >= MAX_XP - xp ? MAX_XP : xp + reward;
+constexpr uint32_t addXp(uint32_t xp, uint32_t reward, uint32_t cap = MAX_XP) {
+  return xp >= cap || reward >= cap - xp ? cap : xp + reward;
 }
 
 constexpr uint32_t idleXpFor(uint32_t elapsedMs) {

@@ -55,8 +55,8 @@ The two boards exchange short ESP-NOW messages addressed to the documented
 station MACs in `src/display_link.h`. The Waveshare searches channels 1 through 11
 for the CYD's heartbeat and follows the CYD's Wi-Fi channel. The Waveshare
 needs no Wi-Fi credentials. If the CYD is unavailable, fights play on the
-Waveshare and patrols wait. The CYD automatically returns to its full metrics
-screen when an animation finishes or its updates expire.
+Waveshare and patrols wait. The CYD automatically returns to its selected
+Metrics or Camp page when an animation finishes or its updates expire.
 
 Build and flash both targets through the **ESP32 firmware** GitHub Actions
 workflow to activate pairing. Select `waveshare-s3-touch-169` and `cyd` in
@@ -72,3 +72,44 @@ board selection, backup, and recovery. Verify the screen, touch, and orientation
 on the physical board after deployment.
 
 The [legacy CYD Goblin guide](legacy-cyd.md) covers the local health-based build.
+
+## Cat and Ant virtual pets
+
+The two pets use the same Waveshare ESP32-S3-Touch-LCD-1.69 profile as the
+Goblin. Build them with PlatformIO from the repository root:
+
+```sh
+pio run -d hardware/esp32-monitor -e waveshare-cat -e waveshare-ant
+```
+
+Tap **POUNCE!** to chase a toy as the Cat or **CHALLENGE!** to face a tunnel
+creature as the Ant. Wins earn 20, 25, or 35 XP against lower, equal, or
+higher levels. Losses subtract the same amount, and five uninterrupted idle
+minutes earn 1 XP. Each pet has a starter and ten evolved forms, with the
+final two thresholds at 2,500 and 3,200 XP. The screen shows the current
+form, progress toward the next form, and the best form reached. Each pet
+saves its own XP, best form, and touch calibration locally and plays offline.
+
+GitHub Actions compiles both pet targets. Flashing them through the M920
+workflow requires registering the two USB devices as deployment targets once
+the board models and identities are confirmed.
+
+### Nearby visits
+
+On any of the three Waveshare pets, tap **Visit**, then tap a highlighted
+pet. On a first visit, tap **Pair and accept** on the receiving board. The
+boards remember each other locally and accept later visits while the host is
+idle. A visit lasts about eight seconds, including the walk out and back.
+Each pet keeps its own XP and evolution progress.
+
+Visits use ESP-NOW directly between the boards. The Cat and Ant can find each
+other on channel 6 when the Goblin is away. They periodically search for the
+Goblin and share its channel once found, including when the Goblin is linked
+to the CYD. Give discovery a few seconds after powering on or moving a pet
+back into range. If either board drops out during a visit, the other goes
+back home automatically.
+
+For longer group visits, all three pets can join [Group Camp on the
+CYD](../cyd-status/README.md#group-camp) through **Visit → CYD Camp**.
+When the CYD is out of range, a pet configured for the optional Raspberry Pi
+camp can use **Visit → Go to Camp**.

@@ -71,6 +71,9 @@ jobs:
         run: python -B tests/test_esp32_deployment.py
       - name: Build display firmware
         run: pio run -d "$PROJECT" -e "$TARGET"
+      - name: Compile Cat and Ant firmware
+        if: matrix.target == 'waveshare-s3-touch-169'
+        run: pio run -d "$PROJECT" -e waveshare-cat -e waveshare-ant
       - name: Package flash images for this commit
         run: |
           python scripts/package-esp32-firmware.py \
