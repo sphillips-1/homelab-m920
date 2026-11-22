@@ -55,7 +55,7 @@ std::atomic<bool> touchInProgress{false};
 constexpr char calibrationKey[] = "touch-portrait";
 uint32_t experience = 0;
 uint32_t idleStartedAt = 0;
-bool visitMenu = false;
+uint32_t nextVisit = 0, campReturn = 0;
 void receivePeerPacket(const uint8_t *mac, const uint8_t *bytes, int length) {
   petVisits::receive(mac, bytes, length);
   cydCamp::receive(mac, bytes, length);
@@ -126,14 +126,13 @@ struct FightButton {
 };
 FightButton fightButton() {
 #ifdef SHELF_GOBLIN_WAVESHARE
-  return {screenCenter() - 108, screenHeight - 41, 114, 28};
+  return {screenCenter() - 65, screenHeight - 41, 130, 28};
 #else
   return {175, 198, 135, 34};
 #endif
 }
 #ifdef SHELF_GOBLIN_WAVESHARE
-FightButton visitButton() { return {screenCenter() + 12, screenHeight - 41, 96, 28}; }
-FightButton visitChoice(unsigned row) { return {screenCenter() - 80, 63 + 42 * static_cast<int>(row), 160, 34}; }
+FightButton returnButton() { return {screenCenter() - 80, screenHeight - 43, 160, 34}; }
 #endif
 #if defined(SHELF_GOBLIN_WAVESHARE) && !defined(SHELF_VIRTUAL_PET)
 constexpr uint32_t FIGHT_ANIMATION_MS = displayLink::fightMs;
@@ -375,43 +374,16 @@ void drawVisitButton(const FightButton &button, const char *label, uint16_t colo
 
 void renderVisits(uint32_t now) {
   using namespace petVisits;
-  if (status == Home) {
-    static unsigned shownPeers = 0;
-    unsigned available = 0;
-    for (unsigned i = 0; i < SpeciesCount; ++i) {
-      if (nearby(static_cast<Species>(i), now)) available |= 1U << i;
-    }
-    if (cydCamp::available(now, channel)) available |= 1U << SpeciesCount;
-    if (campLink::ready()) available |= 2U << SpeciesCount;
-    dirty = dirty || available != shownPeers;
-    shownPeers = available;
-  }
   if (dirty) {
     tft.fillScreen(bg);
     tft.setTextColor(TFT_WHITE, bg);
-    if (status == Home) {
-      tft.drawCentreString("NEARBY PETS", screenCenter(), 22, 2);
-      unsigned row = 0;
-      for (unsigned i = 0; i < SpeciesCount; ++i) {
-        const auto species = static_cast<Species>(i);
-        if (species == local) continue;
-        drawVisitButton(visitChoice(row++), names[species], nearby(species, now) ? accent : muted);
-      }
-      const bool cydReady = cydCamp::available(now, channel);
-      drawVisitButton(visitChoice(2), cydReady ? "CYD Camp" : "Go to Camp",
-          cydReady || campLink::ready() ? accent : muted);
-      drawVisitButton(visitChoice(3), "Back");
-    } else {
-      String title = names[partner];
-      if (status == Incoming) title += " wants to visit";
-      if (status == Calling) title = "Calling " + title;
-      if (status == Waiting) title += " is on the way";
-      if (status == Away) title = "Visiting " + title;
-      if (status == Hosting) title += " is visiting!";
-      tft.drawCentreString(title, screenCenter(), 22, 2);
-      if (status == Incoming) drawVisitButton(visitChoice(1), "Pair and accept");
-      if (status < Away) drawVisitButton(visitChoice(3), "Cancel");
-    }
+    String title = names[partner];
+    if (status == Calling) title = "Heading to " + title;
+    if (status == Waiting) title += " is on the way";
+    if (status == Away) title = "Visiting " + title;
+    if (status == Hosting) title += " is visiting!";
+    tft.drawCentreString(title, screenCenter(), 22, 2);
+    drawVisitButton(returnButton(), status == Away ? "Come Home" : "End Visit");
     dirty = false;
   }
   if (!spriteReady || status < Away || now - lastBattleFrame < 100) return;
@@ -563,7 +535,6 @@ void render() {
 #else
     tft.drawCentreString("FIGHT!", button.x + button.width / 2, button.y + 6, 2);
 #endif
-    drawVisitButton(visitButton(), "Visit", buttonColor);
   }
 #else
   if (page == 1) {
@@ -681,45 +652,17 @@ void handleTouch(const TouchStroke &stroke) {
           return hitsButton(stroke.first, button) && hitsButton(stroke.last, button);
         };
         const uint32_t now = millis();
-        using namespace petVisits;
-        if (campLink::state != campLink::Home || cydCamp::state != cydCamp::Home) {
-          if (tapped(visitChoice(3))) {
-            campLink::leave(static_cast<unsigned>(currentForm()));
-            cydCamp::leave(local, static_cast<unsigned>(currentForm()));
+        const bool visiting = petVisits::status != petVisits::Home ||
+            campLink::state != campLink::Home || cydCamp::state != cydCamp::Home;
+        if (visiting) {
+          if (tapped(returnButton())) {
+            const unsigned form = static_cast<unsigned>(currentForm());
+            campLink::leave(form);
+            cydCamp::leave(petVisits::local, form);
+            petVisits::close(form, now);
+            nextVisit = now + 60000 + esp_random() % 60001;
             dirty = true;
           }
-          break;
-        }
-        if (status != Home || visitMenu) {
-          if (status < Away && tapped(visitChoice(3))) {
-            close(static_cast<unsigned>(currentForm()), now);
-            visitMenu = false;
-          } else if (status == Incoming && tapped(visitChoice(1))) {
-            accept(now);
-          } else if (status == Home) {
-            if (tapped(visitChoice(2))) {
-              if (cydCamp::available(now, channel)) {
-                cydCamp::join(now);
-                visitMenu = false;
-              } else if (campLink::ready()) {
-                campLink::join(now);
-                visitMenu = false;
-              }
-            } else {
-              unsigned row = 0;
-              for (unsigned i = 0; i < SpeciesCount; ++i) {
-                const auto species = static_cast<Species>(i);
-                if (species == local) continue;
-                if (tapped(visitChoice(row++))) invite(species, now);
-              }
-            }
-          }
-          dirty = true;
-          break;
-        }
-        if (!fightReport.length() && tapped(visitButton())) {
-          visitMenu = true;
-          dirty = true;
           break;
         }
       }
@@ -828,15 +771,16 @@ void setup() {
   if (!calibrated) startCalibration();
 #ifdef SHELF_GOBLIN_WAVESHARE
   idleStartedAt = millis();
+  nextVisit = idleStartedAt + 15000 + esp_random() % 20001;
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   campLink::begin(storeReady ? &storage : nullptr);
 #ifndef SHELF_VIRTUAL_PET
   schedulePatrol(idleStartedAt);
   displayLink::begin(displayLink::cydMac, receivePeerPacket);
-  petVisits::begin(storeReady ? &storage : nullptr, false, idleStartedAt);
+  petVisits::begin(false, idleStartedAt);
 #else
-  petVisits::begin(storeReady ? &storage : nullptr, true, idleStartedAt, receivePeerPacket);
+  petVisits::begin(true, idleStartedAt, receivePeerPacket);
 #endif
   cydCamp::begin();
 #endif
@@ -927,19 +871,47 @@ void loop() {
   }
   const auto previousCydCamp = cydCamp::state;
   cydCamp::clientTick(now, petVisits::local, form, petVisits::channel);
-  if (previousCydCamp != cydCamp::state) dirty = true;
+  if (previousCydCamp == cydCamp::AtCamp && cydCamp::state == cydCamp::AtCamp &&
+      static_cast<int32_t>(now - campReturn) >= 0)
+    cydCamp::leave(petVisits::local, form);
+  if (previousCydCamp != cydCamp::state) {
+    if (cydCamp::state == cydCamp::AtCamp) campReturn = now + 25000 + esp_random() % 20001;
+    if (cydCamp::state == cydCamp::Home) nextVisit = now + 60000 + esp_random() % 60001;
+    dirty = true;
+  }
   radioFixed = radioFixed || cydCamp::state != cydCamp::Home ||
       cydCamp::available(now, petVisits::channel);
-  const bool atAnyCamp = campLink::state != campLink::Home || cydCamp::state != cydCamp::Home;
+  bool atAnyCamp = campLink::state != campLink::Home || cydCamp::state != cydCamp::Home;
   canVisit = canVisit && !atAnyCamp;
   const auto previousVisit = petVisits::status;
   if (!canVisit) petVisits::close(static_cast<unsigned>(currentForm()), now);
   petVisits::tick(now, static_cast<unsigned>(currentForm()), canVisit, radioFixed);
   if (previousVisit != petVisits::status) {
-    if (petVisits::status == petVisits::Home || petVisits::status >= petVisits::Away) visitMenu = false;
+    if (petVisits::status == petVisits::Home) nextVisit = now + 60000 + esp_random() % 60001;
     dirty = true;
   }
-  const bool visiting = visitMenu || petVisits::status != petVisits::Home || atAnyCamp;
+  if (canVisit && !touchInProgress.load() && petVisits::status == petVisits::Home &&
+      static_cast<int32_t>(now - nextVisit) >= 0) {
+    int destinations[petVisits::SpeciesCount + 1];
+    unsigned count = 0;
+    for (unsigned i = 0; i < petVisits::SpeciesCount; ++i) {
+      if (petVisits::nearby(static_cast<petVisits::Species>(i), now))
+        destinations[count++] = i;
+    }
+    if (cydCamp::available(now, petVisits::channel)) destinations[count++] = petVisits::SpeciesCount;
+    if (count) {
+      const int destination = destinations[esp_random() % count];
+      if (destination == petVisits::SpeciesCount) {
+        cydCamp::join(now);
+        atAnyCamp = true;
+      } else {
+        petVisits::invite(static_cast<petVisits::Species>(destination), now);
+      }
+      dirty = true;
+    }
+    nextVisit = now + 1000 + esp_random() % 2001;
+  }
+  const bool visiting = petVisits::status != petVisits::Home || atAnyCamp;
 #ifndef SHELF_VIRTUAL_PET
   now = millis();
   displayLink::Frame frame;
@@ -1005,7 +977,7 @@ void loop() {
       const bool arrived = campLink::state == campLink::AtCamp || cydCamp::state == cydCamp::AtCamp;
       tft.drawCentreString(arrived ? "AT CAMP" : "HEADING TO CAMP",
           screenCenter(), 57, 2);
-      drawVisitButton(visitChoice(3), "Come Home");
+      drawVisitButton(returnButton(), "Come Home");
       dirty = false;
     }
     delay(10);

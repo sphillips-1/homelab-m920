@@ -18,16 +18,14 @@ Tap the CYD screen or give BOOT a short press to switch between Metrics and
 Camp. A long BOOT hold still opens Wi-Fi setup. Existing Goblin fight and
 patrol animations briefly use the display, then return to the selected page.
 
-On a camp-capable Goblin, Cat, or Ant, open **Visit → CYD Camp**. Up to three
+Nearby idle pets visit automatically and stay for 25–45 seconds. Up to three
 pets can stay at once. The CYD shows each guest's current form. Tap
 **Come Home** on the pet to end its visit. A lost radio link clears the
 visitor and returns the pet to its own screen within about seven seconds.
 XP remains on each pet.
 
 Camp uses ESP-NOW on the CYD's current radio channel. The pet boards can join
-without storing Wi-Fi credentials. When configured for the Pi as well, the
-pet's Camp button prefers a reachable CYD and shows the Pi option when the
-CYD is out of range.
+without storing Wi-Fi credentials.
 
 Deploy the `cyd` target through [ESP32 firmware in GitHub Actions](../../docs/esp32-deployment.md).
 Existing Wi-Fi credentials survive the flash. To change Wi-Fi, hold BOOT for

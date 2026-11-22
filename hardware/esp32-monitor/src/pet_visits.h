@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Preferences.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <freertos/queue.h>
@@ -18,7 +17,6 @@ constexpr Species local = Cat;
 constexpr Species local = Goblin;
 #endif
 constexpr const char *names[] = {"Goblin", "Ant", "Cat"};
-constexpr const char *pairKeys[] = {"visit-goblin", "visit-ant", "visit-cat"};
 constexpr uint8_t fallbackChannel = 6;
 constexpr uint32_t presenceMs = 2200, requestMs = 12000, visitMs = 8000;
 constexpr uint32_t walkMs = 1000, heartbeatMs = 180;
@@ -35,17 +33,15 @@ static_assert(sizeof(Packet) == 16, "Unexpected pet visit packet layout");
 constexpr uint16_t protocol = 0x5001;
 struct Received { Packet packet; uint8_t mac[6]; };
 
-enum Status : uint8_t { Home, Calling, Incoming, Waiting, Away, Hosting };
+enum Status : uint8_t { Home, Calling, Waiting, Away, Hosting };
 struct Friend {
   uint8_t mac[6]{};
-  uint8_t paired[6]{};
   uint8_t channel = 0;
   uint32_t seenAt = 0;
   bool free = false;
 };
 
 static QueueHandle_t inbox;
-static Preferences *preferences;
 static Friend friends[SpeciesCount];
 static uint8_t address[6], partnerAddress[6];
 static uint8_t channel = fallbackChannel, sweepChannel = 0;
@@ -77,11 +73,8 @@ inline void changeChannel(uint8_t next, uint32_t now) {
   }
 }
 
-inline void begin(Preferences *store, bool ownReceiver, uint32_t now,
+inline void begin(bool ownReceiver, uint32_t now,
                   esp_now_recv_cb_t receiver = receive) {
-  preferences = store;
-  for (unsigned i = 0; store && i < SpeciesCount; ++i)
-    if (store->getBytesLength(pairKeys[i]) == 6) store->getBytes(pairKeys[i], friends[i].paired, 6);
   if (esp_wifi_get_mac(WIFI_IF_STA, address) != ESP_OK) return;
   inbox = xQueueCreate(16, sizeof(Received));
   if (!inbox) return;
@@ -93,16 +86,6 @@ inline void begin(Preferences *store, bool ownReceiver, uint32_t now,
   channel = 0;
   changeChannel(fallbackChannel, now);
   nextSweep = local == Goblin ? now : now + 8000 + esp_random() % 5000;
-}
-
-inline bool trusted(Species species, const uint8_t *mac) {
-  return memcmp(friends[species].paired, mac, 6) == 0;
-}
-
-inline void remember() {
-  if (trusted(partner, partnerAddress)) return;
-  memcpy(friends[partner].paired, partnerAddress, 6);
-  if (preferences) preferences->putBytes(pairKeys[partner], partnerAddress, 6);
 }
 
 inline bool nearby(Species species, uint32_t now) {
@@ -132,14 +115,6 @@ inline void start(Status next, Species species, const uint8_t *mac,
 inline void invite(Species species, uint32_t now) {
   if (status == Home && nearby(species, now))
     start(Calling, species, friends[species].mac, esp_random() | 1U, now);
-}
-
-inline void accept(uint32_t now) {
-  if (status == Incoming) {
-    status = Waiting;
-    started = heardAt = now;
-    lastSent = now - heartbeatMs;
-  }
 }
 
 inline void close(unsigned form, uint32_t now) {
@@ -185,8 +160,7 @@ inline void tick(uint32_t now, unsigned form, bool free, bool fixed) {
       continue;
     }
     if (status == Home && p.message == Invite && free) {
-      start(trusted(species, received.mac) ? Waiting : Incoming,
-          species, received.mac, p.token, now);
+      start(Waiting, species, received.mac, p.token, now);
       continue;
     }
     if (status == Calling && p.message == Invite && species == partner && local > partner &&
@@ -199,13 +173,11 @@ inline void tick(uint32_t now, unsigned form, bool free, bool fixed) {
     if (p.message == End) {
       status = Home;
     } else if (status == Calling && p.message == Accept) {
-      remember();
       status = Away;
       started = heardAt = now;
       lastSent = now - heartbeatMs;
     } else if (p.message == Live && (status == Waiting || status == Hosting || status == Away)) {
       if (status == Waiting) {
-        remember();
         status = Hosting;
         started = now;
         guestForm = p.form;
@@ -222,7 +194,6 @@ inline void tick(uint32_t now, unsigned form, bool free, bool fixed) {
   switch (status) {
     case Home: send(free ? Hello : Busy, form, now); break;
     case Calling: send(Invite, form, now); break;
-    case Incoming: send(Busy, form, now); break;
     case Waiting: send(Accept, form, now); break;
     case Away:
     case Hosting: send(Live, form, now); break;

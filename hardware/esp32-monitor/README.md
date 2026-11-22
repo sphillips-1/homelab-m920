@@ -96,11 +96,11 @@ the board models and identities are confirmed.
 
 ### Nearby visits
 
-On any of the three Waveshare pets, tap **Visit**, then tap a highlighted
-pet. On a first visit, tap **Pair and accept** on the receiving board. The
-boards remember each other locally and accept later visits while the host is
-idle. A visit lasts about eight seconds, including the walk out and back.
-Each pet keeps its own XP and evolution progress.
+An idle Waveshare pet can automatically visit another reachable idle pet or
+the CYD camp. After startup, pets begin looking for a visit after 15–35
+seconds. After a visit, they wait one to two minutes before starting another.
+A pet-to-pet visit lasts about eight seconds. Tap **Come Home** or **End
+Visit** to end it early. Each pet keeps its own XP and evolution progress.
 
 Visits use ESP-NOW directly between the boards. The Cat and Ant can find each
 other on channel 6 when the Goblin is away. They periodically search for the
@@ -109,7 +109,5 @@ to the CYD. Give discovery a few seconds after powering on or moving a pet
 back into range. If either board drops out during a visit, the other goes
 back home automatically.
 
-For longer group visits, all three pets can join [Group Camp on the
-CYD](../cyd-status/README.md#group-camp) through **Visit → CYD Camp**.
-When the CYD is out of range, a pet configured for the optional Raspberry Pi
-camp can use **Visit → Go to Camp**.
+Pets that choose [Group Camp on the CYD](../cyd-status/README.md#group-camp)
+stay for 25–45 seconds before returning home.

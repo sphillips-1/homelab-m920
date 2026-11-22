@@ -119,7 +119,7 @@ void renderCamp() {
   }
   if (!occupied) {
     display.setTextColor(TFT_WHITE, ground);
-    display.drawCentreString("Choose CYD Camp on a pet", 160, 106, 2);
+    display.drawCentreString("Waiting for nearby pets", 160, 106, 2);
   }
   display.fillEllipse(160, 204, 17, 5, TFT_BROWN);
   display.fillTriangle(148, 204, 162, 182, 171, 204, TFT_ORANGE);
