@@ -172,6 +172,7 @@ log "Reconciling Audiobookshelf mobile clients"
 docker exec -i authentik-invitation-provisioner python - \
     < "${REPO_DIR}/scripts/reconcile-audiobookshelf-clients.py"
 deploy_service "calibre-web"
+deploy_service "jackett"
 log "Preparing Readest persistent state"
 python3 "${REPO_DIR}/scripts/setup-readest.py"
 deploy_service "readest"

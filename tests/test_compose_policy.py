@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PORTS = {"audiobookshelf-gateway": (13378, 80), "authentik-server": (9000, 9000),
          "cyd-download": (8784, 8784), "calibre-web": (8083, 8083), "jellyfin": (8096, 8096), "beszel": (8090, 8090),
          "kids": (8092, 8080), "lan-proxy": (80, 8080), "local-ai-ollama": (11434, 11434),
-         "local-ai-webui": (3000, 8080), "holyarrs-holyarrs-1": (6262, 6262),
+         "local-ai-webui": (3000, 8080), "jackett": (9117, 9117), "holyarrs-holyarrs-1": (6262, 6262),
          "holyarrs-qbittorrent-video-1": (8088, 8088)}
 
 
@@ -37,7 +37,7 @@ class ComposePolicyTest(unittest.TestCase):
                     actual = [(int(p["published"]), int(p["target"])) for p in service.get("ports", [])]
                     self.assertEqual(actual, expected)
                     for port in service.get("ports", []):
-                        if name in ("local-ai-ollama", "local-ai-webui"):
+                        if name in ("local-ai-ollama", "local-ai-webui", "jackett"):
                             self.assertEqual(port.get("host_ip"), "127.0.0.1")
                         self.assertEqual(port.get("protocol", "tcp"), "tcp")
                         if name in ("cyd-download", "holyarrs-holyarrs-1", "holyarrs-qbittorrent-video-1"):

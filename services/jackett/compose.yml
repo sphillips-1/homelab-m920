@@ -1,0 +1,20 @@
+services:
+  jackett:
+    image: lscr.io/linuxserver/jackett:v0.24.3082-ls41
+    container_name: jackett
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/New_York
+      AUTO_UPDATE: "false"
+    ports:
+      - "127.0.0.1:9117:9117"
+    volumes:
+      - /srv/homelab/appdata/jackett:/config
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    external: true

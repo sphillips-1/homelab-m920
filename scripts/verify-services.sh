@@ -95,6 +95,7 @@ if [[ -f /opt/homelab/services/kids/.env ]]; then
 fi
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:13378/
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:8083/
+curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused http://127.0.0.1:9117/
 JELLYFIN_LAN_IP="$(sed -n 's/^JELLYFIN_LAN_IP=//p' /opt/homelab/services/jellyfin/.env)"
 [[ -n "${JELLYFIN_LAN_IP}" ]] || { echo "ERROR: Jellyfin LAN address is not configured." >&2; exit 1; }
 curl --fail --silent --show-error --output /dev/null --retry 12 --retry-delay 5 --retry-connrefused "http://${JELLYFIN_LAN_IP}:8096/health"
