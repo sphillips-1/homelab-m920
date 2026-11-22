@@ -162,7 +162,7 @@ async function openReview() {
   if (!approvalId) return;
   const item = await api('reviews/' + encodeURIComponent(approvalId));
   document.querySelector('#review-evidence').hidden = false;
-  document.querySelector('#review-context').textContent = item.source + ' · ' + item.status.replaceAll('_', ' ');
+  document.querySelector('#review-context').textContent = item.source + ' · ' + (item.reason || item.status.replaceAll('_', ' '));
   document.querySelector('#review-data').textContent = JSON.stringify({files:item.files,existingMetadata:item.sidecar,proposedMatches:item.matches}, null, 2);
   if (!downloads.some(download => download.source === item.source)) {
     throw new Error('This download is no longer available for import. Check recent imports and source storage.');

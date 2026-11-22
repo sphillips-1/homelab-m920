@@ -182,10 +182,15 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/reconcile-readest-sso.py"
 log "Configuring Jellyfin host-specific LAN and GPU values"
 bash "${REPO_DIR}/scripts/configure-jellyfin-host.sh"
+bash "${REPO_DIR}/scripts/setup-holyarrs-audiobooks.sh"
 if bash "${REPO_DIR}/scripts/check-m920-video-storage.sh"; then
     jellyfin_dir="${SERVICES_DIR}/jellyfin"
+    holyarrs_compose=(-f "${SERVICES_DIR}/holyarrs/compose.yml")
+    if [[ -s /srv/homelab/appdata/holyarrs-tls/https.conf ]]; then
+        holyarrs_compose+=(-f "${SERVICES_DIR}/holyarrs/compose.sso.yml")
+    fi
     VIDEO_LAN_IP="$(sed -n 's/^JELLYFIN_LAN_IP=//p' "${jellyfin_dir}/.env")" \
-        docker compose -f "${SERVICES_DIR}/holyarrs/compose.yml" up -d --wait --wait-timeout 120
+        docker compose "${holyarrs_compose[@]}" up -d --wait --wait-timeout 120
     docker compose --env-file "${jellyfin_dir}/.env" \
         -f "${jellyfin_dir}/compose.yml" -f "${jellyfin_dir}/compose.video.yml" \
         up -d --wait --wait-timeout 120
@@ -226,6 +231,7 @@ docker exec -i authentik-worker ak shell \
     < "${REPO_DIR}/scripts/verify-qbittorrent-sso.py"
 bash "${REPO_DIR}/scripts/install-torrent-boot-recovery.sh"
 bash "${REPO_DIR}/scripts/recover-torrent-stack.sh"
+bash "${REPO_DIR}/scripts/verify-holyarrs-audiobook-downloader.sh"
 deploy_monitoring
 if [[ -s /srv/homelab/appdata/monitoring/pihole/discord-webhook.url ]]; then
     deploy_service "pihole-monitor"

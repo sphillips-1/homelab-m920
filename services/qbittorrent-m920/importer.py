@@ -273,7 +273,15 @@ def catalog():
                 continue
         except ValueError:
             continue
-        result.append({'source': source.name, 'title': media_name(source), 'bytes': sum(size for _, size, _ in files), 'kind': media_kind(source, files), 'year': media_year(source)})
+        entry = {'source': source.name, 'title': media_name(source), 'bytes': sum(size for _, size, _ in files), 'kind': media_kind(source, files), 'year': media_year(source)}
+        matching = [torrent for torrent in current if torrent.get('content_path') == str(source)]
+        if len(matching) == 1:
+            tags = [tag.strip() for tag in matching[0].get('tags', '').split(',')]
+            editions = [tag.removeprefix('holyarrs-librivox-') for tag in tags
+                        if tag.startswith('holyarrs-librivox-')]
+            if editions:
+                entry['librivox_editions'] = editions
+        result.append(entry)
     return result
 
 def destination(author, title):

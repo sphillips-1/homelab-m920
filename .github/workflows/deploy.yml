@@ -52,6 +52,13 @@ jobs:
         run: node --test tests/test_kids_activities.cjs
       - name: Validate Audiobookshelf gateway
         run: docker run --rm -v "$PWD/services/audiobookshelf/gateway.conf:/etc/nginx/conf.d/default.conf:ro" nginx:1.29.1-alpine nginx -t
+      - name: Validate the internal audiobook downloader gateway
+        run: |
+          fixture=$(mktemp)
+          printf '"Bearer validation-only" 1;\n' > "$fixture"
+          docker run --rm --network none \
+            -v "$PWD/services/qbittorrent-m920/audiobook-downloader.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$fixture:/etc/nginx/audiobook-auth/bearer.conf:ro" nginx:1.28-alpine nginx -t
 
   validate-code:
     if: github.ref == 'refs/heads/main'
@@ -177,6 +184,20 @@ jobs:
     environment: infrastructure
     timeout-minutes: 45
     steps:
+      - name: Check out the pinned HolyArrs fork
+        uses: actions/checkout@v5
+        with:
+          repository: sphillips-1/HolyArrs
+          ref: 1d784d3043d27d282f644306902e8d48d5087daa
+          path: holyarrs-fork
+          persist-credentials: false
+      - name: Build the audiobook-enabled HolyArrs image
+        run: |
+          set -euo pipefail
+          if ! docker image inspect homelab/holyarrs:1d784d3 >/dev/null 2>&1; then
+            docker build --build-arg VERSION=1.2.0 -f holyarrs-fork/deploy/Dockerfile \
+              -t homelab/holyarrs:1d784d3 holyarrs-fork
+          fi
       - name: Report canonical checkout status
         run: git -C /opt/homelab status --short
       - name: Deploy exact main commit

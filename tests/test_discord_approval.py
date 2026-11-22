@@ -46,6 +46,7 @@ class ApprovalTests(unittest.TestCase):
             metadata_search=Mock(return_value=[self.match]),
             start_job=Mock(return_value={'id': 'job1'}))
         self.app.component = lambda value: value
+        self.app.AUDIO = {'.m4b', '.mp3', '.ogg'}
         self.app.existing_book = Mock(return_value=None)
         self.app.source_identity = Mock(return_value={})
         self.app.media_kind = Mock(return_value='audiobook')
@@ -85,6 +86,40 @@ class ApprovalTests(unittest.TestCase):
         self.assertEqual(len(posts), 1)
         self.assertEqual(posts[0].args[2]['allowed_mentions']['users'], ['456'])
         self.assertIn('Narrator', posts[0].args[2]['content'])
+
+    def prepare_librivox(self, archive_id):
+        self.app.catalog.return_value[0]['librivox_editions'] = ['253']
+        with patch.object(module.urllib.request, 'urlopen') as lookup:
+            lookup.return_value.__enter__.return_value.read.return_value = json.dumps({
+                'books': [{'id': '253', 'title': 'Title',
+                           'authors': [{'first_name': 'Author'}], 'num_sections': '37',
+                           'url_zip_file': f'https://archive.org/compress/{archive_id}/formats=file'}]
+            }).encode()
+            return self.prepare()
+
+    def test_verified_librivox_download_imports_without_discord_approval(self):
+        self.queue = module.ReviewQueue(self.app, None)
+        row = self.prepare_librivox(self.app.catalog.return_value[0]['source'])
+        self.assertEqual(row['status'], 'importing')
+        self.app.start_job.assert_called_once()
+        self.discord.request.assert_not_called()
+        self.app.metadata_search.assert_not_called()
+
+    def test_conflicting_librivox_archive_goes_to_review(self):
+        row = self.prepare_librivox('another_archive')
+        self.assertEqual(row['status'], 'needs_review')
+        self.assertIn('does not match', module.reviews(self.app)[0]['reason'])
+        self.app.start_job.assert_not_called()
+
+    def test_multiple_librivox_formats_go_to_review(self):
+        source = self.app.catalog.return_value[0]['source']
+        collect = self.app.source_files
+        self.app.source_files = lambda path: collect(path) + [(path / 'chapter.mp3', 10, 1)]
+        row = self.prepare_librivox(source)
+        self.assertEqual(row['status'], 'needs_review')
+        self.assertIn('one complete recording format', module.reviews(self.app)[0]['reason'])
+        self.app.start_job.assert_not_called()
+
 
     def test_unauthorized_votes_are_ignored(self):
         self.prepare()

@@ -6,6 +6,18 @@ move-and-stop-seeding policy; audiobook originals remain available for seeding.
 
 ## Review flow
 
+HolyArrs audiobook downloads carry a LibriVox edition tag. A stable download
+imports automatically when its archive folder matches that edition and its
+audio contains one M4B or the expected number of chapters in one format.
+Ambiguities and import failures appear in **Metadata review**. This path
+works without Discord. Other media retain the approval flow below.
+
+GitHub Actions builds the pinned HolyArrs fork before applying the deployment.
+HolyArrs uses a bearer-protected Docker-network endpoint on the torrent
+gateway limited to listing and adding torrents. The deployment generates its
+credential on the M920Q under `/srv/homelab/appdata/holyarrs-audiobooks`.
+qBittorrent's Web UI stays on loopback behind the existing Authentik gateway.
+
 The existing `audiobook-importer` polls completed USB downloads every 30 seconds.
 Only ordinary audio files accepted by its storage and torrent completion checks
 are considered. Each download must remain unchanged for two minutes. Initial

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
+import re
 import secrets
 import sqlite3
 import time
@@ -14,6 +15,46 @@ import urllib.request
 CHOICES = ('1️⃣', '2️⃣', '3️⃣')
 REJECT = '❌'
 RESOLVED = ('done', 'already_in_library')
+
+
+def librivox_match(app, source, editions):
+    if len(editions) != 1 or not re.fullmatch(r'[0-9]{1,12}', editions[0]):
+        raise ValueError('The download has conflicting LibriVox edition tags.')
+    edition = editions[0]
+    url = f'https://librivox.org/api/feed/audiobooks/id/{edition}/?format=json'
+    with urllib.request.urlopen(url, timeout=15) as response:
+        books = json.loads(response.read(1048576)).get('books', [])
+    if (not isinstance(books, list) or len(books) != 1
+            or not isinstance(books[0], dict) or books[0].get('id') != edition):
+        raise ValueError('The tagged LibriVox edition could not be verified.')
+    book = books[0]
+    archive = urllib.parse.urlsplit(book.get('url_zip_file', ''))
+    parts = archive.path.split('/')
+    if (archive.scheme != 'https' or archive.netloc != 'archive.org'
+            or len(parts) < 4 or parts[1] != 'compress' or parts[2] != source):
+        raise ValueError('The downloaded folder does not match the LibriVox archive.')
+    audio = [(path.suffix.lower(), size) for path, size, _ in
+             app.source_files(app.DOWNLOADS / 'complete' / source)
+             if path.suffix.lower() in app.AUDIO]
+    formats = {suffix for suffix, _ in audio}
+    sections = str(book.get('num_sections', ''))
+    whole_book = len(audio) == 1 and formats == {'.m4b'}
+    chapter_set = (formats in ({'.mp3'}, {'.ogg'}) and sections.isdecimal()
+                   and len(audio) == int(sections))
+    if not (whole_book or chapter_set) or any(size <= 0 for _, size in audio):
+        raise ValueError('Select one complete recording format or review the files manually.')
+    authors = [' '.join(name for name in (author.get('first_name'), author.get('last_name'))
+                        if isinstance(name, str) and name.strip())
+               for author in (book.get('authors') or []) if isinstance(author, dict)]
+    authors = [author for author in authors if author]
+    author = app.component(', '.join(authors).replace('/', ' - ').replace('\\', ' - '))
+    raw_title = book.get('title')
+    if not isinstance(raw_title, str):
+        raise ValueError('LibriVox did not return a usable title.')
+    title = app.component(raw_title.replace('/', ' - ').replace('\\', ' - '))
+    metadata = {'title': book['title'], 'authors': authors, 'publisher': 'LibriVox',
+                'language': book.get('language') or ''}
+    return {'author': author, 'title': title, 'metadata': metadata, 'edition': edition}
 
 
 class DiscordHTTPError(RuntimeError):
@@ -42,7 +83,7 @@ def reviews(app, key=None):
         return []
     with closing(sqlite3.connect(path)) as db:
         db.row_factory = sqlite3.Row
-        fields = 'id,source,status,matches,actor,seen,job,media_kind'
+        fields = 'id,source,status,matches,actor,seen,job,media_kind,reason'
         if key:
             row = db.execute('SELECT ' + fields + ' FROM queue WHERE id=?', (key,)).fetchone()
             if not row:
@@ -62,7 +103,7 @@ def reviews(app, key=None):
                     pass
             return result
         return [dict(row) for row in db.execute(
-            "SELECT id,source,status,seen FROM queue WHERE status IN "
+            "SELECT id,source,status,seen,reason FROM queue WHERE status IN "
             "('rejected','needs_review','source_changed','failed','interrupted','cleanup_required') ORDER BY seen")]
 
 
@@ -121,8 +162,9 @@ class Discord:
 class ReviewQueue:
     def __init__(self, app, config, discord=None):
         self.app, self.config = app, config
-        validate_config(config)
-        self.discord = discord or Discord(config)
+        if config is not None:
+            validate_config(config)
+        self.discord = (discord or Discord(config)) if config else None
         with self.db() as db:
             db.execute('CREATE TABLE IF NOT EXISTS queue ('
                        'id TEXT PRIMARY KEY, source TEXT UNIQUE, fingerprint TEXT, '
@@ -131,6 +173,8 @@ class ReviewQueue:
             columns = {row[1] for row in db.execute('PRAGMA table_info(queue)')}
             if 'reply' not in columns:
                 db.execute('ALTER TABLE queue ADD COLUMN reply TEXT')
+            if 'reason' not in columns:
+                db.execute('ALTER TABLE queue ADD COLUMN reason TEXT')
             if 'library_path' not in columns:
                 db.execute('ALTER TABLE queue ADD COLUMN library_path TEXT')
             if 'media_kind' not in columns:
@@ -161,6 +205,8 @@ class ReviewQueue:
         # catalog validates storage, audio files and qBittorrent completion.
         available = self.app.catalog()
         for item in available:
+            if self.discord is None and not item.get('librivox_editions'):
+                continue
             fingerprint = self.fingerprint(item['source'])
             with self.db() as db:
                 row = db.execute('SELECT * FROM queue WHERE source=?', (item['source'],)).fetchone()
@@ -170,7 +216,7 @@ class ReviewQueue:
                     db.commit()
                 elif row['status'] == 'settling' and row['fingerprint'] != fingerprint:
                     self.update(row['id'], fingerprint=fingerprint, seen=time.time())
-        return {item['source'] for item in available}
+        return {item['source']: item for item in available}
 
     def gather(self, row):
         source = self.app.DOWNLOADS / 'complete' / row['source']
@@ -201,6 +247,15 @@ class ReviewQueue:
         # Persist full candidates; one-hour web review tokens are not used for Discord.
         self.update(row['id'], matches=json.dumps(matches), status='pending', dirty=1)
 
+    def gather_librivox(self, row, editions):
+        try:
+            match = librivox_match(self.app, row['source'], editions)
+        except ValueError as error:
+            self.update(row['id'], status='needs_review', reason=str(error), dirty=1)
+            return
+        self.update(row['id'], matches=json.dumps([match]), selected=0,
+                    actor='LibriVox', status='approved', dirty=0)
+
     def content(self, row):
         lines = [f"<@{self.config['notify_user_id']}> Media review `{row['id']}`",
                  'Download: ' + row['source'][:200]]
@@ -229,7 +284,13 @@ class ReviewQueue:
                     job = db.execute('SELECT * FROM jobs WHERE id=?', (row['job'],)).fetchone()
                 if job and 'message' in job.keys():
                     lines.append(job['message'][:250])
-        lines.append('https://torrents.shelfgoblin.dev/imports/')
+        if row['reason']:
+            lines.append(row['reason'][:250])
+        link = 'https://torrents.shelfgoblin.dev/imports/'
+        if row['status'] in ('needs_review', 'source_changed', 'failed', 'interrupted'):
+            link += '?review=' + row['id']
+        lines.append(link)
+
         return '\n'.join(lines)[:2000]
 
     def delete_resolved(self, row):
@@ -298,7 +359,7 @@ class ReviewQueue:
     def import_approved(self, row):
         if self.app.lock.locked():
             return
-        available = {item['source'] for item in self.app.catalog()}
+        available = {item['source']: item for item in self.app.catalog()}
         if row['source'] not in available or self.fingerprint(row['source']) != row['fingerprint']:
             self.update(row['id'], status='source_changed', dirty=1)
             return
@@ -309,6 +370,11 @@ class ReviewQueue:
             self.update(row['id'], status='needs_review', dirty=1)
             return
         match = json.loads(row['matches'])[row['selected']]
+        if (row['actor'] == 'LibriVox'
+                and available[row['source']].get('librivox_editions') != [match['edition']]):
+            self.update(row['id'], status='source_changed',
+                        reason='The LibriVox edition tag changed while awaiting import.', dirty=1)
+            return
         duplicate = self.app.existing_book(self.app.DOWNLOADS / 'complete' / row['source'], match['metadata'])
         if duplicate:
             self.update(row['id'], status='already_in_library', library_path=duplicate, dirty=bool(row['message']))
@@ -325,15 +391,16 @@ class ReviewQueue:
             job = self.app.start_job({'source': row['source'], 'author': match['author'],
                                       'title': match['title'], 'review': review, 'kind': match['metadata'].get('kind', 'audiobook')})
             self.update(row['id'], status='importing', job=job['id'], dirty=1)
-        except Exception:
-            self.update(row['id'], status='needs_review', dirty=1)
+        except Exception as error:
+            reason = str(error) if isinstance(error, ValueError) else 'The import could not start.'
+            self.update(row['id'], status='needs_review', reason=reason, dirty=1)
             raise
 
     def tick(self):
         # Resolution cleanup must work even if USB/storage discovery is unavailable.
         with self.db() as db:
             resolved = db.execute("SELECT * FROM queue WHERE status IN ('done','already_in_library') AND discord_deleted=0").fetchall()
-        for row in resolved:
+        for row in resolved if self.discord is not None else ():
             try:
                 self.delete_resolved(row)
             except Exception as error:
@@ -355,7 +422,17 @@ class ReviewQueue:
                     continue
                 if row['status'] == 'settling':
                     if row['source'] in available and time.time() - row['seen'] >= 120:
-                        self.gather(row)
+                        editions = available[row['source']].get('librivox_editions')
+                        if editions:
+                            self.gather_librivox(row, editions)
+                        elif self.discord is not None:
+                            self.gather(row)
+                elif row['actor'] == 'LibriVox' and row['status'] == 'approved':
+                    self.import_approved(row)
+                elif row['status'] in ('importing', 'cleanup_required') and (self.discord is None or row['actor'] == 'LibriVox'):
+                    self.check_job(row)
+                elif self.discord is None:
+                    continue
                 elif row['selected'] == -1 and not row['reply'] and row['message'] and not row['discord_deleted']:
                     self.rejected_reply(row)
                 elif row['dirty'] or not row['message']:
@@ -365,25 +442,35 @@ class ReviewQueue:
                 elif row['status'] == 'approved':
                     self.import_approved(row)
                 elif row['status'] in ('importing', 'cleanup_required'):
-                    with closing(self.app.database()) as db:
-                        job = db.execute('SELECT * FROM jobs WHERE id=?', (row['job'],)).fetchone()
-                    if job and job['status'] != 'copying' and job['status'] != row['status']:
-                        self.update(row['id'], status=job['status'], dirty=1)
-                        if job['status'] in RESOLVED:
-                            self.delete_resolved(dict(row, status=job['status']))
+                    self.check_job(row)
             except Exception as error:
                 logging.warning('Discord review %s deferred (%s)', row['id'], type(error).__name__)
 
 
+    def check_job(self, row):
+        with closing(self.app.database()) as db:
+            job = db.execute('SELECT * FROM jobs WHERE id=?', (row['job'],)).fetchone()
+        if job and job['status'] != 'copying' and job['status'] != row['status']:
+            reason = job['message'] if job['status'] not in RESOLVED and 'message' in job.keys() else None
+            self.update(row['id'], status=job['status'], reason=reason, dirty=1)
+            if self.discord is not None and job['status'] in RESOLVED:
+                self.delete_resolved(dict(row, status=job['status']))
+
+
 def run(app):
     config_file = app.STATE / 'discord-approval.secret'
-    if not config_file.is_file():
-        logging.warning('Discord audiobook approval disabled: private configuration is absent')
-        return
+    config = None
+    if config_file.is_file():
+        try:
+            config = json.loads(config_file.read_text(encoding='utf-8'))
+            validate_config(config)
+        except Exception as error:
+            logging.error('Discord approval configuration invalid (%s)', type(error).__name__)
+            config = None
     try:
-        queue = ReviewQueue(app, json.loads(config_file.read_text(encoding='utf-8')))
+        queue = ReviewQueue(app, config)
     except Exception as error:
-        logging.error('Discord approval configuration invalid (%s)', type(error).__name__)
+        logging.error('Audiobook review queue could not initialize (%s)', type(error).__name__)
         return
     while True:
         try:

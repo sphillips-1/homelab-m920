@@ -12,7 +12,7 @@ async function loadReviews() {
     const link = document.createElement('a');
     link.href = '/imports/?review=' + encodeURIComponent(row.id);
     link.textContent = row.source;
-    const status = document.createElement('p'); status.textContent = row.status.replaceAll('_', ' ');
+    const status = document.createElement('p'); status.textContent = row.reason || row.status.replaceAll('_', ' ');
     article.append(link, status); list.append(article);
   }
 }

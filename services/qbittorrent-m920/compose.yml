@@ -42,6 +42,13 @@ services:
         restart: true
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./audiobook-downloader.conf:/etc/nginx/conf.d/audiobook-downloader.conf:ro
+      - type: bind
+        source: /srv/homelab/appdata/holyarrs-audiobooks
+        target: /etc/nginx/audiobook-auth
+        read_only: true
+        bind:
+          create_host_path: false
   audiobook-importer:
     image: python:3.13-alpine
     container_name: audiobook-importer
