@@ -1,0 +1,44 @@
+name: M920 HolyArrs Music Storage
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/holyarrs-music]
+    paths: [.github/workflows/m920-holyarrs-music.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  provision-music:
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Provision the music folder on the media SSD
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/check-m920-video-storage.sh
+          root=/srv/homelab/video-data
+          downloader=holyarrs-qbittorrent-video-1
+          for container in holyarrs-holyarrs-1 "$downloader"; do
+            mount=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Type}} {{.Source}} {{.RW}}{{end}}{{end}}' "$container")
+            [[ $mount == "bind $root true" ]]
+          done
+
+          # The downloader shares the SSD mount and the media owner's numeric IDs.
+          docker exec --user 1000:1000 "$downloader" sh -eu -c '
+            umask 027
+            test ! -L /data/media/music
+            mkdir -p /data/media/music
+            test -w /data/media/music
+          '
+          [[ $(findmnt -rn -T "$root/media/music" -o TARGET) == "$root" ]]

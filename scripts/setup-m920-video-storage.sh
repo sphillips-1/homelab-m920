@@ -49,7 +49,7 @@ else
     install -d -o root -g root -m 000 "$target"
 fi
 
-for relative in '' /downloads /downloads/incomplete /downloads/complete /media /media/movies /media/tv; do
+for relative in '' /downloads /downloads/incomplete /downloads/complete /media /media/movies /media/tv /media/music; do
     directory=$source_dir$relative
     check_path "$directory"
     [[ $(findmnt -rn -T "${directory%/*}" -o TARGET) == "$storage" ]] ||
