@@ -17,10 +17,9 @@ Outage state survives container restarts. Failed notifications retry on the next
 
 ## Deployment and operations
 
-Enter or rotate the webhook from Windows with `scripts/configure-pihole-discord.ps1`. Then recreate the monitor: the helper atomically replaces the credential file, so an existing file bind mount must be refreshed.
+Enter or rotate the webhook from Windows with `scripts/configure-pihole-discord.ps1`. Deploy through [GitHub Actions](../../docs/container-deployment.md). For rotation, the helper atomically replaces a file that is bind-mounted directly. The current pipeline restarts the monitor, so verify that the running monitor reads the new credential. If it retains the old credential, the pipeline needs a recreate step before rotation can be verified.
 
 ```bash
-docker compose -f /opt/homelab/services/pihole-monitor/compose.yml up -d --force-recreate
 docker logs --tail 20 pihole-monitor
 docker exec pihole-monitor python -B /app/monitor.py --check
 ```

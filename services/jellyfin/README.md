@@ -46,7 +46,6 @@ the render-device values. No numeric GPU group ID is committed.
 
 ```bash
 cd /opt/homelab
-sudo ./scripts/deploy-services.sh
 
 docker compose -f services/jellyfin/compose.yml ps
 docker compose -f services/jellyfin/compose.yml stop

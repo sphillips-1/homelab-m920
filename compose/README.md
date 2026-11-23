@@ -1,5 +1,6 @@
 # Compose
 
-Docker Compose definitions and related deployment configuration can be organized here when they are shared across services.
-
-Service-specific configuration may remain within the corresponding `services/<name>` directory.
+Service definitions live under `services/<name>/`. Use this directory for
+shared Compose configuration. Keep persistent data outside the checkout using
+the [storage layout](../docs/storage.md). Deploy through
+[GitHub Actions](../docs/container-deployment.md).

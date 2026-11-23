@@ -36,104 +36,37 @@ deprecated `access` mode are intentionally rejected by automatic deployment.
 - You have Cloudflare permissions to create tunnels, DNS records, and Access
   applications.
 
-## Create the named tunnel
+## Prepare or restore the tunnel
 
-Run the repository-managed setup helper on the M920Q. It reuses an existing
-local tunnel JSON credential when possible; otherwise it opens the interactive
-Cloudflare login flow, creates a named tunnel, writes the ignored local `.env`,
-renders safe mode, and deploys the connector.
+Recover the existing named tunnel and credential per the [recovery guide](recovery.md).
+The ignored `services/cloudflared/.env` supplies `CLOUDFLARE_DOMAIN`,
+`CLOUDFLARE_TUNNEL_ID`, and `CLOUDFLARE_TUNNEL_CREDENTIALS_FILE`. Keep the
+credential JSON private under `/srv/homelab/appdata/cloudflared`. The release
+skips the connector until a runtime config exists. Once the credential and
+environment are in place, render it with
+`sudo bash scripts/configure-cloudflared.sh --mode safe`.
 
-```bash
-sudo bash ./scripts/setup-cloudflared-tunnel.sh --domain example.com
-```
+The legacy `setup-cloudflared-tunnel.sh` helper starts a connector itself.
+Use the [runbook](deployment-runbook.md#recovery-automation-gaps) for the
+first-install gap in the GitHub Actions path. Preserve the existing tunnel UUID
+and Terraform-managed DNS during a recovery.
 
-Pass the real Cloudflare zone (without a protocol) instead of `example.com`.
-The helper prints the tunnel UUID and writes the local environment file. To
-select a local credential explicitly, use `--tunnel-id <UUID>`.
+## Deploy and verify
 
-```bash
-sudo cat services/cloudflared/.env
-```
+Set the checked-in desired mode to `safe` or `sso` and deploy through
+[GitHub Actions](container-deployment.md). Verify with
+`sudo bash scripts/verify-cloudflare-tunnel.sh <safe|sso>`. In safe mode,
+application hostnames return 404 and the identity hostname routes to Authentik.
+Use SSO mode after verifying application access policies.
 
-`services/cloudflared/.env` is ignored by Git. The required values are
-`CLOUDFLARE_DOMAIN`, `CLOUDFLARE_TUNNEL_ID`, and
-`CLOUDFLARE_TUNNEL_CREDENTIALS_FILE`. The credential JSON is secret. The
-temporary `cert.pem` is removed by the helper after successful deployment.
+The temporary `test` mode is historical. It bypassed Authentik and depended
+on Cloudflare Access policies for each app hostname. The production workflow
+accepts only `safe` and `sso`.
 
-In the Cloudflare DNS dashboard, create proxied CNAME records:
-
-| Name | Target |
-| --- | --- |
-| `audiobooks` | `<TUNNEL_UUID>.cfargotunnel.com` |
-| `books` | `<TUNNEL_UUID>.cfargotunnel.com` |
-| `status` | `<TUNNEL_UUID>.cfargotunnel.com` |
-| `auth` | `<TUNNEL_UUID>.cfargotunnel.com` |
-
-Do not create public hostnames or routes for any other internal service. The
-one narrow path exception is `auth.<DOMAIN>/invite/*`, which routes to the
-invitation landing endpoint. That endpoint only issues a short-lived signed
-handoff cookie and redirects to Authentik's Google source; the provisioning API
-on the same container remains protected by an internal bearer secret.
-
-## Deploy in PRE-SSO SAFE STATE
-
-Render the safe ingress configuration and deploy:
-
-```bash
-sudo bash ./scripts/configure-cloudflared.sh --mode safe
-sudo ./scripts/deploy-services.sh
-sudo bash ./scripts/verify-cloudflare-tunnel.sh safe
-```
-
-The expected external response from all application hostnames is HTTPS 404.
-The `auth` hostname routes to Authentik. The router needs no port-forwarding
-rule.
-
-## TEMPORARY TEST ACCESS
-
-Before enabling test routing, create Cloudflare Zero Trust Access applications
-for `audiobooks.<DOMAIN>`, `books.<DOMAIN>`, and `status.<DOMAIN>`.
-Use self-hosted application type, exact hostname paths (`/*`), and an Allow
-policy restricted to your own identity/email domain. Verify in an incognito
-browser that Cloudflare Access requests authentication and that anonymous
-requests cannot reach either application. This is a Cloudflare Access gate,
-not Authentik. Authentik and Google OAuth are deployed as the identity layer,
-but neither application is integrated with Authentik yet.
-
-Only after those policies are enabled, run:
-
-```bash
-sudo bash ./scripts/configure-cloudflared.sh --mode test
-sudo docker compose -f services/cloudflared/compose.yml up -d
-sudo bash ./scripts/verify-cloudflare-tunnel.sh test
-```
-
-Test mode routes `audiobooks.<DOMAIN>` to Audiobookshelf,
-`books.<DOMAIN>` to Calibre-Web, and `status.<DOMAIN>` to Beszel.
-`auth.<DOMAIN>` continues to route to Authentik. This is
-**TEMPORARY TEST ACCESS** and would be unauthenticated if the Access policies
-are missing, disabled, or incorrectly scoped.
-
-## Disable temporary public access immediately
-
-Return the connector to safe mode; this is the required action after testing:
-
-```bash
-sudo bash ./scripts/configure-cloudflared.sh --mode safe
-sudo docker compose -f services/cloudflared/compose.yml up -d
-sudo bash ./scripts/verify-cloudflare-tunnel.sh safe
-```
-
-For an additional emergency stop, disable the tunnel in the Cloudflare
-dashboard or stop the connector:
-
-```bash
-sudo docker compose -f services/cloudflared/compose.yml stop
-```
-
-Stopping it makes all four public hostnames unavailable but does not affect
-the local applications or Tailscale. Keep the safe-mode configuration as the
-normal ready state.
+For immediate emergency closure, stop the connector with
+`sudo docker compose -f services/cloudflared/compose.yml stop`. This takes
+public ingress offline while leaving private access available. Commit the
+safe desired mode and deploy through Actions before restoring the connector.
 
 ## Validation and troubleshooting
 

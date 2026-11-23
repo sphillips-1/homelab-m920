@@ -43,8 +43,9 @@ Planned:
 
 See `docs/architecture.md` and `docs/storage.md` for the current design.
 Known LAN addresses are maintained in [the network inventory](docs/network-inventory.md).
-For a clean-host build, including the complete manual script order and the
-automation performed for each service, see `docs/deployment-runbook.md`.
+See the [deployment runbook](docs/deployment-runbook.md) for Debian host setup
+and first-install gaps, [recovery](docs/recovery.md) for off-host backups and
+restore order, and the [service catalog](services/README.md) for application setup.
 Automatic container deployment from `main`, runner setup, verification, and
 rollback behavior are documented in `docs/container-deployment.md`.
 

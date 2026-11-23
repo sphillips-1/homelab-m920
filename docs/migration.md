@@ -1,22 +1,9 @@
 # Migration
 
-The M920Q will eventually become the primary host for services currently running on Raspberry Pi hardware.
-
-Migration should be performed in stages:
-
-1. Install and configure Debian.
-2. Clone this repository.
-3. Run the base/bootstrap configuration.
-4. Configure Docker and Tailscale.
-5. Create `/srv/homelab`.
-6. Deploy services.
-7. Migrate application state.
-8. Migrate media.
-9. Verify services.
-10. Retire or repurpose the old host only after verification.
-
-Use `deployment-runbook.md` as the executable version of this sequence. It
-identifies which scripts are manual, which are invoked by other automation,
-and where each service's one-time application setup belongs.
-
-Audiobookshelf data should be migrated with particular care because its database and metadata are persistent application state.
+Use the [deployment runbook](deployment-runbook.md) to prepare the M920Q and
+register the Actions runner. Use [recovery](recovery.md) to inventory and restore
+service data, secrets, and media. Stop source writers before the final copy and
+verify destination mounts before restoring. Preserve the source until accounts,
+libraries, playback, ingress, and backups pass verification on the M920Q. Apply
+service configuration through the GitHub Actions pipeline. See the
+[decommission plan](decommission-plan.md) for retiring legacy infrastructure.

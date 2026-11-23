@@ -6,4 +6,5 @@ outside Git at `/srv/homelab/appdata/cloudflared`.
 
 Use `sudo bash ../../scripts/configure-cloudflared.sh --mode safe` before
 deploying it.
-See `../../docs/cloudflare-tunnel.md` for the complete setup and test process.
+See the [tunnel guide](../../docs/cloudflare-tunnel.md) for recovery inputs,
+GitHub Actions deployment, and verification.

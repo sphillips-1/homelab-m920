@@ -34,6 +34,9 @@ M920Q
 /srv/homelab/
 ├── appdata/
 ├── media/
+├── storage/     # external media filesystem
+├── video-data/  # dedicated video storage
+├── cache/
 └── backups/
 ```
 
@@ -63,7 +66,9 @@ copy lock serialize audio and video jobs. See [Jellyfin moves](jellyfin-media-ap
 
 Services are kept logically separate so individual applications can be deployed, updated, or recovered without turning the host into one monolithic configuration.
 
-The exact Compose organization will be established as services are migrated.
+Compose definitions live under `services/<name>`. Production deployment uses
+[GitHub Actions](container-deployment.md). See [recovery](recovery.md) for the
+data and private inputs needed to rebuild from clean Debian.
 
 ## Internet ingress
 

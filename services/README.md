@@ -1,19 +1,26 @@
 # Services
 
-Each service gets its own directory with a Compose definition and service-specific deployment notes.
+Service directories hold rebuildable configuration and application setup notes.
+Keep persistent state under `/srv/homelab/appdata` and media under the paths in
+the [storage guide](../docs/storage.md). Use [GitHub Actions](../docs/container-deployment.md)
+for production deployment and the [runbook](../docs/deployment-runbook.md) for
+first-install and restore prerequisites.
 
-A service directory should contain the configuration required to deploy that service while persistent state remains under `/srv/homelab/appdata`.
-
-Initial services:
-
-- `local-ai` — CPU-only Ollama and Open WebUI; see `local-ai/README.md`.
-
-- `audiobookshelf`
-- `calibre-web`
-- `readest` — separate browser reader and per-user sync; see `readest/README.md`.
-- `homepage`
-- `monitoring`
-- `authentik`
-- `jellyfin`
-
-Calibre-Web is deployed with the other services by `scripts/deploy-services.sh`. Its persistent state is under `/srv/homelab/appdata/calibre-web`; its Calibre library is under `/srv/homelab/media/ebooks`.
+- [ai-investigator](ai-investigator/README.md)
+- [audiobookshelf](audiobookshelf/README.md)
+- [authentik](authentik/README.md)
+- [bambustudio](bambustudio/README.md)
+- [calibre-web](calibre-web/README.md)
+- [cloudflared](cloudflared/README.md)
+- [cyd-download](cyd-download/README.md)
+- [holyarrs](holyarrs/README.md)
+- [homepage](homepage/README.md) (planned)
+- [jackett](jackett/README.md)
+- [jellyfin](jellyfin/README.md)
+- [kids](kids/README.md)
+- [lan-proxy](lan-proxy/README.md)
+- [local-ai](local-ai/README.md)
+- [monitoring](monitoring/README.md)
+- [pihole-monitor](pihole-monitor/README.md)
+- [qbittorrent-m920](qbittorrent-m920/README.md)
+- [readest](readest/README.md)

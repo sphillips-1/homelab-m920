@@ -44,16 +44,8 @@ mounted into Authentik's static assets and selected by the same reconciler.
 
 The CSS scopes decorative component styling to Authentik flow pages. Its global
 declarations are limited to bookshelf color constants and the flow background.
-After a change,
-recreate the affected containers, reconcile the Brand, and hard-refresh the
-browser:
-
-```bash
-cd /opt/homelab
-sudo docker compose -f services/authentik/compose.yml up -d --force-recreate server worker
-sudo docker exec -i authentik-worker ak shell \
-  < scripts/reconcile-authentik-branding.py
-```
+Apply theme changes through [GitHub Actions](container-deployment.md), then
+hard-refresh the browser.
 
 Check the normal Google flow, administrator-recovery flow, invitation flow,
 an error page, the user portal, and the administration interface at desktop and
@@ -79,17 +71,11 @@ Paste each generated value into its matching variable. Required secrets are
 `PG_PASS` and `AUTHENTIK_SECRET_KEY`. Google Client ID and Client Secret are
 entered later and stored encrypted in PostgreSQL; keep both out of Git too.
 
-```bash
-sudo ./scripts/create-directories.sh
-sudo docker compose -f services/authentik/compose.yml config -q
-sudo docker compose -f services/authentik/compose.yml pull
-sudo docker compose -f services/authentik/compose.yml up -d
-sudo bash ./scripts/configure-cloudflared.sh --mode safe
-sudo docker compose -f services/cloudflared/compose.yml up -d
-```
+Prepare the invitation environment and deploy using the
+[deployment runbook](deployment-runbook.md).
 
 From LAN or Tailscale, open
-`http://192.168.4.37:9000/if/flow/initial-setup/` and set a unique strong
+`http://192.168.4.27:9000/if/flow/initial-setup/` and set a unique strong
 `akadmin` password. This is preferred to a default/bootstrap password. If an
 automated first boot is necessary, use Authentik's `hash_password` command and
 the optional variables in `.env.example`; remove them after the first
@@ -156,8 +142,8 @@ docker run --rm --network homelab curlimages/curl:latest -fsS http://authentik-s
 docker logs cloudflared --tail 100
 curl -fsS https://auth.shelfgoblin.dev/-/health/ready/
 sudo bash ./scripts/verify-cloudflare-tunnel.sh safe
-curl -fsS http://192.168.4.37:13378/ >/dev/null
-curl -fsS http://192.168.4.37:8083/ >/dev/null
+curl -fsS http://192.168.4.27:13378/ >/dev/null
+curl -fsS http://192.168.4.27:8083/ >/dev/null
 ```
 
 Confirm `authentik-server` and cloudflared both belong to `homelab`; recent

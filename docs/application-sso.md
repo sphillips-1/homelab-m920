@@ -142,13 +142,9 @@ bypass authentication for the whole Books application.
 ## Deployment and validation
 
 Before changing public routes, run `sudo scripts/backup-applications.sh` and
-copy backups off-host. Render the single-provider route with:
-
-```bash
-sudo bash scripts/configure-cloudflared.sh --mode sso
-sudo docker compose -f services/cloudflared/compose.yml restart cloudflared
-sudo bash scripts/verify-cloudflare-tunnel.sh sso
-```
+copy backups off-host. Set `config/cloudflared/desired-mode` to `sso` and
+apply it through [GitHub Actions](container-deployment.md). Verify with
+`sudo bash scripts/verify-cloudflare-tunnel.sh sso` on the host.
 
 Validate anonymous, authorized, unauthorized, logout/login, LAN, and Tailscale
 paths. Confirm Books redirects to `auth.shelfgoblin.dev`. Check
@@ -159,12 +155,9 @@ paths. Confirm Books redirects to `auth.shelfgoblin.dev`. Check
 Private service access remains available at ports 13378, 8083, and 9000, but
 Audiobookshelf login still requires Authentik while its password method is
 disabled. Keep the `akadmin` and Calibre-Web recovery credentials. If SSO
-fails, render safe mode and redeploy cloudflared:
-
-```bash
-sudo bash scripts/configure-cloudflared.sh --mode safe
-sudo docker compose -f services/cloudflared/compose.yml up -d
-```
+fails, set the committed desired mode to `safe` and run the deployment
+workflow. For immediate closure while the workflow is unavailable, stop
+the connector using the [tunnel guide](cloudflare-tunnel.md).
 
 This closes public application origins without affecting LAN/Tailscale. To
 restore application state, stop the affected container, replace its appdata

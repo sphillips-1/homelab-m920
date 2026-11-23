@@ -9,14 +9,17 @@ Scripts should be:
 - explicit about failures
 - documented when they have destructive behavior
 
+Use `bootstrap.sh` for Debian host preparation and
+`install-container-deployment.sh` for the runner entry point. GitHub Actions
+invokes `deploy-release.sh`, which calls `deploy-services.sh`. See the
+[runbook](../docs/deployment-runbook.md) for gaps and
+[recovery](../docs/recovery.md) for backup coverage.
+
 ## Cloudflare Tunnel
 
-Run `sudo bash scripts/setup-cloudflared-tunnel.sh --domain example.com` after
-bootstrap to create or reuse a local tunnel credential, deploy the connector in
-PRE-SSO SAFE mode, and write the ignored local environment file. It is safe to
-rerun after repository configuration changes. It never enables application
-routing; use the documented, explicit test-mode process only after Cloudflare
-Access policies are in place.
+The legacy `setup-cloudflared-tunnel.sh` helper prepares credentials and also
+starts the connector. See the [tunnel guide](../docs/cloudflare-tunnel.md) for
+production deployment and recovery.
 
 ## Application SSO
 

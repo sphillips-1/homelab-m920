@@ -11,14 +11,9 @@ The ebook library is the one canonical location; do not create a separate Calibr
 
 ## Deployment and access
 
-Deploy or redeploy from the repository root on the M920Q:
+Apply production changes through [GitHub Actions](../../docs/container-deployment.md).
 
-```bash
-sudo ./scripts/create-directories.sh
-sudo ./scripts/deploy-services.sh
-```
-
-Check the service:
+Check status from the canonical checkout:
 
 ```bash
 docker compose -f services/calibre-web/compose.yml ps

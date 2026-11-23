@@ -1,5 +1,6 @@
-Storage
-Storage boundary
+# Storage
+
+## Storage boundary
 
 M920 qBittorrent has a separate dedicated USB filesystem mounted at
 `/srv/homelab/media/torrents-m920` by UUID
@@ -8,7 +9,7 @@ payloads both live there; its appdata remains under `/srv/homelab/appdata`.
 This is independent of the large external audiobook/media filesystem.
 See `services/qbittorrent-m920/README.md` for mounting and storage guards.
 
-The Git repository and operating-system configuration live under:
+The Git checkout and rebuildable deployment files live under:
 
 /opt/homelab
 
@@ -156,7 +157,9 @@ is performed by `sudo bash scripts/migrate-media-storage.sh`. It refuses to
 continue if the movie or TV directories contain data, preserves a pre-migration
 fstab backup, uses same-filesystem renames for the audiobook tree, and is safe
 to rerun after successful migration.
-The M920 should be recoverable by cloning the repository and rerunning the bootstrap/deployment scripts.
+Recovery also requires storage, off-host backups, and protected runtime inputs.
+See [recovery](recovery.md). The dedicated video storage mounts at
+`/srv/homelab/video-data`. See the [HolyArrs guide](../services/holyarrs/README.md).
 Ownership
 
 The audiobook media is currently owned by the sean user/group on the host.

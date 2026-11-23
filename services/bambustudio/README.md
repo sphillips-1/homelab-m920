@@ -15,10 +15,9 @@ No host ports or Docker socket are mounted. The container joins `homelab` so
 Authentik can reach port 3000. HTTPS terminates at Cloudflare; the streaming
 WebSocket must pass through Authentik. No GPU is required for the trial.
 
-Deploy: `bash /opt/homelab/scripts/deploy-bambustudio.sh`.
-Reconcile the SSO tunnel template with `configure-cloudflared.sh --mode sso`,
-validate ingress, and restart cloudflared. Provision the DNS CNAME using the
-existing Terraform hostname map. Grant only the intended owner's identity the
+Deploy through [GitHub Actions](../../docs/container-deployment.md).
+The normal workflow applies Terraform DNS and reconciles tunnel ingress.
+Grant only the intended owner's identity the
 `bambu-users` group through Authentik. The image is pinned to the trial digest
 (Bambu Studio v02.08.04.57-ls175). Printer login, discovery, and actual slicing require
 interactive verification before treating this as production.

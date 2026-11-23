@@ -5,9 +5,13 @@ Every push to `main` runs the single **Deploy** workflow in
 scripts, validates and applies Terraform, then deploys containers on the existing
 M920Q GitHub Actions runner. Pull requests do not run a separate pipeline.
 
+See [deployment runbook](deployment-runbook.md) for host preparation and
+first-install gaps, and [recovery](recovery.md) for restore prerequisites.
+
 ## One-time runner setup
 
-Give the runner the labels `self-hosted`, `linux`, `x64`, and `m920`. From the
+The runner must be able to read the canonical checkout. Workflow steps that
+invoke Docker directly also require Docker access. Give the runner the labels `self-hosted`, `linux`, `x64`, and `m920`. From the
 canonical checkout, install the root-owned deployment entry point for the Unix
 account that runs the GitHub runner:
 
