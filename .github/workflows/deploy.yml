@@ -188,15 +188,15 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: sphillips-1/HolyArrs
-          ref: c9b5fc42569cbe8727e89559d8fda141a19b4d74
+          ref: ea855231018d6730a764faf2f8e662522ebc1928
           path: holyarrs-fork
           persist-credentials: false
       - name: Build the audiobook-enabled HolyArrs image
         run: |
           set -euo pipefail
-          if ! docker image inspect homelab/holyarrs:c9b5fc4 >/dev/null 2>&1; then
+          if ! docker image inspect homelab/holyarrs:ea85523 >/dev/null 2>&1; then
             docker build --build-arg VERSION=1.2.0 -f holyarrs-fork/deploy/Dockerfile \
-              -t homelab/holyarrs:c9b5fc4 holyarrs-fork
+              -t homelab/holyarrs:ea85523 holyarrs-fork
           fi
       - name: Report canonical checkout status
         run: git -C /opt/homelab status --short
