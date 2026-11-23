@@ -1,5 +1,6 @@
 """Exercise import safety without touching real downloads or library data."""
 import importlib.util
+from email.message import Message
 import io
 import json
 from pathlib import Path
@@ -14,6 +15,25 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('importer', ROOT / 'services/qbittorrent-m920/importer.py')
 app = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(app)
+
+class AudiobookCoverTests(unittest.TestCase):
+    def test_cover_uses_audiobookshelf_and_rejects_unexpected_media(self):
+        for kind in ('image/jpeg', 'text/html'):
+            with self.subTest(kind=kind):
+                response = io.BytesIO(b'cover fixture')
+                response.headers = Message()
+                response.headers['Content-Type'] = kind
+                with patch.dict(app.os.environ, {'AUDIOBOOKSHELF_API_TOKEN': 'fixture'}), \
+                        patch.object(urllib.request, 'urlopen', return_value=response) as fetch:
+                    if kind == 'image/jpeg':
+                        self.assertEqual(app.audiobook_cover('book-1'), (b'cover fixture', kind))
+                    else:
+                        with self.assertRaises(ValueError):
+                            app.audiobook_cover('book-1')
+                    request = fetch.call_args.args[0]
+                    self.assertIn('/api/items/book-1/cover?', request.full_url)
+                    self.assertEqual(request.get_header('Authorization'), 'Bearer fixture')
+
 
 class ImportTests(unittest.TestCase):
     def setUp(self):

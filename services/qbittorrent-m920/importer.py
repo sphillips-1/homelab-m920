@@ -528,6 +528,23 @@ def audiobook_library(page):
     return {'items': items, 'total': result['total'], 'limit': 50}
 
 
+def audiobook_cover(item):
+    if not re.fullmatch(r'[A-Za-z0-9-]{1,80}', item):
+        raise ValueError('Invalid audiobook item ID.')
+    token = os.environ['AUDIOBOOKSHELF_API_TOKEN']
+    base = os.getenv('AUDIOBOOKSHELF_URL', 'http://audiobookshelf:80').rstrip('/')
+    request = urllib.request.Request(
+        f'{base}/api/items/{item}/cover?format=jpeg&width=128&height=128',
+        headers={'Authorization': 'Bearer ' + token})
+    with urllib.request.urlopen(request, timeout=8) as response:
+        kind = response.headers.get_content_type()
+        limit = 512 * 1024
+        cover = response.read(limit + 1)
+    if kind not in ('image/jpeg', 'image/png', 'image/webp') or not 0 < len(cover) <= limit:
+        raise ValueError('Unexpected Audiobookshelf cover response.')
+    return cover, kind
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
@@ -552,6 +569,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send(200, {'ok': True})
             return
         route = urllib.parse.urlsplit(self.path)
+        if route.path == '/internal/audiobook-cover':
+            item = urllib.parse.parse_qs(route.query).get('id', [''])[0]
+            try:
+                cover, kind = audiobook_cover(item)
+            except urllib.error.HTTPError as error:
+                self.send(404 if error.code == 404 else 502, {'error': 'The audiobook cover is unavailable.'})
+            except (ValueError, KeyError, OSError):
+                self.send(502, {'error': 'The audiobook cover is unavailable.'})
+            else:
+                self.send(200, cover, kind)
+            return
         if route.path == '/internal/audiobook-library':
             try:
                 page = int(urllib.parse.parse_qs(route.query).get('page', ['0'])[0])

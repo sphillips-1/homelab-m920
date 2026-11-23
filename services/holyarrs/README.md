@@ -1,5 +1,10 @@
 # HolyArrs video stack
 
+The owner-only audiobook catalog loads square cover thumbnails from
+Audiobookshelf through the private audiobook downloader gateway. The HolyArrs
+session authorizes thumbnails, and the gateway keeps the Audiobookshelf
+credential server-side. Titles without artwork use the standard media placeholder.
+
 HolyArrs manages the new movie and TV libraries. Its dedicated video
 qBittorrent instance uses separate configuration and download paths from
 the existing audiobook workflow. Both video services join the external
