@@ -19,7 +19,7 @@ x-video-mounts:
 services:
   holyarrs:
     container_name: holyarrs-holyarrs-1
-    image: homelab/holyarrs:fec0c03
+    image: homelab/holyarrs:f28fc94
     pull_policy: never
     restart: unless-stopped
     env_file:
