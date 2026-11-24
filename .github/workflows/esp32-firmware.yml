@@ -32,6 +32,14 @@ on:
         options:
           - waveshare-s3-touch-169
           - cyd
+      transport:
+        description: Deployment transport (OTA applies only to CYD)
+        type: choice
+        default: auto
+        options:
+          - auto
+          - usb
+          - ota
 
 permissions:
   contents: read
@@ -80,6 +88,9 @@ jobs:
             --build "$PROJECT/.pio/build/$TARGET" --target "$TARGET" \
             --boot-app "$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" \
             --output firmware-package --sha "$GITHUB_SHA"
+          if [[ "$TARGET" == cyd ]]; then
+            cp "$HOME/.platformio/packages/framework-arduinoespressif32/tools/espota.py" firmware-package/
+          fi
       - name: Save firmware artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -104,6 +115,8 @@ jobs:
         shell: bash
         env:
           REQUESTED_TARGET: ${{ inputs.target }}
+          REQUESTED_TRANSPORT: ${{ inputs.transport }}
+          CYD_OTA_HOST: ${{ vars.CYD_OTA_HOST }}
           PREVIOUS_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
@@ -114,7 +127,17 @@ jobs:
              [[ -n "$(git diff --name-only "$PREVIOUS_SHA" "$GITHUB_SHA" -- hardware/cyd-status)" ]]; then
             target=cyd
           fi
+          transport="${REQUESTED_TRANSPORT:-auto}"
+          if [[ "$transport" == auto ]]; then
+            transport=usb
+            if [[ "$target" == cyd && -n "$CYD_OTA_HOST" ]]; then transport=ota; fi
+          fi
+          if [[ "$transport" == ota && "$target" != cyd ]]; then
+            echo 'OTA is only supported for CYD.' >&2
+            exit 1
+          fi
           echo "TARGET=$target" >> "$GITHUB_ENV"
+          echo "TRANSPORT=$transport" >> "$GITHUB_ENV"
       - name: Refuse an obsolete firmware build
         shell: bash
         run: |
@@ -129,11 +152,25 @@ jobs:
         with:
           name: shelf-goblin-firmware-${{ env.TARGET }}-${{ github.sha }}
           path: firmware-package
-      - name: Build isolated USB flasher
+      - name: Build isolated ESP32 flasher
         run: docker build -f hardware/esp32-monitor/deploy/Dockerfile -t "homelab-esp32-flasher:$GITHUB_SHA" .
+      - name: Upload firmware over the LAN
+        if: env.TRANSPORT == 'ota'
+        env:
+          CYD_OTA_HOST: ${{ vars.CYD_OTA_HOST }}
+          CYD_OTA_KEY: ${{ secrets.CYD_OTA_KEY }}
+        run: |
+          docker run --rm --read-only --network host \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env CYD_OTA_HOST --env CYD_OTA_KEY \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/firmware-package,target=/firmware,readonly" \
+            "homelab-esp32-flasher:$GITHUB_SHA" --target cyd --sha "$GITHUB_SHA" --ota
+          printf '### CYD OTA upload accepted\n\nCommit: %s\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
       - name: Back up, flash, verify and check boot
+        if: env.TRANSPORT == 'usb'
         shell: bash
         env:
+          CYD_OTA_KEY: ${{ secrets.CYD_OTA_KEY }}
           WAVESHARE_SERIAL_DEVICE: ${{ vars.WAVESHARE_SERIAL_DEVICE || '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_28:84:85:55:4C:1C-if00' }}
           WAVESHARE_MAC: ${{ vars.WAVESHARE_MAC || '28:84:85:55:4c:1c' }}
           ESP32_SERIAL_DEVICE: ${{ vars.ESP32_SERIAL_DEVICE || '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0' }}
@@ -161,6 +198,7 @@ jobs:
             port="/host-dev/${serial#/dev/}"
           else
             device_args=(--device "$device:/dev/esp32:rw")
+            device_args+=(--env CYD_OTA_KEY)
             port=/dev/esp32
           fi
 

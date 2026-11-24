@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Flash a checked CI artifact to one identified ESP32, with a private backup."""
+"""Deploy a checked CI artifact over USB or authenticated CYD LAN OTA."""
 import argparse
 from datetime import datetime, timezone
 import hashlib
+from ipaddress import IPv4Address
 import json
 import os
 from pathlib import Path
 import re
+import runpy
+import socket
 import stat
 import subprocess
 import sys
@@ -81,7 +84,7 @@ def verify_identity(tool, port, expected_mac):
         raise ValueError('Connected ESP32 identity does not match the configured board')
 
 
-def check_boot(port, native_usb=False):
+def check_boot(port, native_usb=False, ota_key=None):
     import serial
     if native_usb:
         wait_for_acm(port)
@@ -93,16 +96,22 @@ def check_boot(port, native_usb=False):
             connection.rts = False
         deadline = time.monotonic() + 12
         output = bytearray()
+        sent_key = False
         while time.monotonic() < deadline:
             output.extend(connection.read(2048))
+            if ota_key and not sent_key and b'CYD OTA provisioning ready' in output:
+                connection.write(f'CYD-OTA {ota_key}\n'.encode('ascii'))
+                sent_key = True
         text = output.decode('utf-8', errors='replace')
         marker = 'Shelf Goblin running' if native_usb else 'entry '
     if marker not in text or any(crash in text for crash in
                 ('Guru Meditation', 'Brownout', 'abort() was called', 'Backtrace:')):
             raise RuntimeError('Firmware failed the serial boot check')
+    if ota_key and 'CYD OTA credential saved' not in text:
+        raise RuntimeError('CYD did not confirm saving the OTA credential')
 
 
-def deploy(directory, backup_root, port, expected_mac, sha, target='cyd'):
+def deploy(directory, backup_root, port, expected_mac, sha, target='cyd', ota_key=None):
     board = BOARDS[target]
     native_usb = board.chip == 'esp32s3'
     manifest, flash_args = validate_artifact(directory, sha, target)
@@ -143,6 +152,8 @@ def deploy(directory, backup_root, port, expected_mac, sha, target='cyd'):
             tool(port, 'verify-flash', *flash_args)
             if native_usb:
                 check_boot(port, native_usb=True)
+            elif ota_key:
+                check_boot(port, ota_key=ota_key)
             else:
                 check_boot(port)
         except Exception:
@@ -162,13 +173,40 @@ def deploy(directory, backup_root, port, expected_mac, sha, target='cyd'):
         print(f'Flash verified; boot check passed. Private backup: {backup_dir}', flush=True)
 
 
+def deploy_ota(directory, sha, host, ota_key):
+    validate_artifact(directory, sha, 'cyd')
+    address = IPv4Address(host)
+    if not address.is_private or address.is_loopback or address.is_link_local or address.is_unspecified:
+        raise ValueError('CYD OTA requires a private LAN IPv4 address')
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route:
+        route.connect((str(address), 3232))
+        local_address = route.getsockname()[0]
+    uploader = runpy.run_path(str(directory / 'espota.py'))
+    result = uploader['main'](['-i', str(address), '-I', local_address, '-P', '3233',
+                               '-t', '3', '-a', ota_key, '-f', str(directory / 'firmware.bin')])
+    if result != 0:
+        raise RuntimeError('CYD OTA upload failed')
+    print(f'CYD accepted the firmware for commit {sha} and is expected to reboot.', flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--artifact', type=Path, default=Path('/firmware'))
     parser.add_argument('--backups', type=Path, default=Path('/backups/esp32'))
     parser.add_argument('--port', default='/dev/esp32')
-    parser.add_argument('--mac', required=True)
+    parser.add_argument('--mac')
+    parser.add_argument('--ota', action='store_true')
     parser.add_argument('--sha', required=True)
     parser.add_argument('--target', choices=BOARDS, default='cyd')
     args = parser.parse_args()
-    deploy(args.artifact, args.backups, args.port, args.mac, args.sha, args.target)
+    ota_key = os.environ.get('CYD_OTA_KEY') if args.target == 'cyd' else None
+    if (ota_key or args.ota) and not re.fullmatch(r'[0-9a-f]{64}', ota_key or ''):
+        parser.error('Set CYD_OTA_KEY to 64 lowercase hexadecimal characters')
+    if args.ota:
+        if args.target != 'cyd' or not os.environ.get('CYD_OTA_HOST'):
+            parser.error('OTA requires the cyd target and CYD_OTA_HOST')
+        deploy_ota(args.artifact, args.sha, os.environ['CYD_OTA_HOST'], ota_key)
+    else:
+        if not args.mac:
+            parser.error('USB deployment requires --mac')
+        deploy(args.artifact, args.backups, args.port, args.mac, args.sha, args.target, ota_key)

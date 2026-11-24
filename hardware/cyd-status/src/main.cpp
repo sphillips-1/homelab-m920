@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <ArduinoOTA.h>
 #include <HTTPClient.h>
+#include <Preferences.h>
 #include <TFT_eSPI.h>
 #include <WiFiManager.h>
 #include <XPT2046_Touchscreen.h>
@@ -18,6 +20,61 @@ constexpr uint32_t refreshMs = 5000;
 constexpr int bootPin = 0;
 TFT_eSPI display;
 WiFiManager wifi;
+bool otaProvisioned = false;
+bool otaActive = false;
+
+bool validOtaKey(const String &key) {
+  return key.length() == 64 && strspn(key.c_str(), "0123456789abcdef") == 64;
+}
+
+void configureOta() {
+  Preferences settings;
+  if (!settings.begin("cyd-ota")) return;
+  String key = settings.getString("key");
+  String command;
+  bool overflow = false;
+  Serial.println("CYD OTA provisioning ready");
+  const uint32_t started = millis();
+  while (millis() - started < 1500) {
+    const int byte = Serial.read();
+    if (byte < 0) {
+      delay(5);
+    } else if (byte == '\n') {
+      if (!overflow && command.startsWith("CYD-OTA ")) {
+        const String requested = command.substring(8);
+        if (validOtaKey(requested) &&
+            (key == requested || settings.putString("key", requested) == requested.length())) {
+          key = requested;
+          Serial.println("CYD OTA credential saved");
+          break;
+        }
+      }
+      command = "";
+      overflow = false;
+    } else if (command.length() < 72) {
+      command += static_cast<char>(byte);
+    } else {
+      overflow = true;
+    }
+  }
+  settings.end();
+  otaProvisioned = validOtaKey(key);
+  if (otaProvisioned) {
+    ArduinoOTA.setPassword(key.c_str());
+    ArduinoOTA.setMdnsEnabled(false);
+  }
+}
+
+void serviceOta(bool connected, bool portalActive) {
+  const bool enabled = otaProvisioned && connected && !portalActive;
+  if (enabled != otaActive) {
+    if (enabled) ArduinoOTA.begin();
+    else ArduinoOTA.end();
+    otaActive = enabled;
+  }
+  if (otaActive) ArduinoOTA.handle();
+}
+
 SPIClass touchBus(VSPI);
 XPT2046_Touchscreen touchscreen(33, 36);
 bool touchReady = false, touchDown = false, campPage = true;
@@ -230,6 +287,7 @@ void drawScene(displayLink::Scene scene, uint32_t elapsed, bool changed, bool up
 
 void setup() {
   Serial.begin(115200);
+  configureOta();
   pinMode(bootPin, INPUT_PULLUP);
   display.init();
   display.setRotation(1);
@@ -283,6 +341,7 @@ void loop() {
 
   const bool portalActive = wifi.getConfigPortalActive();
   const bool connected = WiFi.status() == WL_CONNECTED;
+  serviceOta(connected, portalActive);
   const bool touching = touchReady && touchscreen.touched();
   if (touching && !touchDown) touchAt = now;
   if (!touching && touchDown && now - touchAt >= 40 && now - touchAt < 800) toggle = true;

@@ -1,7 +1,8 @@
-# ESP32 USB deployment through GitHub Actions
+# ESP32 deployment through GitHub Actions
 
 The existing `self-hosted`, `linux`, `x64`, `m920` runner flashes the
-connected display over USB. GitHub-hosted runners build and test the
+connected display over USB or updates a provisioned CYD over Wi-Fi.
+GitHub-hosted runners build and test the
 [Waveshare Shelf Goblin](../hardware/esp32-monitor/README.md) and
 [CYD M920Q status display](../hardware/cyd-status/README.md).
 
@@ -11,16 +12,45 @@ Firmware and deployment changes pushed to main deploy the Waveshare by
 default. Pushes that change the CYD status project without changing the
 monitor project deploy the CYD. To deploy manually, open the **ESP32 firmware** workflow
 in GitHub Actions, select **Run workflow** on **main**, and choose
-`waveshare-s3-touch-169` or `cyd`. Pull requests and pushes to other branches
+`waveshare-s3-touch-169` or `cyd`. The transport defaults to `auto`, which
+selects OTA for a CYD with `CYD_OTA_HOST` configured and USB otherwise.
+Pull requests and pushes to other branches
 build and package both targets. Deployment uses the existing `infrastructure`
 environment and approval policy. Deployments run one at a time and reject
 builds that predate a newer firmware change on main.
 
 The runner downloads the selected board's artifact from the same run. The
 manifest identifies its chip, flash size, offsets, checksums and source commit.
-The workflow verifies those fields before accessing USB.
+The workflow verifies those fields before flashing.
 
-## Device binding
+## Enable Wi-Fi updates on a CYD
+
+1. Generate a random 32-byte key as 64 lowercase hexadecimal characters
+   (for example, with `openssl rand -hex 32`). Save it as the
+   `CYD_OTA_KEY` secret in the GitHub Actions `infrastructure` environment.
+2. Connect the CYD to the M920Q over USB. Run **ESP32 firmware** on **main**
+   with target `cyd` and transport `usb`. The job verifies the board's MAC,
+   backs up its flash, installs the two-slot partition table, and provisions
+   the key over serial into the CYD's NVS. Wait for the USB job to pass.
+3. Verify the CYD's current lease against its MAC, reserve that LAN address
+   in DHCP, and set the `CYD_OTA_HOST` Actions variable to that IPv4 address.
+   See the [network inventory](network-inventory.md) for the last observed lease.
+4. Run the workflow with target `cyd` and transport `ota` to verify the
+   wireless path. The M920Q sends an authenticated ArduinoOTA request to
+   UDP 3232 on the CYD. The CYD connects back to TCP 3233 on the runner's
+   LAN address for the transfer. Keep both paths on the trusted LAN.
+
+The CYD listens only after provisioning and while connected to Wi-Fi with
+the setup portal closed. USB provisioning is required to change the key.
+Keep the Actions secret, device NVS, and USB flash backups private.
+
+OTA writes the app image to the inactive 1,280 KiB slot and preserves NVS.
+The workflow reports when ArduinoOTA acknowledges the upload. Check the
+display after the automatic reboot. OTA does not take a full flash backup
+or verify the application after reboot. Select `usb` for recovery or to
+change the partition layout.
+
+## USB device binding
 
 | Target | USB by-id basename | MAC | Flash |
 | --- | --- | --- | --- |

@@ -6,6 +6,7 @@ Use this document as the reference for homelab LAN addresses. These are document
 | --- | --- | --- | --- |
 | Lenovo ThinkCentre M920Q | Primary homelab server; hostname `homelab` | `192.168.4.27` | SSH: `sean@192.168.4.27` |
 | Raspberry Pi Zero 2 | Pi-hole DNS server | `192.168.4.75` | DNS: TCP/UDP 53; admin: `http://192.168.4.75/admin/` |
+| ESP32-2432S028 CYD | M920Q status display | `192.168.4.34` (DHCP lease verified by MAC 2026-11-24) | Provisioned devices accept LAN OTA on UDP 3232. |
 
 ## Kids intranet
 

@@ -6,7 +6,7 @@ import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -101,6 +101,24 @@ class DeploymentTest(unittest.TestCase):
         with patch.object(flasher, 'esptool') as tool, self.assertRaises(ValueError):
             flasher.deploy(self.artifact, self.backups, 'USB', MAC, SHA)
         tool.assert_not_called()
+
+    def test_corrupt_binary_never_contacts_ota_target(self):
+        (self.artifact / 'firmware.bin').write_bytes(b'corrupted')
+        with patch.object(flasher.socket, 'socket') as socket, self.assertRaises(ValueError):
+            flasher.deploy_ota(self.artifact, SHA, '192.168.4.63', 'c' * 64)
+        socket.assert_not_called()
+
+    def test_ota_uses_lan_callback_and_fails_on_uploader_error(self):
+        uploader = Mock(return_value=1)
+        with patch.object(flasher.runpy, 'run_path', return_value={'main': uploader}), \
+                patch.object(flasher.socket, 'socket') as socket, self.assertRaises(RuntimeError):
+            route = socket.return_value.__enter__.return_value
+            route.getsockname.return_value = ('192.168.4.27', 62000)
+            flasher.deploy_ota(self.artifact, SHA, '192.168.4.63', 'c' * 64)
+        route.connect.assert_called_once_with(('192.168.4.63', 3232))
+        uploader.assert_called_once_with(['-i', '192.168.4.63', '-I', '192.168.4.27',
+                                          '-P', '3233', '-t', '3', '-a', 'c' * 64,
+                                          '-f', str(self.artifact / 'firmware.bin')])
 
     def test_changed_offset_is_rejected(self):
         manifest = self.artifact / 'manifest.json'
