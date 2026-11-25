@@ -1,0 +1,89 @@
+name: Audiobookshelf Runtime Repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Dry run or apply the verified runtime repair
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
+      expected_count:
+        description: Affected book count from the dry run (required to apply)
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - run: python3 tests/test_audiobookshelf_runtime_repair.py
+
+  repair:
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    environment: infrastructure
+    runs-on: [self-hosted, linux, x64, m920]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Check or repair catalog runtimes
+        shell: bash
+        env:
+          REPAIR_MODE: ${{ inputs.mode }}
+          EXPECTED_COUNT: ${{ inputs.expected_count }}
+        run: |
+          set -euo pipefail
+          appdata=/srv/homelab/appdata/audiobookshelf
+          backup_root=/srv/homelab/backups
+          script="$GITHUB_WORKSPACE/scripts/repair-audiobookshelf-runtime.py"
+          expected_image=ghcr.io/advplyr/audiobookshelf:2.36.0
+          test "$(docker inspect --format '{{.Config.Image}}' audiobookshelf)" = "$expected_image"
+          test "$(docker inspect --format '{{.State.Running}}' audiobookshelf)" = true
+          test "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{.Source}}{{end}}{{end}}' audiobookshelf)" = "$appdata"
+          python3 "$script" "$appdata/absdatabase.sqlite"
+          if [[ "$REPAIR_MODE" == dry-run ]]; then
+            exit 0
+          fi
+          [[ "$REPAIR_MODE" == apply && "$EXPECTED_COUNT" =~ ^[1-9][0-9]*$ ]]
+          test -d "$backup_root"
+          python_image=$(docker image inspect --format '{{.Id}}' python:3.13-slim)
+
+          # Restart Audiobookshelf on failure as well as after a successful repair.
+          trap 'docker start audiobookshelf' EXIT
+          docker stop --time 30 audiobookshelf
+          docker run --rm --pull never --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --mount "type=bind,src=$appdata,dst=/config" \
+            --mount "type=bind,src=$backup_root,dst=/backups" \
+            --mount "type=bind,src=$script,dst=/repair.py,readonly" \
+            "$python_image" sh -eu -c '
+              backup=$(mktemp -d /backups/abs-runtime-repair.XXXXXXXX)
+              python /repair.py /config/absdatabase.sqlite \
+                --backup "$backup/absdatabase.sqlite" --expected-count "$1"
+            ' sh "$EXPECTED_COUNT"
+          docker start audiobookshelf
+          trap - EXIT
+          for attempt in {1..30}; do
+            if [[ "$(docker inspect --format '{{.State.Health.Status}}' audiobookshelf)" == healthy ]]; then
+              python3 "$script" "$appdata/absdatabase.sqlite" --require-clean
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Audiobookshelf did not return to healthy status" >&2
+          exit 1
