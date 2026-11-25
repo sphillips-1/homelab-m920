@@ -62,12 +62,15 @@ jobs:
           [[ "$REPAIR_MODE" == apply && "$EXPECTED_COUNT" =~ ^[1-9][0-9]*$ ]]
           test -d "$backup_root"
           python_image=$(docker image inspect --format '{{.Id}}' python:3.13-slim)
+          # The data directory is root-owned and the database is group-writable.
+          # Match its group so the helper can write without filesystem override capabilities.
+          database_group=$(stat -c '%g' "$appdata/absdatabase.sqlite")
 
           # Restart Audiobookshelf on failure as well as after a successful repair.
           trap 'docker start audiobookshelf' EXIT
           docker stop --time 30 audiobookshelf
           docker run --rm --pull never --network none --read-only --cap-drop ALL \
-            --security-opt no-new-privileges \
+            --security-opt no-new-privileges --group-add "$database_group" \
             --mount "type=bind,src=$appdata,dst=/config" \
             --mount "type=bind,src=$backup_root,dst=/backups" \
             --mount "type=bind,src=$script,dst=/repair.py,readonly" \
