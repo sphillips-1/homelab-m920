@@ -3,15 +3,22 @@
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <TFT_eSPI.h>
-#include <Preferences.h>
+#include <Preferences.h>  // PlatformIO discovers the OTA dependency here.
 #include "BatteryMonitor.h"
 #include "../../cyd-ota/ota.h"
+#include "../../esp32-monitor/src/pet_scene.h"
+#include "egg.h"
+
+struct BoardProfile {
+  const char *serialTitle;
+  const char *setupNetwork;
+  petScene::Habitat habitat;
+};
+
 #ifdef CYD_PET_CAT
-constexpr char petTitle[] = "SHELF CAT";
-constexpr char setupNetwork[] = "Shelf-Cat-Setup";
+constexpr BoardProfile board{"SHELF CAT", "Shelf-Cat-Setup", petScene::Habitat::House};
 #else
-constexpr char petTitle[] = "SHELF ANT";
-constexpr char setupNetwork[] = "Shelf-Ant-Setup";
+constexpr BoardProfile board{"SHELF ANT", "Shelf-Ant-Setup", petScene::Habitat::Tunnel};
 #endif
 
 constexpr uint8_t guitionBacklightChannel = 0;
@@ -26,38 +33,28 @@ void setGuitionBacklight(bool on) {
 TFT_eSPI tft;
 TFT_eSprite pet(&tft);
 WiFiManager wifi;
+cydPet::Egg egg;
 constexpr uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
 uint32_t lastPoll = 0;
 bool spriteReady = false;
 
-int drawnEggOffset = 0;
-
-int eggOffset(uint32_t now) {
-  constexpr uint32_t twitchInterval = 11000;
-  constexpr uint32_t twitchStep = 90;
-  const uint32_t phase = now % twitchInterval;
-  if (now < twitchInterval || phase >= 3 * twitchStep) return 0;
-  return phase < twitchStep || phase >= 2 * twitchStep ? -3 : 3;
-}
-
 void drawEgg() {
   if (!spriteReady) return;
-  pet.fillSprite(bg);
-  drawnEggOffset = eggOffset(millis());
-  const int x = 80 + drawnEggOffset;
-  pet.fillEllipse(80, 90, 31, 5, 0x18C3);
-  pet.fillEllipse(x, 56, 26, 32, 0x8BAC);
-  pet.fillEllipse(x, 55, 23, 30, 0xF6D6);
-  pet.fillEllipse(x, 44, 19, 22, 0xF6D6);
-  pet.fillEllipse(x - 9, 41, 5, 9, 0xFFBD);
-  pet.fillCircle(x + 11, 61, 3, 0xC58F);
-  pet.fillCircle(x + 4, 71, 2, 0xC58F);
-  pet.pushSprite((tft.width() - 160) / 2, 61);
+  const int x = 80 + egg.drawOffset(millis());
+  petScene::draw(pet, (tft.width() - petScene::width) / 2, 61, board.habitat, [x](TFT_eSprite &frame) {
+    frame.fillEllipse(80, 90, 31, 5, 0x18C3);
+    frame.fillEllipse(x, 56, 26, 32, 0x8BAC);
+    frame.fillEllipse(x, 55, 23, 30, 0xF6D6);
+    frame.fillEllipse(x, 44, 19, 22, 0xF6D6);
+    frame.fillEllipse(x - 9, 41, 5, 9, 0xFFBD);
+    frame.fillCircle(x + 11, 61, 3, 0xC58F);
+    frame.fillCircle(x + 4, 71, 2, 0xC58F);
+  });
 }
 void render() {
   tft.fillRect(0, 0, tft.width(), tft.height(), bg);
   tft.setTextColor(accent, bg);
-  tft.drawString("unknown", 10, 7, 2);
+  tft.drawString(egg.label(), 10, 7, 2);
   tft.drawFastHLine(10, 30, tft.width() - 20, muted);
   drawEgg();
   if (!spriteReady) {
@@ -81,7 +78,7 @@ void render() {
 void setup() {
   Serial.begin(115200);
   cydOta::configureOta(true);
-  Serial.printf("%s / JC2432W328\n", petTitle);
+  Serial.printf("%s / JC2432W328\n", board.serialTitle);
   battery::begin();
   pinMode(0, INPUT_PULLUP);
   pinMode(TFT_BL, OUTPUT);
@@ -89,8 +86,7 @@ void setup() {
   guitionBacklightPwm = ledcSetup(guitionBacklightChannel, 5000, 8) > 0;
   if (guitionBacklightPwm) ledcAttachPin(TFT_BL, guitionBacklightChannel);
   setGuitionBacklight(true);
-  pet.setColorDepth(16);
-  spriteReady = pet.createSprite(160, 110) != nullptr;
+  spriteReady = petScene::begin(pet);
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin();
@@ -126,10 +122,10 @@ void loop() {
       if (!portalActive) {
         setGuitionBacklight(true);
         screenOn = true;
-        wifi.startConfigPortal(setupNetwork);
+        wifi.startConfigPortal(board.setupNetwork);
         tft.fillScreen(bg);
         tft.setTextColor(TFT_WHITE, bg);
-        tft.drawString(String("Join ") + setupNetwork, 10, 65, 2);
+        tft.drawString(String("Join ") + board.setupNetwork, 10, 65, 2);
         tft.drawString("Open 192.168.4.1 to set up Wi-Fi", 10, 95, 2);
       }
     } else if (!portalActive) {
@@ -143,7 +139,7 @@ void loop() {
     if (portalWasActive || now - lastPoll >= 5000) {
       render();
       lastPoll = now;
-    } else if (spriteReady && eggOffset(now) != drawnEggOffset) {
+    } else if (spriteReady && egg.needsRedraw(now)) {
       drawEgg();
     }
   }

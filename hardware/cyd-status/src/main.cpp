@@ -11,6 +11,7 @@
 #include "../../esp32-monitor/src/cyd_camp.h"
 #include "../../esp32-monitor/src/health.h"
 #include "../../esp32-monitor/src/display_link.h"
+#include "../../esp32-monitor/src/pet_scene.h"
 #include "../../esp32-monitor/src/scene_art.h"
 #include "../../cyd-pets/game.h"
 #include "../../esp32-monitor/src/virtual_pet_art.h"
@@ -117,8 +118,9 @@ void saveXp(uint32_t value) {
 
 void drawGoblin(uint32_t now) {
   if (!actorReady) return;
-  sceneArt::goblin(actor, formForXp(xp), petBackground, (now / 500) % 2 ? 2 : 0);
-  actor.pushSprite(80, 49);
+  petScene::draw(actor, 80, 49, petScene::Habitat::Camp, [now](TFT_eSprite &frame) {
+    sceneArt::goblinActor(frame, formForXp(xp), (now / 500) % 2 ? 2 : 0);
+  });
 }
 
 void renderGoblin(uint32_t now) {
@@ -314,8 +316,7 @@ void setup() {
   digitalWrite(TFT_BL, TFT_BACKLIGHT_ON);
   petStorageReady = petStorage.begin("cyd-goblin", false);
   xp = petStorageReady ? addXp(petStorage.getUInt("xp", 0), 0) : 0;
-  actor.setColorDepth(16);
-  actorReady = actor.createSprite(160, 110) != nullptr;
+  actorReady = petScene::begin(actor);
   renderGoblin(millis());
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);

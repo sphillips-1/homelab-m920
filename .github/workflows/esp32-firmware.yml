@@ -172,7 +172,7 @@ jobs:
           project=hardware/esp32-monitor
           if [[ "$TARGET" == cyd ]]; then project=hardware/cyd-status; fi
           if [[ "$TARGET" == cyd-* ]]; then project=hardware/cyd-pets; fi
-          latest=$(git log -1 --format=%H origin/main -- "$project" hardware/cyd-ota hardware/esp32-monitor/src/health.h hardware/esp32-monitor/src/combat.h hardware/esp32-monitor/src/evolution.h hardware/esp32-monitor/src/display_link.h hardware/esp32-monitor/src/scene_art.h hardware/esp32-monitor/deploy tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/esp32_profiles.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
+          latest=$(git log -1 --format=%H origin/main -- "$project" hardware/cyd-ota hardware/esp32-monitor/src/health.h hardware/esp32-monitor/src/combat.h hardware/esp32-monitor/src/evolution.h hardware/esp32-monitor/src/display_link.h hardware/esp32-monitor/src/scene_art.h hardware/esp32-monitor/src/pet_scene.h hardware/esp32-monitor/src/virtual_pet_art.h hardware/esp32-monitor/deploy tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/esp32_profiles.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
           git merge-base --is-ancestor "$latest" "$GITHUB_SHA" || { echo 'A newer firmware change is already on main; deploy the newer run.' >&2; exit 1; }
       - name: Download verified firmware from this run
         if: env.TRANSPORT != 'skip'

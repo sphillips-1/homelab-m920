@@ -24,7 +24,8 @@ Wins earn XP, defeats deduct XP, and every five uninterrupted minutes on the
 Goblin page earns 1 XP. The CYD saves its own XP in NVS and local battles work
 offline. The Waveshare keeps its own progress.
 
-Cat and Ant use the same [battle and idle XP logic](../cyd-pets/game.h).
+Cat and Ant are deployed separately as eggs. See the
+[Cat and Ant controls](../../docs/esp32-deployment.md#cat-and-ant-pet-controls).
 Their eleven forms, artwork, opponents, and saves are specific to each pet.
 
 ## Group Camp

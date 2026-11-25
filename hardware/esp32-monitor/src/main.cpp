@@ -21,6 +21,7 @@
 #include "health.h"
 #include "evolution.h"
 #include "combat.h"
+#include "pet_scene.h"
 #include "scene_art.h"
 #if defined(SHELF_PET_ANT) || defined(SHELF_PET_CAT)
 #define SHELF_VIRTUAL_PET
@@ -351,18 +352,27 @@ bool hitsButton(TouchPoint raw, const FightButton &button) {
 }
 void drawPet(PetForm form, int offsetX = 0, bool defeated = false) {
   if (!spriteReady) return;
-#ifdef SHELF_VIRTUAL_PET
-  const uint32_t now = millis();
-  const uint32_t revealElapsed = revealing ? now - revealAt : virtualPet::revealMs;
-  virtualPet::draw(pet, petVisits::local == petVisits::Ant, form, bg, now, defeated, revealElapsed);
-#elif defined(SHELF_GOBLIN_WAVESHARE)
-  sceneArt::goblin(pet, form, bg, (millis() / 500) % 2 ? 2 : 0, defeated);
+#if defined(SHELF_PET_ANT)
+  constexpr auto habitat = petScene::Habitat::Tunnel;
+#elif defined(SHELF_PET_CAT)
+  constexpr auto habitat = petScene::Habitat::House;
 #else
-  sceneArt::goblin(pet, form, bg, (millis() / 500) % 2 ? 2 : 0, defeated,
-      health.mood == Mood::Critical || health.mood == Mood::Warning,
-      !online || health.mood == Mood::Unknown);
+  constexpr auto habitat = petScene::Habitat::Camp;
 #endif
-  pet.pushSprite(8 + offsetX, 61);
+  petScene::draw(pet, 8 + offsetX, 61, habitat, [form, defeated](TFT_eSprite &frame) {
+#ifdef SHELF_VIRTUAL_PET
+    const uint32_t now = millis();
+    const uint32_t revealElapsed = revealing ? now - revealAt : virtualPet::revealMs;
+    virtualPet::drawActor(frame, petVisits::local == petVisits::Ant, form, petScene::houseWall,
+                          now, defeated, revealElapsed);
+#elif defined(SHELF_GOBLIN_WAVESHARE)
+    sceneArt::goblinActor(frame, form, (millis() / 500) % 2 ? 2 : 0, defeated);
+#else
+    sceneArt::goblinActor(frame, form, (millis() / 500) % 2 ? 2 : 0, defeated,
+        health.mood == Mood::Critical || health.mood == Mood::Warning,
+        !online || health.mood == Mood::Unknown);
+#endif
+  });
 }
 
 #ifdef SHELF_GOBLIN_WAVESHARE
@@ -731,8 +741,7 @@ void setup() {
   pinMode(0, INPUT_PULLUP);
   tft.init(); tft.setRotation(screenRotation);
   pinMode(TFT_BL, OUTPUT); digitalWrite(TFT_BL, TFT_BACKLIGHT_ON);
-  pet.setColorDepth(16);
-  spriteReady = pet.createSprite(160, 110) != nullptr;
+  spriteReady = petScene::begin(pet);
 #ifdef SHELF_VIRTUAL_PET
   storeReady = storage.begin(virtualPet::saveNamespace, false);
   experience = addXp(storeReady ? storage.getUInt("xp-v1", 0) : 0, 0, experienceCap);

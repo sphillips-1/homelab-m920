@@ -5,9 +5,8 @@
 
 namespace virtualPet {
 
-inline void draw(TFT_eSprite &sprite, bool ant, unsigned rank, uint16_t bg, uint32_t now,
+inline void drawActor(TFT_eSprite &sprite, bool ant, unsigned rank, uint16_t bg, uint32_t now,
                  bool defeated, uint32_t revealElapsed) {
-  sprite.fillSprite(bg);
   const uint16_t color = (ant ? antStages : catStages)[rank].color;
   const int bob = (now / 250) % 2 * 2;
   const int prop = (now / 160) % 5;
@@ -154,6 +153,12 @@ inline void draw(TFT_eSprite &sprite, bool ant, unsigned rank, uint16_t bg, uint
         break;
     }
   }
+}
+
+inline void draw(TFT_eSprite &sprite, bool ant, unsigned rank, uint16_t bg, uint32_t now,
+                 bool defeated, uint32_t revealElapsed) {
+  sprite.fillSprite(bg);
+  drawActor(sprite, ant, rank, bg, now, defeated, revealElapsed);
 }
 
 #ifdef SHELF_PET_CAT

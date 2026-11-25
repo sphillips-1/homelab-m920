@@ -82,12 +82,27 @@ and dispatch `cyd-cat` with transport `ota`.
 
 ### Cat and Ant pet controls
 
+The `cyd-cat` and `cyd-ant` deployment targets both build from
+`hardware/cyd-pets`. The older `jc2432w328-cat` and `jc2432w328-ant`
+targets in local checkouts are retired for deployment. The `waveshare-cat`
+and `waveshare-ant` targets are separate firmware for Waveshare hardware.
+Both Goblin displays and the Cat and Ant CYDs use
+`hardware/esp32-monitor/src/pet_scene.h` to allocate and draw the pet sprite.
+The renderer draws a camp for Goblin, a tunnel for Ant, and a small house
+for Cat before drawing the pet. Each target supplies its own gameplay state.
+
 Cat and Ant both show an egg labeled `unknown`. The egg briefly twitches about
 every 11 seconds while the display is on. Existing saves stay intact and
 progression is paused while the pets are in their shells.
 
 Press BOOT briefly to toggle the display. Hold BOOT for five seconds and
 release to open that board's Wi-Fi setup.
+
+A future hatch update should keep the existing NVS namespaces `shelf-cat`
+and `shelf-ant` and prefer `xp-v1` when present. The previous firmware
+(`258473e0`) contains the migration from `health-v1` for older saves.
+Use the shared Cat and Ant stage and art tables in `hardware/esp32-monitor/src`
+when adding hatched forms.
 
 ## USB device binding
 

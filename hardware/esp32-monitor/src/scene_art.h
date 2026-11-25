@@ -3,9 +3,8 @@
 #include "combat.h"
 
 namespace sceneArt {
-inline void goblin(TFT_eSprite &pet, Form form, uint16_t bg, int bob,
+inline void goblinActor(TFT_eSprite &pet, Form form, int bob,
                    bool defeated = false, bool concerned = false, bool uncertain = false, int stride = 0) {
-  pet.fillSprite(bg);
   const bool small = form < Form::Adult;
   const bool hob = form >= Form::Hobgoblin;
   int y = (small ? 32 : hob ? 17 : 22) + bob;
@@ -106,6 +105,12 @@ inline void goblin(TFT_eSprite &pet, Form form, uint16_t bg, int bob,
     pet.fillTriangle(66, y + 35, 71, y + 35, 68, y + 28, TFT_WHITE);
     pet.fillTriangle(89, y + 35, 94, y + 35, 92, y + 28, TFT_WHITE);
   }
+}
+
+inline void goblin(TFT_eSprite &pet, Form form, uint16_t bg, int bob,
+                   bool defeated = false, bool concerned = false, bool uncertain = false, int stride = 0) {
+  pet.fillSprite(bg);
+  goblinActor(pet, form, bob, defeated, concerned, uncertain, stride);
 }
 
 inline void patrol(TFT_eSprite &pet, Form form, uint16_t bg, uint32_t elapsed, bool walking) {
