@@ -78,7 +78,7 @@ jobs:
             ' sh "$EXPECTED_COUNT"
           docker start audiobookshelf
           trap - EXIT
-          for attempt in {1..30}; do
+          for ((attempt = 0; attempt < 30; attempt++)); do
             if [[ "$(docker inspect --format '{{.State.Health.Status}}' audiobookshelf)" == healthy ]]; then
               python3 "$script" "$appdata/absdatabase.sqlite" --require-clean
               exit 0
