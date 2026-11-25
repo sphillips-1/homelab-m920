@@ -27,7 +27,7 @@ Deployed and managed by this repository:
 
 - Audiobookshelf
 - Calibre-Web
-- Jellyfin (LAN-only, with Intel Quick Sync transcoding)
+- Jellyfin (LAN and private Tailscale access, with Intel Quick Sync transcoding)
 - HolyArrs and a dedicated video qBittorrent instance (LAN-only, deployed from `main` when the video SSD passes preflight)
 - Authentik with Google OAuth identity
 - Cloudflare DNS and Tunnel Terraform

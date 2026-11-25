@@ -194,7 +194,7 @@ if bash "${REPO_DIR}/scripts/check-m920-video-storage.sh"; then
         docker compose "${holyarrs_compose[@]}" up -d --wait --wait-timeout 120
     docker compose --env-file "${jellyfin_dir}/.env" \
         -f "${jellyfin_dir}/compose.yml" -f "${jellyfin_dir}/compose.video.yml" \
-        up -d --wait --wait-timeout 120
+        up -d --remove-orphans --wait --wait-timeout 120
 else
     log "Video storage unavailable, deploying Jellyfin with its existing library mounts"
     deploy_service "jellyfin"

@@ -202,6 +202,29 @@ jobs:
         run: git -C /opt/homelab status --short
       - name: Deploy exact main commit
         run: sudo --non-interactive /usr/local/sbin/homelab-deploy "${{ github.sha }}"
+      - name: Enroll Jellyfin in Tailscale
+        env:
+          JELLYFIN_TAILSCALE_AUTH_KEY: ${{ secrets.JELLYFIN_TAILSCALE_AUTH_KEY }}
+        run: |
+          set -euo pipefail
+          node=jellyfin-tailscale
+          if ! docker exec "$node" tailscale ip -4 >/dev/null 2>&1; then
+            if [[ -z "$JELLYFIN_TAILSCALE_AUTH_KEY" ]]; then
+              echo "Jellyfin Tailscale enrollment is pending. See services/jellyfin/README.md."
+              exit 0
+            fi
+            printf '%s' "$JELLYFIN_TAILSCALE_AUTH_KEY" |
+              docker exec -i "$node" tailscale up --auth-key=file:/dev/stdin --accept-dns=false --hostname=jellyfin-m920 --timeout=60s
+          fi
+          for ((attempt=0; attempt<30; attempt++)); do
+            if docker exec "$node" tailscale serve status | grep -F 'http://jellyfin:8096'; then
+              docker exec "$node" tailscale serve status
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Jellyfin Tailscale Serve did not activate. Check device approval, MagicDNS and HTTPS in the tailnet."
+          exit 1
       - name: Deploy AI investigator Discord pilot
         env:
           AI_INVESTIGATOR_DISCORD_WEBHOOK: ${{ secrets.AI_INVESTIGATOR_DISCORD_WEBHOOK }}

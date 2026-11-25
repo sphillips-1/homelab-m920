@@ -11,7 +11,7 @@ M920Q
 ├── Tailscale
 ├── Cloudflare Tunnel (outbound-only public ingress)
 ├── Beszel container monitoring (private LAN/Tailscale access)
-├── Jellyfin (LAN-only, Intel UHD 630 Quick Sync)
+├── Jellyfin (LAN and private Tailscale access, Intel UHD 630 Quick Sync)
 ├── /opt/homelab
 └── /srv/homelab
 ```

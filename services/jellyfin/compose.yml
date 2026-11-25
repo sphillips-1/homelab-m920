@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
 
     ports:
-      # Bind only to the detected LAN address; do not expose on Tailscale or all interfaces.
+      # Direct HTTP is LAN-bound. Tailscale Serve uses the Docker network.
       - "${JELLYFIN_LAN_IP}:8096:8096"
 
     group_add:
@@ -30,6 +30,24 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  tailscale:
+    image: tailscale/tailscale:v1.104.7
+    container_name: jellyfin-tailscale
+    restart: unless-stopped
+    environment:
+      TS_HOSTNAME: jellyfin-m920
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_AUTH_ONCE: "true"
+      TS_ACCEPT_DNS: "false"
+      TS_USERSPACE: "true"
+      TS_BOOT_TIMEOUT: 30m
+      TS_SERVE_CONFIG: /etc/tailscale/serve.json
+    networks:
+      - homelab
+    volumes:
+      - /srv/homelab/appdata/jellyfin-tailscale:/var/lib/tailscale
+      - ./tailscale:/etc/tailscale:ro
 
 networks:
   homelab:

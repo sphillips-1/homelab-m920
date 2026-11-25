@@ -1,7 +1,7 @@
 # Jellyfin
 
 Jellyfin provides movie and TV streaming from the M920Q using the official,
-version-pinned image. **Jellyfin is intentionally LAN-only.**
+version-pinned image. It supports LAN and private Tailscale access.
 
 ## LAN hostname routing
 
@@ -15,11 +15,11 @@ The shared [Discord metadata review process](../../docs/jellyfin-media-approval.
 can move approved movies and TV from completed torrents into these libraries.
 It verifies staged files before source cleanup, stops seeding after approval,
 and supports adding episodes to an existing series. Jellyfin itself retains
-read-only media mounts and LAN-only access.
+read-only media mounts.
 
 ## Access and storage
 
-- LAN URL: `http://192.168.4.37:8096` (or the detected LAN address in `.env`)
+- LAN URL: `http://192.168.4.27:8096` (or the detected LAN address in `.env`)
 - Application state: `/srv/homelab/appdata/jellyfin` -> `/config`
 - Transcode cache: `/srv/homelab/cache/jellyfin` -> `/cache`
 - Movies: `/srv/homelab/media/movies` -> `/media/movies` (read-only)
@@ -30,17 +30,38 @@ Movies and TV are bind-mounted from the external filesystem at
 `/srv/homelab/storage`; the stable `/srv/homelab/media/...` paths keep the
 Compose model independent of the physical disk mount.
 
-Port 8096 binds only to the host's default-route LAN IPv4 address. Jellyfin is
-not published through Cloudflare, protected by Cloudflare Access, exposed by
-router port forwarding, or exposed via Tailscale. It is not intended for
-Internet access. For a host with multiple LAN uplinks, select the address with:
+Port 8096 binds only to the host's default-route LAN IPv4 address. For a host
+with multiple LAN uplinks, select the address explicitly.
 
 ```bash
-sudo env JELLYFIN_LAN_IP=192.168.4.37 bash /opt/homelab/scripts/configure-jellyfin-host.sh
+sudo env JELLYFIN_LAN_IP=192.168.4.27 bash /opt/homelab/scripts/configure-jellyfin-host.sh
 ```
 
 Normal deployment preserves a still-valid selected LAN address and regenerates
 the render-device values. No numeric GPU group ID is committed.
+
+## Tailscale access
+
+The `jellyfin-tailscale` container joins the tailnet as `jellyfin-m920` and
+proxies HTTPS to `jellyfin:8096` over the Docker network. Tailscale Serve
+limits access to the tailnet. Tailnet policy controls TCP 443 access, and
+clients still sign in with their Jellyfin accounts. The node identity lives
+under `/srv/homelab/appdata/jellyfin-tailscale`.
+
+1. Enable MagicDNS and HTTPS certificates in the Tailscale admin DNS settings.
+2. Create a one-off, non-ephemeral Tailscale auth key. Use a pre-approved key
+   if device approval is enabled. Store it as `JELLYFIN_TAILSCALE_AUTH_KEY`
+   in the GitHub Actions `infrastructure` environment. Allow the intended
+   clients to reach the new node on TCP 443 in the tailnet policy.
+3. Run the **Deploy** workflow on `main`. The **Enroll Jellyfin in Tailscale**
+   step prints the exact HTTPS address. Remove the bootstrap secret after
+   successful enrollment.
+4. On a device connected to the tailnet, use that HTTPS address in the
+   Jellyfin app. Verify `/health` returns HTTP 200 and play a title.
+
+For interactive enrollment, run `docker logs --tail 100 jellyfin-tailscale`
+on the server and open the login URL. Run
+`docker exec jellyfin-tailscale tailscale serve status` for the HTTPS address.
 
 ## Deployment and operations
 

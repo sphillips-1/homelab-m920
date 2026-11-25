@@ -4,7 +4,7 @@ The **Import media** and **Metadata review** Authentik tiles now cover movies
 and TV as well as audiobooks. The existing Discord channel, Anna mention and
 configured approver IDs are reused. Only an explicit approval starts a transfer.
 Rejected sources stay untouched and get a direct-link Discord reply for manual
-review. Jellyfin remains LAN-only; review access uses the existing `torrent-users`
+review. Jellyfin uses LAN and private Tailscale access. Review access uses the existing `torrent-users`
 policy. Discord permission does not grant a Jellyfin or Authentik account.
 
 ## Completed video workflow
