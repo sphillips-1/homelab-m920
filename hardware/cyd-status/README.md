@@ -1,4 +1,4 @@
-# CYD M920Q status display
+# Shelf Goblin and M920Q status on the CYD
 
 The ESP32-2432S028 shows the M920Q's health, CPU utilization and temperature,
 memory and disk usage, Docker container counts, uptime, and Wi-Fi signal on a
@@ -12,11 +12,23 @@ the Goblin's opponent during fights and host the Goblin during patrols. The
 selected page returns when the animation ends. The Waveshare saves
 the pet's XP and determines fight outcomes. See [paired rack displays](../esp32-monitor/README.md#paired-rack-displays).
 
+## Shelf Goblin
+
+The CYD opens to its own Shelf Goblin at startup. Tap the pet screen to fight
+and use a short BOOT press to cycle through Goblin, Metrics, and Group Camp.
+From Metrics or Camp, tap to return to Goblin. Hold BOOT for five seconds for
+Wi-Fi setup.
+
+The CYD uses the same nine forms and battle XP rules as the Waveshare Goblin.
+Wins earn XP, defeats deduct XP, and every five uninterrupted minutes on the
+Goblin page earns 1 XP. The CYD saves its own XP in NVS and local battles work
+offline. The Waveshare keeps its own progress.
+
 ## Group Camp
 
-The CYD opens to Group Camp at startup. Tap the screen or give BOOT a short
-press to switch between Camp and Metrics. A long BOOT hold opens Wi-Fi setup. Existing Goblin fight and
-patrol animations briefly use the display, then return to the selected page.
+Group Camp remains available through the BOOT page cycle. Linked Waveshare
+fights and patrols can briefly use the display and then return to the selected
+page. A local CYD fight takes priority.
 
 Nearby idle pets visit automatically and stay for 25–45 seconds. Up to three
 pets can stay at once. The CYD shows each guest's current form. Tap

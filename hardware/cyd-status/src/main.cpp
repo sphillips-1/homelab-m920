@@ -12,6 +12,7 @@
 #include "../../esp32-monitor/src/health.h"
 #include "../../esp32-monitor/src/display_link.h"
 #include "../../esp32-monitor/src/scene_art.h"
+#include "../../esp32-monitor/src/experience.h"
 #include "../../esp32-monitor/src/virtual_pet_art.h"
 
 namespace {
@@ -23,7 +24,9 @@ TFT_eSPI display;
 WiFiManager wifi;
 SPIClass touchBus(VSPI);
 XPT2046_Touchscreen touchscreen(33, 36);
-bool touchReady = false, touchDown = false, campPage = true;
+enum Page { Goblin, Metrics, Camp };
+Page page = Goblin;
+bool touchReady = false, touchDown = false;
 uint32_t touchAt = 0;
 uint32_t lastPoll = 0;
 uint32_t pressedAt = 0;
@@ -44,6 +47,23 @@ Sample latest;
 displayLink::Received remote{};
 displayLink::Scene drawnScene = displayLink::Idle;
 uint32_t lastAnimation = 0;
+
+constexpr uint16_t petBackground = 0x0842;
+constexpr uint32_t battleDurationMs = 3600;
+Preferences petStorage;
+bool petStorageReady = false;
+uint32_t xp = 0;
+uint32_t idleSince = 0;
+bool earningIdleXp = false;
+String battleReport;
+struct Battle {
+  const Opponent *opponent;
+  unsigned rank;
+  unsigned foeRank;
+  uint32_t started;
+  bool won;
+};
+Battle battle{};
 
 String uptimeText(const Sample &sample) {
   const uint32_t minutes = sample.uptimeMinutes;
@@ -95,7 +115,69 @@ void render(const Readings &data, Health health, const String &uptime) {
   row(174, "Uptime", uptime);
   row(197, "Wi-Fi", WiFi.status() == WL_CONNECTED ? String(WiFi.RSSI()) + " dBm" : String("--"));
   display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  display.drawString("Tap for Camp  |  Hold BOOT 5s for Wi-Fi setup", 12, 221, 1);
+  display.drawString("Tap for Goblin  |  Hold BOOT 5s for Wi-Fi setup", 12, 221, 1);
+}
+
+void saveXp(uint32_t value) {
+  if (value == xp) return;
+  xp = value;
+  if (petStorageReady) petStorage.putUInt("xp", xp);
+}
+
+void drawGoblin(uint32_t now) {
+  if (!actorReady) return;
+  sceneArt::goblin(actor, formForXp(xp), petBackground, (now / 500) % 2 ? 2 : 0);
+  actor.pushSprite(80, 49);
+}
+
+void renderGoblin(uint32_t now) {
+  const auto form = formForXp(xp);
+  const auto rank = static_cast<unsigned>(form);
+  display.fillScreen(petBackground);
+  display.setTextColor(TFT_WHITE, petBackground);
+  display.drawString("SHELF GOBLIN", 12, 9, 2);
+  display.drawRightString("Level " + String(rank + 1), 308, 9, 2);
+  display.drawFastHLine(12, 32, 296, TFT_GREEN);
+  drawGoblin(now);
+  display.drawCentreString(milestone(form).name, 160, 161, 2);
+  const String progress = rank + 1 == FORM_COUNT ? "Max level" :
+      String(xp) + " / " + String(XP_THRESHOLDS[rank + 1]) + " XP";
+  display.drawCentreString(progress, 160, 181, 2);
+  if (!battleReport.isEmpty()) display.drawCentreString(battleReport, 160, 204, 1);
+  display.drawCentreString("Tap to fight  |  BOOT to change page", 160, 224, 1);
+}
+
+void startBattle(uint32_t now) {
+  const auto rank = static_cast<unsigned>(formForXp(xp));
+  const unsigned first = firstOpponentRank(rank);
+  const unsigned foeRank = first + esp_random() % (lastOpponentRank(rank) - first + 1);
+  battle = {&OPPONENTS[foeRank][esp_random() % 2], rank, foeRank, now,
+            esp_random() % 100 < winChance(rank, foeRank)};
+
+  display.fillScreen(petBackground);
+  display.setTextColor(TFT_WHITE, petBackground);
+  display.drawString("SHELF GOBLIN", 12, 9, 2);
+  display.drawFastHLine(12, 32, 296, TFT_ORANGE);
+  display.drawCentreString(String(battle.opponent->name) + "  L" + String(foeRank + 1), 240, 180, 2);
+  display.drawCentreString("Battle in progress", 160, 222, 1);
+}
+
+void drawBattle(uint32_t now) {
+  if (!actorReady) return;
+  const uint32_t elapsed = now - battle.started;
+  sceneArt::goblin(actor, formForXp(xp), petBackground, (elapsed / 160) % 2 ? 2 : 0);
+  actor.pushSprite(0, 61);
+  sceneArt::monster(actor, *battle.opponent, battle.foeRank, elapsed, petBackground, false);
+  actor.pushSprite(160, 61);
+}
+
+void finishBattle() {
+  const uint32_t reward = battleXp(battle.rank, battle.foeRank);
+  const uint32_t next = battle.won ? addXp(xp, reward) : removeXp(xp, reward);
+  battleReport = battle.won ? "Victory  +" + String(next - xp) + " XP" :
+      "Defeat  -" + String(xp - next) + " XP";
+  saveXp(next);
+  battle = {};
 }
 
 void renderCamp() {
@@ -128,7 +210,7 @@ void renderCamp() {
   display.fillTriangle(148, 204, 162, 182, 171, 204, TFT_ORANGE);
   display.fillTriangle(155, 204, 162, 191, 166, 204, TFT_YELLOW);
   display.setTextColor(TFT_WHITE, ground);
-  display.drawCentreString("Tap for Metrics", 160, 223, 1);
+  display.drawCentreString("Tap for Goblin", 160, 223, 1);
 }
 
 Sample poll(bool connected) {
@@ -241,7 +323,11 @@ void setup() {
   touchReady = touchscreen.begin(touchBus);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, TFT_BACKLIGHT_ON);
-  renderCamp();
+  petStorageReady = petStorage.begin("cyd-goblin", false);
+  xp = petStorageReady ? addXp(petStorage.getUInt("xp", 0), 0) : 0;
+  actor.setColorDepth(16);
+  actorReady = actor.createSprite(160, 110) != nullptr;
+  renderGoblin(millis());
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   wifi.setConnectTimeout(8);
@@ -255,8 +341,6 @@ void setup() {
   });
   wifi.autoConnect(setupNetwork);
   WiFi.setSleep(false);
-  actor.setColorDepth(16);
-  actorReady = actor.createSprite(160, 110) != nullptr;
   displayLink::begin(displayLink::waveshareMac, cydCamp::receive);
   cydCamp::begin();
   pollRequests = xQueueCreate(1, sizeof(bool));
@@ -272,6 +356,7 @@ void loop() {
   wifi.process();
   const uint32_t now = millis();
   bool toggle = false;
+  bool tapped = false;
   if (digitalRead(bootPin) == LOW) {
     if (!pressing) pressedAt = now;
     pressing = true;
@@ -290,9 +375,10 @@ void loop() {
   cydOta::serviceOta(connected, portalActive);
   const bool touching = touchReady && touchscreen.touched();
   if (touching && !touchDown) touchAt = now;
-  if (!touching && touchDown && now - touchAt >= 40 && now - touchAt < 800) toggle = true;
+  if (!touching && touchDown && now - touchAt >= 40 && now - touchAt < 800) tapped = true;
   touchDown = touching;
   const bool guestsChanged = cydCamp::hostTick(now, !portalActive);
+  bool resetIdle = true;
   if (!portalActive) {
     bool updated = false;
     if (portalWasActive || connected != wasConnected || now - lastPoll >= refreshMs) {
@@ -315,23 +401,55 @@ void loop() {
       scene = remote.frame.scene;
     }
     if (pollResults && xQueueReceive(pollResults, &latest, 0) == pdTRUE) updated = true;
-    if (toggle && scene == displayLink::Idle) campPage = !campPage;
-    const bool changed = scene != drawnScene || portalWasActive ||
-        (toggle && scene == displayLink::Idle);
-    if (scene == displayLink::Idle) {
-      if (campPage) {
+    if (battle.opponent) {
+      scene = displayLink::Idle;
+      if (now - battle.started >= battleDurationMs || portalWasActive) {
+        finishBattle();
+        renderGoblin(now);
+      } else if (now - lastAnimation >= 65) {
+        drawBattle(now);
+        lastAnimation = now;
+      }
+    } else if (scene == displayLink::Idle) {
+      const Page previousPage = page;
+      if (toggle) page = page == Goblin ? Metrics : page == Metrics ? Camp : Goblin;
+      else if (tapped && page != Goblin) page = Goblin;
+      const bool changed = drawnScene != scene || portalWasActive || previousPage != page;
+      if (tapped && previousPage == Goblin && page == Goblin) {
+        startBattle(now);
+        drawBattle(now);
+        lastAnimation = now;
+      } else if (page == Goblin) {
+        resetIdle = false;
+        if (!earningIdleXp) idleSince = now;
+        earningIdleXp = true;
+        const uint32_t reward = idleXpFor(now - idleSince);
+        if (reward) {
+          idleSince += reward * IDLE_XP_INTERVAL_MS;
+          saveXp(addXp(xp, reward));
+        }
+        if (changed || reward) renderGoblin(now);
+        else if (now - lastAnimation >= 500) {
+          drawGoblin(now);
+          lastAnimation = now;
+        }
+      } else if (page == Camp) {
         if (changed || guestsChanged) renderCamp();
       } else if (changed || updated || connected != wasConnected) {
         render(latest.data, latest.health, uptimeText(latest));
       }
-    } else if (changed || updated || now - lastAnimation >= 65) {
-      drawScene(scene, elapsed, changed, updated);
-      lastAnimation = now;
+    } else {
+      const bool changed = scene != drawnScene || portalWasActive;
+      if (changed || updated || now - lastAnimation >= 65) {
+        drawScene(scene, elapsed, changed, updated);
+        lastAnimation = now;
+      }
     }
     drawnScene = scene;
   } else {
     remote = {};
   }
+  if (resetIdle) earningIdleXp = false;
   portalWasActive = portalActive;
   wasConnected = connected;
   delay(20);

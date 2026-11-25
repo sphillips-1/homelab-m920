@@ -12,7 +12,7 @@ Use this document as the reference for homelab LAN addresses. These are document
 
 | Board | Factory MAC | Verification |
 | --- | --- | --- |
-| M920Q status / Group Camp CYD | `48:9d:31:c0:27:5c` | USB and M920Q LAN neighbor entry, 2026-11-24. |
+| Shelf Goblin / M920Q status CYD | `48:9d:31:c0:27:5c` | USB and M920Q LAN neighbor entry, 2026-11-24. |
 | Cat CYD | `68:09:47:85:8e:cc` | USB, 2026-11-24. LAN address unverified. |
 | Ant CYD | `68:09:47:85:c6:d8` | USB, 2026-11-24. LAN address unverified. |
 
