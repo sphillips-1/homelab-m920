@@ -12,7 +12,7 @@
 #include "../../esp32-monitor/src/health.h"
 #include "../../esp32-monitor/src/display_link.h"
 #include "../../esp32-monitor/src/scene_art.h"
-#include "../../esp32-monitor/src/experience.h"
+#include "../../cyd-pets/game.h"
 #include "../../esp32-monitor/src/virtual_pet_art.h"
 
 namespace {
@@ -49,21 +49,12 @@ displayLink::Scene drawnScene = displayLink::Idle;
 uint32_t lastAnimation = 0;
 
 constexpr uint16_t petBackground = 0x0842;
-constexpr uint32_t battleDurationMs = 3600;
 Preferences petStorage;
 bool petStorageReady = false;
 uint32_t xp = 0;
-uint32_t idleSince = 0;
-bool earningIdleXp = false;
 String battleReport;
-struct Battle {
-  const Opponent *opponent;
-  unsigned rank;
-  unsigned foeRank;
-  uint32_t started;
-  bool won;
-};
-Battle battle{};
+cydPet::Battle battle;
+cydPet::IdleProgress idleProgress;
 
 String uptimeText(const Sample &sample) {
   const uint32_t minutes = sample.uptimeMinutes;
@@ -149,16 +140,15 @@ void renderGoblin(uint32_t now) {
 
 void startBattle(uint32_t now) {
   const auto rank = static_cast<unsigned>(formForXp(xp));
-  const unsigned first = firstOpponentRank(rank);
-  const unsigned foeRank = first + esp_random() % (lastOpponentRank(rank) - first + 1);
-  battle = {&OPPONENTS[foeRank][esp_random() % 2], rank, foeRank, now,
-            esp_random() % 100 < winChance(rank, foeRank)};
+  battle.start(rank, FORM_COUNT, now, [](unsigned foeRank) -> const Opponent & {
+    return OPPONENTS[foeRank][esp_random() % 2];
+  });
 
   display.fillScreen(petBackground);
   display.setTextColor(TFT_WHITE, petBackground);
   display.drawString("SHELF GOBLIN", 12, 9, 2);
   display.drawFastHLine(12, 32, 296, TFT_ORANGE);
-  display.drawCentreString(String(battle.opponent->name) + "  L" + String(foeRank + 1), 240, 180, 2);
+  display.drawCentreString(String(battle.opponent->name) + "  L" + String(battle.foeRank + 1), 240, 180, 2);
   display.drawCentreString("Battle in progress", 160, 222, 1);
 }
 
@@ -172,8 +162,7 @@ void drawBattle(uint32_t now) {
 }
 
 void finishBattle() {
-  const uint32_t reward = battleXp(battle.rank, battle.foeRank);
-  const uint32_t next = battle.won ? addXp(xp, reward) : removeXp(xp, reward);
+  const uint32_t next = battle.resultXp(xp);
   battleReport = battle.won ? "Victory  +" + String(next - xp) + " XP" :
       "Defeat  -" + String(xp - next) + " XP";
   saveXp(next);
@@ -378,7 +367,7 @@ void loop() {
   if (!touching && touchDown && now - touchAt >= 40 && now - touchAt < 800) tapped = true;
   touchDown = touching;
   const bool guestsChanged = cydCamp::hostTick(now, !portalActive);
-  bool resetIdle = true;
+  bool onPetScreen = false;
   if (!portalActive) {
     bool updated = false;
     if (portalWasActive || connected != wasConnected || now - lastPoll >= refreshMs) {
@@ -403,7 +392,7 @@ void loop() {
     if (pollResults && xQueueReceive(pollResults, &latest, 0) == pdTRUE) updated = true;
     if (battle.opponent) {
       scene = displayLink::Idle;
-      if (now - battle.started >= battleDurationMs || portalWasActive) {
+      if (now - battle.started >= cydPet::battleDurationMs || portalWasActive) {
         finishBattle();
         renderGoblin(now);
       } else if (now - lastAnimation >= 65) {
@@ -420,14 +409,9 @@ void loop() {
         drawBattle(now);
         lastAnimation = now;
       } else if (page == Goblin) {
-        resetIdle = false;
-        if (!earningIdleXp) idleSince = now;
-        earningIdleXp = true;
-        const uint32_t reward = idleXpFor(now - idleSince);
-        if (reward) {
-          idleSince += reward * IDLE_XP_INTERVAL_MS;
-          saveXp(addXp(xp, reward));
-        }
+        onPetScreen = true;
+        const uint32_t reward = idleProgress.reward(now, true);
+        if (reward) saveXp(addXp(xp, reward));
         if (changed || reward) renderGoblin(now);
         else if (now - lastAnimation >= 500) {
           drawGoblin(now);
@@ -449,7 +433,7 @@ void loop() {
   } else {
     remote = {};
   }
-  if (resetIdle) earningIdleXp = false;
+  if (!onPetScreen) idleProgress.reward(now, false);
   portalWasActive = portalActive;
   wasConnected = connected;
   delay(20);

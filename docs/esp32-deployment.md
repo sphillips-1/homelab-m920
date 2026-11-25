@@ -80,6 +80,17 @@ Hold BOOT for five seconds and release to open `Shelf-Cat-Setup`.
 Once Cat joins Wi-Fi, set `CYD_CAT_OTA_HOST` to its verified IPv4 address
 and dispatch `cyd-cat` with transport `ota`.
 
+### Cat and Ant pet controls
+
+Press BOOT briefly to fight. Hold BOOT for one second and release to turn
+the display off or back on. A short press also wakes a dark display.
+A five-second hold still opens that board's Wi-Fi setup.
+
+Cat and Ant use Goblin's battle rewards, defeat penalties, and idle XP.
+The first boot converts each pet's saved journey time to the equivalent
+level and approximate progress toward its next level. XP then saves
+locally in that pet's existing NVS namespace.
+
 ## USB device binding
 
 | Target | USB by-id basename | MAC | Flash |

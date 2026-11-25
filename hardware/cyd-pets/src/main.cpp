@@ -7,18 +7,22 @@
 #include "pet_levels.h"
 #include "BatteryMonitor.h"
 #include "../../cyd-ota/ota.h"
-#include "../../esp32-monitor/src/evolution.h"
+#include "../game.h"
+#include "../../esp32-monitor/src/scene_art.h"
+#include "../../esp32-monitor/src/virtual_pet.h"
 #ifdef CYD_PET_CAT
 constexpr char petTitle[] = "SHELF CAT";
 constexpr char petNamespace[] = "shelf-cat";
 constexpr char setupNetwork[] = "Shelf-Cat-Setup";
+constexpr auto &opponents = virtualPet::catStages;
 #else
 constexpr char petTitle[] = "SHELF ANT";
 constexpr char petNamespace[] = "shelf-ant";
 constexpr char setupNetwork[] = "Shelf-Ant-Setup";
+constexpr auto &opponents = virtualPet::antStages;
 #endif
 
-uint32_t levelAnnouncement = 0;
+static_assert(maxLevel == virtualPet::formCount, "Every pet level needs an opponent");
 constexpr uint8_t guitionBacklightChannel = 0;
 constexpr uint8_t guitionBacklightDuty = 102; // 40% of the 8-bit PWM range.
 bool guitionBacklightPwm = false;
@@ -32,27 +36,27 @@ TFT_eSPI tft;
 TFT_eSprite pet(&tft);
 WiFiManager wifi;
 Preferences storage;
-Evolution evolution;
+uint32_t xp = 0;
+cydPet::Battle battle;
+cydPet::IdleProgress idleProgress;
+String battleReport;
 constexpr uint16_t bg = 0x0842, muted = 0x9CD3, accent = 0x4EBA;
-uint32_t lastPoll = 0, lastFrame = 0, lastSave = 0;
+uint32_t lastPoll = 0, lastFrame = 0;
 bool spriteReady = false, storeReady = false;
 
-const char *stage() {
-  return levels[levelFor(evolution.healthMs) - 1].title;
+void saveXp(uint32_t value) {
+  if (value == xp) return;
+  xp = value;
+  if (storeReady) storage.putUInt("xp-v1", xp);
 }
-void saveEvolution() {
-  if (storeReady) {
-    storage.putUInt("health-v1", evolution.healthMs);
-  }
-  lastSave = millis();
-}
-void drawPet() {
+
+void drawPet(int x = 8) {
   if (!spriteReady) return;
   pet.fillSprite(bg);
-  const size_t level = levelFor(evolution.healthMs);
+  const size_t level = virtualPet::rankFor(xp) + 1;
 #ifdef CYD_PET_CAT
-  const bool kitten = evolution.healthMs < HEALTHY_DAY_MS;
-  const bool elder = evolution.healthMs >= 7UL * HEALTHY_DAY_MS;
+  const bool kitten = level < 5;
+  const bool elder = level >= 9;
   const int bob = (millis() / 500) % 2 ? 2 : 0;
   const int y = (kitten ? 45 : 40) + bob;
   const int headY = y - 10;
@@ -239,7 +243,7 @@ void drawPet() {
     pet.fillTriangle(47, y - 17, 53, y - 24, 59, y - 17, 0xFEE8);
   }
 #endif
-  pet.pushSprite(8, 61);
+  pet.pushSprite(x, 61);
 }
 void render() {
   tft.fillRect(0, 0, tft.width(), tft.height(), bg);
@@ -252,18 +256,18 @@ void render() {
     tft.drawString("( ^ v ^ )", 30, 105, 2);
   }
   tft.setTextColor(TFT_WHITE, bg);
-  const size_t petLevel = levelFor(evolution.healthMs);
-  tft.drawString(stage(), 176, 67, 2);
+  const unsigned rank = virtualPet::rankFor(xp);
+  const auto &levelInfo = levels[rank];
+  tft.drawString(levelInfo.title, 176, 67, 2);
   tft.setTextColor(accent, bg);
-  tft.drawString("Level " + String(petLevel), 182, 91, 2);
-  tft.drawRoundRect(182, 116, 113, 8, 3, muted);
-  const unsigned progress = levelProgress(evolution.healthMs, petLevel);
-  if (progress) tft.fillRect(184, 118, (109 * progress + 99) / 100, 4, accent);
+  tft.drawString("Level " + String(rank + 1), 182, 91, 2);
+  const String progress = rank + 1 == maxLevel ? "Max level" :
+      String(xp) + " / " + String(virtualPet::threshold(rank + 1)) + " XP";
+  tft.drawString(progress, 176, 114, 2);
   tft.setTextColor(TFT_WHITE, bg);
-  tft.drawString(levels[petLevel - 1].skill, 182, 135, 2);
+  tft.drawString(levelInfo.skill, 182, 135, 2);
   tft.setTextColor(muted, bg);
-  const bool announce = levelAnnouncement && millis() - levelAnnouncement < 15000;
-  tft.drawCentreString(announce ? "Level up! Skill gained" : levels[petLevel - 1].quest,
+  tft.drawCentreString(battleReport.isEmpty() ? levelInfo.quest : battleReport.c_str(),
                        tft.width() / 2, 179, 2);
   tft.setTextColor(accent, bg);
   const int level = battery::batteryPercent();
@@ -272,9 +276,38 @@ void render() {
   batteryStatus += charge == battery::ChargeState::Charging ? " / Charging" :
       charge == battery::ChargeState::Idle ? " / Not charging" : " / Charge unknown";
   tft.drawCentreString(batteryStatus, tft.width() / 2, 197, 1);
-  const String network = WiFi.status() == WL_CONNECTED ?
-      "Wi-Fi " + WiFi.localIP().toString() : "Hold BOOT 5s for Wi-Fi setup";
-  tft.drawCentreString(network, tft.width() / 2, 217, 1);
+  if (WiFi.status() == WL_CONNECTED) {
+    tft.drawRightString(WiFi.localIP().toString(), 309, 13, 1);
+  }
+  tft.drawCentreString("BOOT: fight  |  Hold 1s: screen  |  Hold 5s: Wi-Fi",
+                       tft.width() / 2, 217, 1);
+}
+
+void startBattle(uint32_t now) {
+  battle.start(virtualPet::rankFor(xp), maxLevel, now, [](unsigned rank) -> const Opponent & {
+    return opponents[rank].opponent;
+  });
+  tft.fillScreen(bg);
+  tft.setTextColor(TFT_WHITE, bg);
+  tft.drawString(petTitle, 10, 7, 2);
+  tft.drawFastHLine(10, 30, tft.width() - 20, TFT_ORANGE);
+  tft.drawCentreString(String(battle.opponent->name) + "  L" + String(battle.foeRank + 1), 240, 180, 2);
+  tft.drawCentreString("Battle in progress", 160, 222, 1);
+}
+
+void drawBattle(uint32_t now) {
+  if (!spriteReady) return;
+  drawPet(0);
+  sceneArt::monster(pet, *battle.opponent, battle.foeRank, now - battle.started, bg, false);
+  pet.pushSprite(160, 61);
+}
+
+void finishBattle() {
+  const uint32_t next = battle.resultXp(xp, virtualPet::finalXp);
+  battleReport = battle.won ? "Victory  +" + String(next - xp) + " XP" :
+      "Defeat  -" + String(xp - next) + " XP";
+  saveXp(next);
+  battle = {};
 }
 
 void setup() {
@@ -291,8 +324,18 @@ void setup() {
   pet.setColorDepth(16);
   spriteReady = pet.createSprite(160, 110) != nullptr;
   storeReady = storage.begin(petNamespace, false);
-  // Keep the existing evolution bank; retired care meters are no longer read.
-  evolution = Evolution(storeReady ? storage.getUInt("health-v1", 0) : 0);
+  if (storeReady) {
+    if (storage.isKey("xp-v1")) {
+      xp = addXp(storage.getUInt("xp-v1", 0), 0, virtualPet::finalXp);
+    } else {
+      const uint32_t journey = storage.getUInt("health-v1", 0);
+      const unsigned level = levelFor(journey);
+      const uint32_t base = virtualPet::threshold(level - 1);
+      const uint32_t span = level == maxLevel ? 0 : virtualPet::threshold(level) - base;
+      xp = base + span * levelProgress(journey, level) / 100;
+      storage.putUInt("xp-v1", xp);
+    }
+  }
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin();
@@ -313,7 +356,6 @@ void loop() {
   const uint32_t now = millis();
   static bool portalWasActive = false;
   static uint32_t pressedAt = 0;
-  static int64_t observation = 0;
   static uint32_t lastWake = now;
   static uint32_t buttonChanged = now;
   static bool sampledDown = false, stableDown = false, screenOn = true;
@@ -336,32 +378,45 @@ void loop() {
         tft.drawString(String("Join ") + setupNetwork, 10, 65, 2);
         tft.drawString("Open 192.168.4.1 to set up Wi-Fi", 10, 95, 2);
       }
-    } else if (!portalActive) {
-      screenOn = !screenOn;
-      if (screenOn) {
-        lastWake = now;
+    } else if (!portalActive && !battle.opponent) {
+      const bool hold = now - pressedAt >= 1000;
+      if (hold || !screenOn) {
+        screenOn = !screenOn;
+        setGuitionBacklight(screenOn);
+        if (screenOn) {
+          lastWake = now;
+          lastFrame = now;
+          render();
+        }
+      } else {
+        startBattle(now);
+        drawBattle(now);
         lastFrame = now;
-        render();
       }
-      setGuitionBacklight(screenOn);
     }
   }
-  if (portalWasActive && !portalActive && screenOn) render();
-  portalWasActive = portalActive;
-  if (now - lastPoll >= 5000) {
-    const size_t previousLevel = levelFor(evolution.healthMs);
-    evolution = evolution.observed(Mood::Healthy, now, ++observation);
-    if (levelFor(evolution.healthMs) != previousLevel) {
-      levelAnnouncement = now;
-      saveEvolution();
+
+  const bool viewingPet = screenOn && !wifi.getConfigPortalActive() && !battle.opponent;
+  const uint32_t reward = idleProgress.reward(now, viewingPet);
+  if (reward) saveXp(addXp(xp, reward, virtualPet::finalXp));
+  if (battle.opponent && !wifi.getConfigPortalActive()) {
+    if (now - battle.started >= cydPet::battleDurationMs || portalWasActive) {
+      finishBattle();
+      render();
+      lastFrame = now;
+    } else if (now - lastFrame >= 65) {
+      drawBattle(now);
+      lastFrame = now;
     }
-    lastPoll = now;
-    if (screenOn && !wifi.getConfigPortalActive()) render();
-    lastFrame = now;
-  } else if (screenOn && !wifi.getConfigPortalActive() && now - lastFrame >= (now - lastWake < 15000 ? 500U : 1250U)) {
-    drawPet();
-    lastFrame = now;
+  } else if (viewingPet) {
+    if (portalWasActive || reward || now - lastPoll >= 5000) {
+      render();
+      lastPoll = lastFrame = now;
+    } else if (now - lastFrame >= (now - lastWake < 15000 ? 500U : 1250U)) {
+      drawPet();
+      lastFrame = now;
+    }
   }
-  if (now - lastSave >= 300000) saveEvolution();
+  portalWasActive = wifi.getConfigPortalActive();
   delay(20);
 }
