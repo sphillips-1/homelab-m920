@@ -82,14 +82,12 @@ and dispatch `cyd-cat` with transport `ota`.
 
 ### Cat and Ant pet controls
 
-Press BOOT briefly to fight. Hold BOOT for one second and release to turn
-the display off or back on. A short press also wakes a dark display.
-A five-second hold still opens that board's Wi-Fi setup.
+Cat and Ant both show an egg labeled `unknown`. The egg briefly twitches about
+every 11 seconds while the display is on. Existing saves stay intact and
+progression is paused while the pets are in their shells.
 
-Cat and Ant use Goblin's battle rewards, defeat penalties, and idle XP.
-The first boot converts each pet's saved journey time to the equivalent
-level and approximate progress toward its next level. XP then saves
-locally in that pet's existing NVS namespace.
+Press BOOT briefly to toggle the display. Hold BOOT for five seconds and
+release to open that board's Wi-Fi setup.
 
 ## USB device binding
 
