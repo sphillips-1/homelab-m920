@@ -27,7 +27,7 @@ def package(build, boot_app, output, sha, target='cyd'):
         shutil.copyfile(source, output / name)
         images.append(dict(file=name, offset=offset, size=len(data),
                            sha256=hashlib.sha256(data).hexdigest()))
-    manifest = dict(schema=1, git_sha=sha, chip=board.chip, flash_size=board.flash_size, images=images)
+    manifest = dict(schema=1, git_sha=sha, target=target, chip=board.chip, flash_size=board.flash_size, images=images)
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
 

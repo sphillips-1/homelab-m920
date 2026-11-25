@@ -26,6 +26,7 @@ def validate_artifact(directory, expected_sha, target='cyd'):
     if not re.fullmatch(r'[0-9a-f]{40}', expected_sha):
         raise ValueError('Invalid expected commit SHA')
     if (manifest.get('schema') != 1 or manifest.get('git_sha') != expected_sha or
+            manifest.get('target') != target or
             manifest.get('chip') != board.chip or manifest.get('flash_size') != board.flash_size):
         raise ValueError('Artifact does not match this commit and board profile')
     images = manifest.get('images', [])
@@ -173,8 +174,8 @@ def deploy(directory, backup_root, port, expected_mac, sha, target='cyd', ota_ke
         print(f'Flash verified; boot check passed. Private backup: {backup_dir}', flush=True)
 
 
-def deploy_ota(directory, sha, host, ota_key):
-    validate_artifact(directory, sha, 'cyd')
+def deploy_ota(directory, sha, host, ota_key, target='cyd'):
+    validate_artifact(directory, sha, target)
     address = IPv4Address(host)
     if not address.is_private or address.is_loopback or address.is_link_local or address.is_unspecified:
         raise ValueError('CYD OTA requires a private LAN IPv4 address')
@@ -199,13 +200,15 @@ if __name__ == '__main__':
     parser.add_argument('--sha', required=True)
     parser.add_argument('--target', choices=BOARDS, default='cyd')
     args = parser.parse_args()
-    ota_key = os.environ.get('CYD_OTA_KEY') if args.target == 'cyd' else None
+    ota_key = os.environ.get('CYD_OTA_KEY') if args.target in ('cyd', 'cyd-ant') else None
+    if args.target == 'cyd-ant' and not ota_key:
+        parser.error('Ant requires its dedicated OTA key')
     if (ota_key or args.ota) and not re.fullmatch(r'[0-9a-f]{64}', ota_key or ''):
         parser.error('Set CYD_OTA_KEY to 64 lowercase hexadecimal characters')
     if args.ota:
-        if args.target != 'cyd' or not os.environ.get('CYD_OTA_HOST'):
-            parser.error('OTA requires the cyd target and CYD_OTA_HOST')
-        deploy_ota(args.artifact, args.sha, os.environ['CYD_OTA_HOST'], ota_key)
+        if args.target not in ('cyd', 'cyd-ant') or not os.environ.get('CYD_OTA_HOST'):
+            parser.error('OTA requires a CYD target and CYD_OTA_HOST')
+        deploy_ota(args.artifact, args.sha, os.environ['CYD_OTA_HOST'], ota_key, args.target)
     else:
         if not args.mac:
             parser.error('USB deployment requires --mac')

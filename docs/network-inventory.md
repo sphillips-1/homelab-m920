@@ -8,6 +8,14 @@ Use this document as the reference for homelab LAN addresses. These are document
 | Raspberry Pi Zero 2 | Pi-hole DNS server | `192.168.4.75` | DNS: TCP/UDP 53; admin: `http://192.168.4.75/admin/` |
 | ESP32-2432S028 CYD | M920Q status display | `192.168.4.34` (DHCP lease verified by MAC 2026-11-24) | Provisioned devices accept LAN OTA on UDP 3232. |
 
+## CYD hardware MACs
+
+| Board | Factory MAC | Verification |
+| --- | --- | --- |
+| M920Q status / Group Camp CYD | `48:9d:31:c0:27:5c` | USB and M920Q LAN neighbor entry, 2026-11-24. |
+| Cat CYD | `68:09:47:85:8e:cc` | USB, 2026-11-24. LAN address unverified. |
+| Ant CYD | `68:09:47:85:c6:d8` | USB, 2026-11-24. LAN address unverified. |
+
 ## Kids intranet
 
 - Curiosity Club: `http://192.168.4.27:8092/`, deployed 2026-10-26.

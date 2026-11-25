@@ -19,5 +19,6 @@ def flash_parts(boot_offset, app_size):
 
 BOARDS = {
     'cyd': Board('esp32', 0x400000, flash_parts(0x1000, 0x140000)),
+    'cyd-ant': Board('esp32', 0x400000, flash_parts(0x1000, 0x140000)),
     'waveshare-s3-touch-169': Board('esp32s3', 0x1000000, flash_parts(0, 0x640000)),
 }

@@ -50,6 +50,20 @@ display after the automatic reboot. OTA does not take a full flash backup
 or verify the application after reboot. Select `usb` for recovery or to
 change the partition layout.
 
+### Ant CYD
+
+Choose `cyd-ant` with `usb` for the first flash. The job uses
+`CYD_ANT_SERIAL_DEVICE`, checks Ant's factory MAC against the network
+inventory, and provisions the dedicated `CYD_ANT_OTA_KEY` environment
+secret. Use USB `by-path` links when multiple CH340 adapters share a
+`by-id` link.
+
+Hold BOOT for five seconds and release to join `Shelf-Ant-Setup`.
+Open `192.168.4.1` to enter the LAN Wi-Fi credentials. Ant continues
+its local progression while disconnected. Once it joins, set
+`CYD_ANT_OTA_HOST` to its verified IPv4 address and run `cyd-ant`
+with transport `ota`. Ant deployments are dispatched manually.
+
 ## USB device binding
 
 | Target | USB by-id basename | MAC | Flash |
