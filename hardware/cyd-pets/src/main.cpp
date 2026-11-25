@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include <TFT_eSPI.h>
+#include <Preferences.h>
 #include "BatteryMonitor.h"
 #include "../../cyd-ota/ota.h"
 #ifdef CYD_PET_CAT
