@@ -120,6 +120,19 @@ class DeploymentTest(unittest.TestCase):
         packager.package(self.build, self.build / 'boot_app0.bin', self.artifact, SHA, 'cyd-cat')
         flasher.validate_artifact(self.artifact, SHA, 'cyd-cat')
 
+    def test_wifi_provisioning_encodes_exact_credentials_on_a_single_serial_line(self):
+        command = flasher.wifi_provisioning_command('Home réseau', 'pass word!')
+        prefix, ssid, password = command.decode('ascii').rstrip('\n').split(' ')
+        self.assertEqual(prefix, 'CYD-WIFI')
+        self.assertEqual(bytes.fromhex(ssid).decode(), 'Home réseau')
+        self.assertEqual(bytes.fromhex(password).decode(), 'pass word!')
+
+    def test_wifi_provisioning_rejects_invalid_credentials_before_usb_access(self):
+        for ssid, password in [('', 'abcdefgh'), ('é' * 17, 'abcdefgh'),
+                               ('Home', ''), ('Home', 'x' * 64), ('Home', 'pass\0word')]:
+            with self.subTest(ssid=ssid), self.assertRaises(ValueError):
+                flasher.wifi_provisioning_command(ssid, password)
+
     def test_ota_uses_lan_callback_and_fails_on_uploader_error(self):
         uploader = Mock(return_value=1)
         with patch.object(flasher.runpy, 'run_path', return_value={'main': uploader}), \

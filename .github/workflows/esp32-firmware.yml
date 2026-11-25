@@ -46,6 +46,10 @@ on:
           - auto
           - usb
           - ota
+      provision_wifi:
+        description: Save the protected Wi-Fi settings on Cat or Ant over USB
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -209,6 +213,9 @@ jobs:
           CYD_ANT_SERIAL_DEVICE: ${{ vars.CYD_ANT_SERIAL_DEVICE }}
           CYD_CAT_OTA_KEY: ${{ secrets.CYD_CAT_OTA_KEY }}
           CYD_CAT_SERIAL_DEVICE: ${{ vars.CYD_CAT_SERIAL_DEVICE }}
+          PROVISION_WIFI: ${{ inputs.provision_wifi }}
+          CYD_WIFI_SSID: ${{ inputs.provision_wifi && secrets.CYD_WIFI_SSID || '' }}
+          CYD_WIFI_PASSWORD: ${{ inputs.provision_wifi && secrets.CYD_WIFI_PASSWORD || '' }}
           WAVESHARE_SERIAL_DEVICE: ${{ vars.WAVESHARE_SERIAL_DEVICE || '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_28:84:85:55:4C:1C-if00' }}
           WAVESHARE_MAC: ${{ vars.WAVESHARE_MAC || '28:84:85:55:4c:1c' }}
           ESP32_SERIAL_DEVICE: ${{ vars.ESP32_SERIAL_DEVICE || '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0' }}
@@ -247,6 +254,11 @@ jobs:
             device_args+=(--env CYD_OTA_KEY)
             port=/dev/esp32
           fi
+          provision_args=()
+          if [[ "$PROVISION_WIFI" == true ]]; then
+            device_args+=(--env CYD_WIFI_SSID --env CYD_WIFI_PASSWORD)
+            provision_args+=(--provision-wifi)
+          fi
 
           docker run --rm --read-only --network none \
             --cap-drop ALL --security-opt no-new-privileges \
@@ -254,5 +266,5 @@ jobs:
             "${device_args[@]}" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/firmware-package,target=/firmware,readonly" \
             --mount type=bind,source=/srv/homelab/backups,target=/backups \
-            "homelab-esp32-flasher:$GITHUB_SHA" --target "$TARGET" --port "$port" --mac "$mac" --sha "$GITHUB_SHA"
+            "homelab-esp32-flasher:$GITHUB_SHA" --target "$TARGET" --port "$port" --mac "$mac" --sha "$GITHUB_SHA" "${provision_args[@]}"
           printf '### ESP32 deployed\n\nCommit: %s\n\nUSB flash verification and serial boot check passed. Private backups remain on the M920Q under /srv/homelab/backups/esp32.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

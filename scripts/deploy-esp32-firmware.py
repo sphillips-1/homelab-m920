@@ -85,7 +85,16 @@ def verify_identity(tool, port, expected_mac):
         raise ValueError('Connected ESP32 identity does not match the configured board')
 
 
-def check_boot(port, native_usb=False, ota_key=None):
+def wifi_provisioning_command(ssid, password):
+    ssid_bytes = ssid.encode('utf-8')
+    password_bytes = password.encode('utf-8')
+    if (not 1 <= len(ssid_bytes) <= 32 or '\0' in ssid or '\0' in password or
+            not (8 <= len(password_bytes) <= 63 or re.fullmatch(r'[0-9a-fA-F]{64}', password))):
+        raise ValueError('Set both CYD Wi-Fi secrets to a valid SSID and WPA password')
+    return f'CYD-WIFI {ssid_bytes.hex()} {password_bytes.hex()}\n'.encode('ascii')
+
+
+def check_boot(port, native_usb=False, ota_key=None, wifi_command=None):
     import serial
     if native_usb:
         wait_for_acm(port)
@@ -95,12 +104,19 @@ def check_boot(port, native_usb=False, ota_key=None):
             connection.rts = True
             time.sleep(0.15)
             connection.rts = False
-        deadline = time.monotonic() + 12
+        deadline = time.monotonic() + (45 if wifi_command else 12)
         output = bytearray()
         sent_key = False
+        sent_wifi = False
         while time.monotonic() < deadline:
             output.extend(connection.read(2048))
-            if ota_key and not sent_key and b'CYD OTA provisioning ready' in output:
+            if b'CYD OTA provisioning ready' not in output:
+                continue
+            if wifi_command and not sent_wifi:
+                connection.write(wifi_command)
+                sent_wifi = True
+            wifi_saved = b'CYD Wi-Fi credentials saved' in output
+            if ota_key and not sent_key and (not wifi_command or wifi_saved):
                 connection.write(f'CYD-OTA {ota_key}\n'.encode('ascii'))
                 sent_key = True
         text = output.decode('utf-8', errors='replace')
@@ -110,9 +126,14 @@ def check_boot(port, native_usb=False, ota_key=None):
             raise RuntimeError('Firmware failed the serial boot check')
     if ota_key and 'CYD OTA credential saved' not in text:
         raise RuntimeError('CYD did not confirm saving the OTA credential')
+    if wifi_command:
+        address = re.search(r'CYD Wi-Fi connected: ([\d.]+)\r?\n', text)
+        if not address:
+            raise RuntimeError('CYD did not join Wi-Fi after USB provisioning')
+        print(f'CYD joined Wi-Fi at {IPv4Address(address[1])}.', flush=True)
 
 
-def deploy(directory, backup_root, port, expected_mac, sha, target='cyd', ota_key=None):
+def deploy(directory, backup_root, port, expected_mac, sha, target='cyd', ota_key=None, wifi_command=None):
     board = BOARDS[target]
     native_usb = board.chip == 'esp32s3'
     manifest, flash_args = validate_artifact(directory, sha, target)
@@ -153,6 +174,8 @@ def deploy(directory, backup_root, port, expected_mac, sha, target='cyd', ota_ke
             tool(port, 'verify-flash', *flash_args)
             if native_usb:
                 check_boot(port, native_usb=True)
+            elif wifi_command:
+                check_boot(port, ota_key=ota_key, wifi_command=wifi_command)
             elif ota_key:
                 check_boot(port, ota_key=ota_key)
             else:
@@ -197,6 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('--port', default='/dev/esp32')
     parser.add_argument('--mac')
     parser.add_argument('--ota', action='store_true')
+    parser.add_argument('--provision-wifi', action='store_true')
     parser.add_argument('--sha', required=True)
     parser.add_argument('--target', choices=BOARDS, default='cyd')
     args = parser.parse_args()
@@ -207,10 +231,21 @@ if __name__ == '__main__':
     if (ota_key or args.ota) and not re.fullmatch(r'[0-9a-f]{64}', ota_key or ''):
         parser.error('Set CYD_OTA_KEY to 64 lowercase hexadecimal characters')
     if args.ota:
+        if args.provision_wifi:
+            parser.error('Wi-Fi provisioning requires USB')
         if not is_cyd or not os.environ.get('CYD_OTA_HOST'):
             parser.error('OTA requires a CYD target and CYD_OTA_HOST')
         deploy_ota(args.artifact, args.sha, os.environ['CYD_OTA_HOST'], ota_key, args.target)
     else:
         if not args.mac:
             parser.error('USB deployment requires --mac')
-        deploy(args.artifact, args.backups, args.port, args.mac, args.sha, args.target, ota_key)
+        wifi_command = None
+        if args.provision_wifi:
+            if args.target not in ('cyd-ant', 'cyd-cat'):
+                parser.error('USB Wi-Fi provisioning requires Ant or Cat')
+            try:
+                wifi_command = wifi_provisioning_command(os.environ.get('CYD_WIFI_SSID', ''),
+                                                         os.environ.get('CYD_WIFI_PASSWORD', ''))
+            except ValueError as error:
+                parser.error(str(error))
+        deploy(args.artifact, args.backups, args.port, args.mac, args.sha, args.target, ota_key, wifi_command)

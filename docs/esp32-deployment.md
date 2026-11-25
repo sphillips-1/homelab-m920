@@ -58,6 +58,14 @@ inventory, and provisions the dedicated `CYD_ANT_OTA_KEY` environment
 secret. Use USB `by-path` links when multiple CH340 adapters share a
 `by-id` link.
 
+For Ant or Cat, enable **provision_wifi** on a manual **usb** deployment to
+load `CYD_WIFI_SSID` and `CYD_WIFI_PASSWORD` from the protected Actions
+environment. The job sends them over USB after verifying the board and
+flashing the firmware. The ESP32 saves them in its Wi-Fi settings and the
+job reports its assigned IPv4 address. A failed Wi-Fi join triggers the
+same full-flash restore as a failed serial boot check. Keep both credentials
+in environment secrets and use a network that offers 2.4 GHz Wi-Fi.
+
 Hold BOOT for five seconds and release to join `Shelf-Ant-Setup`.
 Open `192.168.4.1` to enter the LAN Wi-Fi credentials. Ant continues
 its local progression while disconnected. Once it joins, set

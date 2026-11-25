@@ -279,7 +279,7 @@ void render() {
 
 void setup() {
   Serial.begin(115200);
-  cydOta::configureOta();
+  cydOta::configureOta(true);
   Serial.printf("%s / JC2432W328\n", petTitle);
   battery::begin();
   pinMode(0, INPUT_PULLUP);
@@ -303,6 +303,11 @@ void setup() {
 }
 void loop() {
   wifi.process();
+  static bool reportedAddress = false;
+  if (!reportedAddress && WiFi.status() == WL_CONNECTED) {
+    Serial.println("CYD Wi-Fi connected: " + WiFi.localIP().toString());
+    reportedAddress = true;
+  }
   const bool portalActive = wifi.getConfigPortalActive();
   cydOta::serviceOta(WiFi.status() == WL_CONNECTED, portalActive);
   const uint32_t now = millis();
