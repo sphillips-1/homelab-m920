@@ -200,13 +200,14 @@ if __name__ == '__main__':
     parser.add_argument('--sha', required=True)
     parser.add_argument('--target', choices=BOARDS, default='cyd')
     args = parser.parse_args()
-    ota_key = os.environ.get('CYD_OTA_KEY') if args.target in ('cyd', 'cyd-ant') else None
-    if args.target == 'cyd-ant' and not ota_key:
-        parser.error('Ant requires its dedicated OTA key')
+    is_cyd = args.target.startswith('cyd')
+    ota_key = os.environ.get('CYD_OTA_KEY') if is_cyd else None
+    if is_cyd and args.target != 'cyd' and not ota_key:
+        parser.error(f'{args.target} requires its dedicated OTA key')
     if (ota_key or args.ota) and not re.fullmatch(r'[0-9a-f]{64}', ota_key or ''):
         parser.error('Set CYD_OTA_KEY to 64 lowercase hexadecimal characters')
     if args.ota:
-        if args.target not in ('cyd', 'cyd-ant') or not os.environ.get('CYD_OTA_HOST'):
+        if not is_cyd or not os.environ.get('CYD_OTA_HOST'):
             parser.error('OTA requires a CYD target and CYD_OTA_HOST')
         deploy_ota(args.artifact, args.sha, os.environ['CYD_OTA_HOST'], ota_key, args.target)
     else:

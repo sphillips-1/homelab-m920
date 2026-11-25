@@ -37,6 +37,7 @@ on:
           - waveshare-s3-touch-169
           - cyd
           - cyd-ant
+          - cyd-cat
       transport:
         description: Deployment transport (OTA applies only to CYD)
         type: choice
@@ -59,6 +60,8 @@ jobs:
           - target: cyd
             project: hardware/cyd-status
           - target: cyd-ant
+            project: hardware/cyd-pets
+          - target: cyd-cat
             project: hardware/cyd-pets
           - target: waveshare-s3-touch-169
             project: hardware/esp32-monitor
@@ -125,6 +128,7 @@ jobs:
           REQUESTED_TRANSPORT: ${{ inputs.transport }}
           CYD_OTA_HOST: ${{ vars.CYD_OTA_HOST }}
           CYD_ANT_OTA_HOST: ${{ vars.CYD_ANT_OTA_HOST }}
+          CYD_CAT_OTA_HOST: ${{ vars.CYD_CAT_OTA_HOST }}
           PREVIOUS_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
@@ -147,6 +151,7 @@ jobs:
             transport=usb
             if [[ "$target" == cyd && -n "$CYD_OTA_HOST" ]]; then transport=ota; fi
             if [[ "$target" == cyd-ant && -n "$CYD_ANT_OTA_HOST" ]]; then transport=ota; fi
+            if [[ "$target" == cyd-cat && -n "$CYD_CAT_OTA_HOST" ]]; then transport=ota; fi
           fi
           if [[ "$transport" == ota && "$target" != cyd* ]]; then
             echo 'OTA is only supported for CYD.' >&2
@@ -162,7 +167,7 @@ jobs:
           git fetch --no-tags origin main
           project=hardware/esp32-monitor
           if [[ "$TARGET" == cyd ]]; then project=hardware/cyd-status; fi
-          if [[ "$TARGET" == cyd-ant ]]; then project=hardware/cyd-pets; fi
+          if [[ "$TARGET" == cyd-* ]]; then project=hardware/cyd-pets; fi
           latest=$(git log -1 --format=%H origin/main -- "$project" hardware/cyd-ota hardware/esp32-monitor/src/health.h hardware/esp32-monitor/src/combat.h hardware/esp32-monitor/src/evolution.h hardware/esp32-monitor/src/display_link.h hardware/esp32-monitor/src/scene_art.h hardware/esp32-monitor/deploy tests/test_esp32_health.cpp tests/test_esp32_touch.cpp tests/test_esp32_deployment.py scripts/package-esp32-firmware.py scripts/esp32_profiles.py scripts/deploy-esp32-firmware.py .github/workflows/esp32-firmware.yml)
           git merge-base --is-ancestor "$latest" "$GITHUB_SHA" || { echo 'A newer firmware change is already on main; deploy the newer run.' >&2; exit 1; }
       - name: Download verified firmware from this run
@@ -181,9 +186,13 @@ jobs:
           CYD_OTA_KEY: ${{ secrets.CYD_OTA_KEY }}
           CYD_ANT_OTA_HOST: ${{ vars.CYD_ANT_OTA_HOST }}
           CYD_ANT_OTA_KEY: ${{ secrets.CYD_ANT_OTA_KEY }}
+          CYD_CAT_OTA_HOST: ${{ vars.CYD_CAT_OTA_HOST }}
+          CYD_CAT_OTA_KEY: ${{ secrets.CYD_CAT_OTA_KEY }}
         run: |
           if [[ "$TARGET" == cyd-ant ]]; then
             export CYD_OTA_HOST="$CYD_ANT_OTA_HOST" CYD_OTA_KEY="$CYD_ANT_OTA_KEY"
+          elif [[ "$TARGET" == cyd-cat ]]; then
+            export CYD_OTA_HOST="$CYD_CAT_OTA_HOST" CYD_OTA_KEY="$CYD_CAT_OTA_KEY"
           fi
           docker run --rm --read-only --network host \
             --cap-drop ALL --security-opt no-new-privileges \
@@ -198,6 +207,8 @@ jobs:
           CYD_OTA_KEY: ${{ secrets.CYD_OTA_KEY }}
           CYD_ANT_OTA_KEY: ${{ secrets.CYD_ANT_OTA_KEY }}
           CYD_ANT_SERIAL_DEVICE: ${{ vars.CYD_ANT_SERIAL_DEVICE }}
+          CYD_CAT_OTA_KEY: ${{ secrets.CYD_CAT_OTA_KEY }}
+          CYD_CAT_SERIAL_DEVICE: ${{ vars.CYD_CAT_SERIAL_DEVICE }}
           WAVESHARE_SERIAL_DEVICE: ${{ vars.WAVESHARE_SERIAL_DEVICE || '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_28:84:85:55:4C:1C-if00' }}
           WAVESHARE_MAC: ${{ vars.WAVESHARE_MAC || '28:84:85:55:4c:1c' }}
           ESP32_SERIAL_DEVICE: ${{ vars.ESP32_SERIAL_DEVICE || '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0' }}
@@ -211,6 +222,10 @@ jobs:
             serial="$CYD_ANT_SERIAL_DEVICE"
             mac='68:09:47:85:c6:d8'
             export CYD_OTA_KEY="$CYD_ANT_OTA_KEY"
+          elif [[ "$TARGET" == cyd-cat ]]; then
+            serial="$CYD_CAT_SERIAL_DEVICE"
+            mac='68:09:47:85:8e:cc'
+            export CYD_OTA_KEY="$CYD_CAT_OTA_KEY"
           else
             serial="$ESP32_SERIAL_DEVICE"
             mac="$ESP32_MAC"

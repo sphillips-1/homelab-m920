@@ -64,6 +64,14 @@ its local progression while disconnected. Once it joins, set
 `CYD_ANT_OTA_HOST` to its verified IPv4 address and run `cyd-ant`
 with transport `ota`. Ant deployments are dispatched manually.
 
+### Cat CYD
+
+Choose `cyd-cat` with `usb` for Cat's first flash. The job checks Cat's
+factory MAC on `CYD_CAT_SERIAL_DEVICE` and provisions `CYD_CAT_OTA_KEY`.
+Hold BOOT for five seconds and release to open `Shelf-Cat-Setup`.
+Once Cat joins Wi-Fi, set `CYD_CAT_OTA_HOST` to its verified IPv4 address
+and dispatch `cyd-cat` with transport `ota`.
+
 ## USB device binding
 
 | Target | USB by-id basename | MAC | Flash |

@@ -108,13 +108,17 @@ class DeploymentTest(unittest.TestCase):
             flasher.deploy_ota(self.artifact, SHA, '192.168.4.63', 'c' * 64)
         socket.assert_not_called()
 
-    def test_cyd_and_ant_artifacts_are_bound_to_their_targets(self):
+    def test_cyd_artifacts_are_bound_to_their_targets(self):
         with self.assertRaises(ValueError):
             flasher.validate_artifact(self.artifact, SHA, 'cyd-ant')
         packager.package(self.build, self.build / 'boot_app0.bin', self.artifact, SHA, 'cyd-ant')
         flasher.validate_artifact(self.artifact, SHA, 'cyd-ant')
         with self.assertRaises(ValueError):
             flasher.validate_artifact(self.artifact, SHA)
+        with self.assertRaises(ValueError):
+            flasher.validate_artifact(self.artifact, SHA, 'cyd-cat')
+        packager.package(self.build, self.build / 'boot_app0.bin', self.artifact, SHA, 'cyd-cat')
+        flasher.validate_artifact(self.artifact, SHA, 'cyd-cat')
 
     def test_ota_uses_lan_callback_and_fails_on_uploader_error(self):
         uploader = Mock(return_value=1)
