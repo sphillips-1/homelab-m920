@@ -1,0 +1,15 @@
+services:
+  happy-coder:
+    build: .
+    image: homelab-happy-coder:local
+    container_name: happy-coder
+    hostname: m920-happy
+    init: true
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /srv/homelab/appdata/happy-coder/home:/home/node
+      - /srv/homelab/appdata/happy-coder/workspace:/workspace

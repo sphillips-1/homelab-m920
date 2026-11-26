@@ -1,0 +1,41 @@
+name: Deploy Happy Coder
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - services/happy-coder/**
+      - .github/workflows/happy-coder.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment: infrastructure
+    runs-on: [self-hosted, linux, x64, m920]
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/happy-coder
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Build and start Happy Coder
+        run: |
+          set -euo pipefail
+          docker compose config --quiet
+          docker compose build
+          docker run --rm --network none --user 0:0 --entrypoint /bin/sh \
+            -v /srv/homelab/appdata/happy-coder:/state \
+            homelab-happy-coder:local -ec 'install -d -m 0700 -o 1000 -g 1000 /state/home /state/workspace'
+          docker compose up -d --wait --wait-timeout 30
+          docker compose exec -T happy-coder happy --version
+          docker compose exec -T happy-coder codex --version
