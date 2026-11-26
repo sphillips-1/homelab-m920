@@ -243,6 +243,10 @@ python3 "${REPO_DIR}/scripts/configure-beszel-sso.py"
 log "Initializing local coding AI"
 bash "${REPO_DIR}/scripts/init-local-ai.sh"
 
+log "Reconciling and checking HolyArrs public SSO"
+docker exec -i authentik-worker ak shell \
+    < "${REPO_DIR}/scripts/reconcile-holyarrs-public-sso.py"
+
 deploy_cloudflared
 
 log "Consolidating audiobook storage"
