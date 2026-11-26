@@ -56,6 +56,8 @@ class CloudflareTest(unittest.TestCase):
                     "ai.example.invalid/": "http://authentik-server:9000" if mode == "sso" else "http_status:404",
                     "auth.example.invalid/invite/01234567-89ab-cdef-0123-456789abcdef": "http://invitation-provisioner:8080",
                     "auth.example.invalid/if/flow/default-authentication-flow/": "http://authentik-server:9000",
+                    "holyarrs.example.invalid/": "http://authentik-server:9000" if mode == "sso" else "http_status:404",
+                    "holyarrs.example.invalid/api/v1/auth/oidc/callback": "http://authentik-server:9000" if mode == "sso" else "http_status:404",
                     "jellyfin.example.invalid/": "http_status:404",
                     "unknown.example.invalid/": "http_status:404",
                     "readest.example.invalid/": "http://authentik-server:9000" if mode == "sso" else "http_status:404",

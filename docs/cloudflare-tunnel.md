@@ -68,6 +68,14 @@ For immediate emergency closure, stop the connector with
 public ingress offline while leaving private access available. Commit the
 safe desired mode and deploy through Actions before restoring the connector.
 
+HolyArrs routes to the Authentik embedded outpost in `sso` mode. The
+outpost checks membership in `holyarrs-users` before forwarding to
+HolyArrs. HolyArrs still uses its native Authentik OIDC client for the
+application session. Deployment checks that anonymous requests to the
+site and OIDC callback redirect to the outpost before restarting the
+connector. Verify the full sign-in flow off-LAN with an approved account
+and check that an account outside the group is denied.
+
 ## Validation and troubleshooting
 
 `verify-cloudflare-tunnel.sh` validates Compose syntax, container status,
