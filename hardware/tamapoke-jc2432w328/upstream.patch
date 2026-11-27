@@ -1,0 +1,228 @@
+diff --git a/TamaPoke.ino b/TamaPoke.ino
+index 8f0a37c..9b2a247 100644
+--- a/TamaPoke.ino
++++ b/TamaPoke.ino
+@@ -20,7 +20,9 @@
+ #include <Wire.h>
+ #include "Arduino_GFX_Library.h"
+ #include "pin_config.h"  // pines + capacidades de placa (pin_config.h / board.h); antes que el driver de tactil
+-#if TOUCH_POLLING
++#if defined(BOARD_JC2432W328)
++#include "jc_display.h"
++#elif TOUCH_POLLING
+ #include "TouchDrvGT911.hpp"
+ #else
+ #include "TouchDrvCSTXXX.hpp"
+@@ -55,7 +57,21 @@
+ // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
+ #define FW_VERSION "1.22"
+ 
+-#if defined(BOARD_GUITION_4848S040)
++#if defined(BOARD_JC2432W328)
++static JcDisplay jcDisplay;
++const char *eggMsg();
++const char *statusMsg();
++void displaySetBrightness(uint8_t value) {
++  constexpr int channel = 0;
++  static bool initialized = false;
++  if (!initialized) {
++    ledcSetup(channel, 5000, 8);
++    ledcAttachPin(LCD_BL, channel);
++    initialized = true;
++  }
++  ledcWrite(channel, value);
++}
++#elif defined(BOARD_GUITION_4848S040)
+ // ST7701S: la secuencia de init viaja por SPI de 3 hilos y los pixels por el
+ // bus paralelo RGB (DMA). Cableado y porches copiados literalmente de la
+ // propia config de Arduino_GFX para este modulo (ESP32_4848S040_86BOX_GUITION
+@@ -137,6 +153,9 @@ Arduino_CO5300 *panel = new Arduino_CO5300(
+ void displaySetBrightness(uint8_t v) { panel->setBrightness(v); }
+ #endif
+ // Framebuffer completo en PSRAM: dibujamos todo y hacemos flush() (sin parpadeo)
++#if defined(BOARD_JC2432W328)
++Arduino_GFX *gfx = &jcDisplay;
++#else
+ #ifndef CANVAS_CLASS
+ #define CANVAS_CLASS Arduino_Canvas
+ #endif
+@@ -149,6 +168,7 @@ TouchDrvCST816 touch;
+ #else
+ TouchDrvCST92xx touch;
+ #endif
++#endif
+ // fuente CJK activa: de momento siempre false, la carga llegara con el
+ // soporte de japones/coreano/chino (ver PR #13)
+ bool gCjkFont = false;
+@@ -462,10 +482,14 @@ void setup() {
+   // CRITICO: sin esto, Serial.print BLOQUEA el juego cuando no hay un
+   // monitor serie abierto en el host (el bufer TX del USB CDC se llena
+   // y nadie lo vacia) -> con timeout 0 los mensajes se descartan
++#if !defined(BOARD_JC2432W328)
+   Serial.setTxTimeoutMs(0);
++#endif
+   Serial.printf("TamaPoke fw v%s (%s)\n", FW_VERSION, BOARD_NAME);
+   loadLang();  // idioma guardado (ES por defecto)
++#if !defined(JC_TOUCH_RESISTIVE)
+   Wire.begin(IIC_SDA, IIC_SCL);
++#endif
+   // CST9217 (tactil), AXP2101 (PMU) y PCF85063 (RTC) comparten este bus I2C.
+   // Red de seguridad para PMU/RTC (SensorLib NO respeta este timeout en el
+   // tactil; el cuelgue del tactil dormido se resuelve gateando por INT, ver
+@@ -488,7 +512,12 @@ void setup() {
+   // QSPI a 80MHz en la Waveshare (por defecto 40): el flush del framebuffer es
+   // el cuello de botella del fps (~56ms a 40MHz). El panel RGB usa el
+   // prefer_speed del rgbpanel (RGB_PCLK_HZ). Si mostrara basura, bajarlo.
+-  if (!gfx->begin(DISPLAY_BEGIN_HZ)) Serial.println("gfx->begin() fallo");
++  if (!gfx->begin(DISPLAY_BEGIN_HZ)) {
++    Serial.println("gfx->begin() fallo");
++#if defined(BOARD_JC2432W328)
++    for (;;) delay(1000);
++#endif
++  }
+   {  // nivel de brillo guardado (ajustes)
+     Preferences p;
+     p.begin("tamapoke", true);
+@@ -498,7 +527,15 @@ void setup() {
+   displaySetBrightness(180);
+   applyLangFont();  // fuente del idioma guardado (clasica salvo CJK)
+ 
+-#if TOUCH_POLLING
++#if defined(BOARD_JC2432W328)
++#if !defined(JC_TOUCH_RESISTIVE)
++  pinMode(25, OUTPUT);
++  digitalWrite(25, LOW);
++  delay(10);
++  digitalWrite(25, HIGH);
++  delay(50);
++#endif
++#elif TOUCH_POLLING
+   // GT911: el modulo no saca INT ni RESET (piernas a nivel fijo), se sondea por
+   // I2C desde handleTouch. begin() solo comprueba presencia y lee la resolucion.
+   bool touchOk = false;
+@@ -1064,10 +1101,15 @@ void handleTouch() {
+   // El contador de rechazos salio 0 en ambos casos, asi que NO funciona
+   // saltandose lecturas cuando el chip no contesta: lo que hace es despertarlo,
+   // para que la lectura siguiente no se encuentre el CST9217 dormido.
++#if defined(BOARD_JC2432W328)
++  int16_t x = 0, y = 0;
++  bool pressed = jcDisplay.touchPoint(&x, &y) > 0;
++#else
+   TOUCH_WIRE.beginTransmission(TOUCH_ADDR);
+   if (TOUCH_WIRE.endTransmission() != 0) return;  // no responde: se reintenta en 20 ms
+   int16_t x, y;
+   bool pressed = touch.getPoint(&x, &y, 1) > 0;
++#endif
+ #if defined(BOARD_SPOTPEAR_BALL128)
+   // panel pixel (0..239, edge reads clamped) -> 480 canvas the UI is laid out in
+   x = constrain(x, 0, PANEL_WIDTH - 1) * 2;
+diff --git a/audio.cpp b/audio.cpp
+index b8a589e..7f7ac8e 100644
+--- a/audio.cpp
++++ b/audio.cpp
+@@ -2,10 +2,10 @@
+ #include "pin_config.h"
+ #include <Arduino.h>
+ #include <Wire.h>
+-#include <ESP_I2S.h>
+ #include <Preferences.h>
+ 
+ #if HAS_AUDIO
++#include <ESP_I2S.h>
+ 
+ // ---------------------------------------------------------------------------
+ // Audio del TamaPoke: códec ES8311 (DAC -> amplificador PA -> altavoz) por I2S.
+diff --git a/pin_config.h b/pin_config.h
+index c1bc6be..9547303 100644
+--- a/pin_config.h
++++ b/pin_config.h
+@@ -9,7 +9,28 @@
+ 
+ #include "board.h"  // eleccion de placa (flags) y pines/capacidades de la Guition
+ 
+-#if !defined(BOARD_GUITION_4848S040) && !defined(BOARD_SPOTPEAR_BALL128)  // Waveshare 1.75 / 1.75C (Guition y SpotPear viven en board.h)
++#if defined(BOARD_JC2432W328)
++#define LCD_WIDTH 466
++#define LCD_HEIGHT 466
++#define LCD_CS 15
++#define LCD_BL 27
++#define DISPLAY_BEGIN_HZ 40000000
++#define IIC_SDA 33
++#define IIC_SCL 32
++#define TOUCH_POLLING 1
++#define HAS_PMU 0
++#define HAS_RTC 0
++#define HAS_AUDIO 0
++#define HAS_SD 1
++#undef SD_SPI
++#define SD_SPI 1
++#define SD_SPI_CS 5
++#define SD_SPI_SCK 18
++#define SD_SPI_MISO 19
++#define SD_SPI_MOSI 23
++#define SD_SPI_HZ 10000000
++#define BOARD_NAME "Guition JC2432W328"
++#elif !defined(BOARD_GUITION_4848S040) && !defined(BOARD_SPOTPEAR_BALL128)  // Waveshare 1.75 / 1.75C (Guition y SpotPear viven en board.h)
+ 
+ #define XPOWERS_CHIP_AXP2101
+ 
+diff --git a/sdmon.cpp b/sdmon.cpp
+index e0e5ffd..bddfd2f 100644
+--- a/sdmon.cpp
++++ b/sdmon.cpp
+@@ -7,13 +7,28 @@ static fs::FS &SpriteFS = LittleFS;
+ #elif HAS_SD && SD_SPI
+ #include <SPI.h>
+ #include <SD.h>
++#if defined(BOARD_JC2432W328)
++static SPIClass sdSpi(VSPI);
++#else
+ static SPIClass sdSpi(FSPI);
++#endif
+ static fs::FS &SpriteFS = SD;
+ #else
+ #include <SD_MMC.h>
+ static fs::FS &SpriteFS = SD_MMC;
+ #endif
+ 
++static void *allocateSprite(size_t bytes) {
++#if defined(BOARD_JC2432W328)
++  // Leave internal heap for the SD stack and the rest of the application.
++  constexpr size_t reserve = 24 * 1024;
++  if (bytes + reserve > ESP.getFreeHeap()) return nullptr;
++  return malloc(bytes);
++#else
++  return ps_malloc(bytes);
++#endif
++}
++
+ bool sdReady = false;
+ bool sdDirty = false;
+ SdThumbs thumbs;
+@@ -33,7 +48,7 @@ bool PmdMon::load(uint8_t dexNum, bool shiny) {
+ 
+   uint32_t size = f.size();
+   if (size < 7 || size > 3UL * 1024 * 1024) { f.close(); return false; }
+-  blob = (uint8_t *)ps_malloc(size);
++  blob = (uint8_t *)allocateSprite(size);
+   if (!blob || f.read(blob, size) != size || memcmp(blob, "TPK2", 4) != 0) {
+     if (blob) { free(blob); blob = nullptr; }
+     f.close();
+@@ -118,7 +133,7 @@ bool SdThumbs::load() {
+     f.close();
+     return false;
+   }
+-  data = (uint8_t *)ps_malloc(sz);
++  data = (uint8_t *)allocateSprite(sz);
+   if (!data || f.read(data, sz) != sz || memcmp(data, "TPTH", 4) != 0) {
+     Serial.println("thumbs.bin invalido");
+     if (data) { free(data); data = nullptr; }
+@@ -241,7 +256,7 @@ bool SdMon::load(uint8_t dexNum, bool shiny) {
+   }
+ 
+   uint32_t size = (uint32_t)w * h * frames;
+-  data = (uint8_t *)ps_malloc(size);
++  data = (uint8_t *)allocateSprite(size);
+   if (!data) {
+     Serial.println("sin PSRAM para el sprite");
+     f.close();
