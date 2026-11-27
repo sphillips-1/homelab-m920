@@ -14,7 +14,7 @@ Use this document as the reference for homelab LAN addresses. These are document
 | --- | --- | --- |
 | Shelf Goblin / M920Q status CYD | `48:9d:31:c0:27:5c` | USB and M920Q LAN neighbor entry, 2026-11-24. |
 | Cat CYD | `68:09:47:85:8e:cc` | USB, 2026-11-24. LAN address unverified. |
-| Ant CYD | `68:09:47:85:c6:d8` | USB, 2026-11-24. LAN address unverified. |
+| Ant CYD | `68:09:47:85:c6:d8` | USB, 2026-11-24. LAN IPv4 192.168.4.183 verified by MAC on 2026-11-27. OTA uses UDP 3232. |
 
 ## Kids intranet
 
