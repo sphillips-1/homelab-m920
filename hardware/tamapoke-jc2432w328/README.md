@@ -29,12 +29,17 @@ pio run -d $checkout -e jc2432w328c
 pio run -d $checkout -e jc2432w328r
 ```
 
-These commands produce firmware for review without uploading it. The existing
-[ESP32 deployment workflow](../../docs/esp32-deployment.md) defaults to the
-M920Q desk display. Before enabling deployment for the Ant CYD, confirm the
-touch variant and use an Ant-specific build and MAC check with flash backup.
-The PlatformIO profile uses a single-app 4 MB partition table, so deployment
-must account for the current Shelf Ant firmware's partition layout.
+## Deploy Ant over Wi-Fi
 
+Both builds use Shelf Ant's existing 4 MB dual-OTA partition table. TamaPoke
+uses the existing Wi-Fi station settings and authenticated OTA key stored in
+NVS. It keeps listening for later updates after it boots and reconnects.
+
+Once the workflow is on main, run **Actions → TamaPoke Ant OTA → Run workflow**.
+Select `jc2432w328c` for CST820 or `jc2432w328r` for XPT2046. The M920Q runner
+checks Ant's MAC and uses the existing `CYD_ANT_OTA_HOST` variable and
+`CYD_ANT_OTA_KEY` secret. The upload writes only the app into the inactive
+OTA slot. The existing **ESP32 firmware** workflow can reinstall Shelf Ant
+using the Ant OTA target.
 This port adapts TamaPoke by socquique and contributors under CC BY-NC-SA 4.0. See the [upstream license](https://github.com/socquique/TamaPoke/blob/a441be28270b6d48cc922454df11618fe04d1e45/LICENSE) and [sprite credits](https://github.com/socquique/TamaPoke/blob/a441be28270b6d48cc922454df11618fe04d1e45/CREDITS.md).
 [Guition board package](https://components.espressif.com/components/guition/guition_boards/versions/0.2.4/readme)

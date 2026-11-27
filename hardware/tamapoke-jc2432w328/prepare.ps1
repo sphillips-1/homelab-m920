@@ -28,8 +28,12 @@ if ($LASTEXITCODE -eq 0) {
     if ($LASTEXITCODE) { throw 'The checkout differs from the expected source or applied patch.' }
 }
 
-foreach ($file in 'jc_display.h', 'platformio.ini') {
-    $source = Join-Path $PSScriptRoot $file
+foreach ($file in 'jc_display.h', 'platformio.ini', 'cyd_ota.h') {
+    $source = if ($file -eq 'cyd_ota.h') {
+        Join-Path $PSScriptRoot '../cyd-ota/ota.h'
+    } else {
+        Join-Path $PSScriptRoot $file
+    }
     $destination = Join-Path $Checkout $file
     if (Test-Path -LiteralPath $destination) {
         if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) {

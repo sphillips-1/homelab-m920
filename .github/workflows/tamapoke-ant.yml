@@ -1,0 +1,89 @@
+name: TamaPoke Ant OTA
+
+on:
+  push:
+    paths:
+      - hardware/tamapoke-jc2432w328/**
+      - hardware/cyd-ota/ota.h
+      - .github/workflows/tamapoke-ant.yml
+  workflow_dispatch:
+    inputs:
+      touch:
+        description: Touch controller fitted to Ant
+        required: true
+        type: choice
+        options:
+          - jc2432w328c
+          - jc2432w328r
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        touch: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.touch) || '["jc2432w328c","jc2432w328r"]') }}
+    env:
+      TOUCH: ${{ matrix.touch }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install platformio==6.2.0
+      - name: Prepare and build the Ant image
+        shell: pwsh
+        run: |
+          $checkout = Join-Path $env:RUNNER_TEMP 'TamaPoke'
+          ./hardware/tamapoke-jc2432w328/prepare.ps1 -Checkout $checkout
+          pio run -d $checkout -e $env:TOUCH
+      - name: Package and verify the selected build
+        run: |
+          python scripts/package-esp32-firmware.py \
+            --build "$RUNNER_TEMP/TamaPoke/.pio/build/$TOUCH" --target cyd-ant \
+            --boot-app "$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" \
+            --output firmware-package --sha "$GITHUB_SHA"
+          cp "$HOME/.platformio/packages/framework-arduinoespressif32/tools/espota.py" firmware-package/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tamapoke-ant-${{ matrix.touch }}-${{ github.sha }}
+          path: firmware-package/
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, m920]
+    environment: infrastructure
+    timeout-minutes: 10
+    concurrency:
+      group: esp32-usb-deployment
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: tamapoke-ant-${{ inputs.touch }}-${{ github.sha }}
+          path: firmware-package
+      - name: Upload the app to the Ant CYD over Wi-Fi
+        env:
+          CYD_OTA_HOST: ${{ vars.CYD_ANT_OTA_HOST }}
+          CYD_OTA_KEY: ${{ secrets.CYD_ANT_OTA_KEY }}
+        run: |
+          set -euo pipefail
+          : "${CYD_OTA_HOST:?Set the Ant CYD OTA host}"
+          : "${CYD_OTA_KEY:?Set the Ant CYD OTA key}"
+          ping -c 1 -W 2 "$CYD_OTA_HOST" >/dev/null || true
+          ip -4 neigh show to "$CYD_OTA_HOST" | grep -Fqi 'lladdr 68:09:47:85:c6:d8 ' || {
+            echo "The configured OTA host does not resolve to Ant's MAC." >&2
+            exit 1
+          }
+          docker build -f hardware/esp32-monitor/deploy/Dockerfile -t "homelab-tamapoke-flasher:$GITHUB_SHA" .
+          docker run --rm --read-only --network host \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env CYD_OTA_HOST --env CYD_OTA_KEY \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/firmware-package,target=/firmware,readonly" \
+            "homelab-tamapoke-flasher:$GITHUB_SHA" --target cyd-ant --sha "$GITHUB_SHA" --ota

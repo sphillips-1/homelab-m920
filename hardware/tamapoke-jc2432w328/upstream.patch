@@ -1,19 +1,22 @@
 diff --git a/TamaPoke.ino b/TamaPoke.ino
-index 8f0a37c..9b2a247 100644
+index 8f0a37c..cc0e159 100644
 --- a/TamaPoke.ino
 +++ b/TamaPoke.ino
-@@ -20,7 +20,9 @@
+@@ -20,7 +20,12 @@
  #include <Wire.h>
  #include "Arduino_GFX_Library.h"
  #include "pin_config.h"  // pines + capacidades de placa (pin_config.h / board.h); antes que el driver de tactil
 -#if TOUCH_POLLING
 +#if defined(BOARD_JC2432W328)
++#include <ArduinoOTA.h>
++#include <WiFi.h>
++#include "cyd_ota.h"
 +#include "jc_display.h"
 +#elif TOUCH_POLLING
  #include "TouchDrvGT911.hpp"
  #else
  #include "TouchDrvCSTXXX.hpp"
-@@ -55,7 +57,21 @@
+@@ -55,7 +60,21 @@
  // el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
  #define FW_VERSION "1.22"
  
@@ -36,7 +39,7 @@ index 8f0a37c..9b2a247 100644
  // ST7701S: la secuencia de init viaja por SPI de 3 hilos y los pixels por el
  // bus paralelo RGB (DMA). Cableado y porches copiados literalmente de la
  // propia config de Arduino_GFX para este modulo (ESP32_4848S040_86BOX_GUITION
-@@ -137,6 +153,9 @@ Arduino_CO5300 *panel = new Arduino_CO5300(
+@@ -137,6 +156,9 @@ Arduino_CO5300 *panel = new Arduino_CO5300(
  void displaySetBrightness(uint8_t v) { panel->setBrightness(v); }
  #endif
  // Framebuffer completo en PSRAM: dibujamos todo y hacemos flush() (sin parpadeo)
@@ -46,7 +49,7 @@ index 8f0a37c..9b2a247 100644
  #ifndef CANVAS_CLASS
  #define CANVAS_CLASS Arduino_Canvas
  #endif
-@@ -149,6 +168,7 @@ TouchDrvCST816 touch;
+@@ -149,6 +171,7 @@ TouchDrvCST816 touch;
  #else
  TouchDrvCST92xx touch;
  #endif
@@ -54,7 +57,7 @@ index 8f0a37c..9b2a247 100644
  // fuente CJK activa: de momento siempre false, la carga llegara con el
  // soporte de japones/coreano/chino (ver PR #13)
  bool gCjkFont = false;
-@@ -462,10 +482,14 @@ void setup() {
+@@ -462,10 +485,14 @@ void setup() {
    // CRITICO: sin esto, Serial.print BLOQUEA el juego cuando no hay un
    // monitor serie abierto en el host (el bufer TX del USB CDC se llena
    // y nadie lo vacia) -> con timeout 0 los mensajes se descartan
@@ -69,21 +72,31 @@ index 8f0a37c..9b2a247 100644
    // CST9217 (tactil), AXP2101 (PMU) y PCF85063 (RTC) comparten este bus I2C.
    // Red de seguridad para PMU/RTC (SensorLib NO respeta este timeout en el
    // tactil; el cuelgue del tactil dormido se resuelve gateando por INT, ver
-@@ -488,7 +512,12 @@ void setup() {
+@@ -488,7 +515,22 @@ void setup() {
    // QSPI a 80MHz en la Waveshare (por defecto 40): el flush del framebuffer es
    // el cuello de botella del fps (~56ms a 40MHz). El panel RGB usa el
    // prefer_speed del rgbpanel (RGB_PCLK_HZ). Si mostrara basura, bajarlo.
 -  if (!gfx->begin(DISPLAY_BEGIN_HZ)) Serial.println("gfx->begin() fallo");
-+  if (!gfx->begin(DISPLAY_BEGIN_HZ)) {
++  const bool displayReady = gfx->begin(DISPLAY_BEGIN_HZ);
++#if defined(BOARD_JC2432W328)
++  cydOta::configureOta(true);
++  WiFi.mode(WIFI_STA);
++  WiFi.setAutoReconnect(true);
++  WiFi.begin();  // Reuse the station configuration already saved by Shelf Ant.
++#endif
++  if (!displayReady) {
 +    Serial.println("gfx->begin() fallo");
 +#if defined(BOARD_JC2432W328)
-+    for (;;) delay(1000);
++    for (;;) {
++      cydOta::serviceOta(WiFi.status() == WL_CONNECTED, false);
++      delay(20);
++    }
 +#endif
 +  }
    {  // nivel de brillo guardado (ajustes)
      Preferences p;
      p.begin("tamapoke", true);
-@@ -498,7 +527,15 @@ void setup() {
+@@ -498,7 +540,15 @@ void setup() {
    displaySetBrightness(180);
    applyLangFont();  // fuente del idioma guardado (clasica salvo CJK)
  
@@ -100,7 +113,17 @@ index 8f0a37c..9b2a247 100644
    // GT911: el modulo no saca INT ni RESET (piernas a nivel fijo), se sondea por
    // I2C desde handleTouch. begin() solo comprueba presencia y lee la resolucion.
    bool touchOk = false;
-@@ -1064,10 +1101,15 @@ void handleTouch() {
+@@ -598,6 +648,9 @@ void ensureMon() {
+ }
+ 
+ void loop() {
++#if defined(BOARD_JC2432W328)
++  cydOta::serviceOta(WiFi.status() == WL_CONNECTED, false);
++#endif
+   uint32_t now = millis();
+   pet.update(now);
+ 
+@@ -1064,10 +1117,15 @@ void handleTouch() {
    // El contador de rechazos salio 0 en ambos casos, asi que NO funciona
    // saltandose lecturas cuando el chip no contesta: lo que hace es despertarlo,
    // para que la lectura siguiente no se encuentre el CST9217 dormido.
@@ -167,7 +190,7 @@ index c1bc6be..9547303 100644
  #define XPOWERS_CHIP_AXP2101
  
 diff --git a/sdmon.cpp b/sdmon.cpp
-index e0e5ffd..bddfd2f 100644
+index e0e5ffd..043398f 100644
 --- a/sdmon.cpp
 +++ b/sdmon.cpp
 @@ -7,13 +7,28 @@ static fs::FS &SpriteFS = LittleFS;
@@ -187,8 +210,8 @@ index e0e5ffd..bddfd2f 100644
  
 +static void *allocateSprite(size_t bytes) {
 +#if defined(BOARD_JC2432W328)
-+  // Leave internal heap for the SD stack and the rest of the application.
-+  constexpr size_t reserve = 24 * 1024;
++  // Leave internal heap for Wi-Fi, OTA and the SD stack.
++  constexpr size_t reserve = 48 * 1024;
 +  if (bytes + reserve > ESP.getFreeHeap()) return nullptr;
 +  return malloc(bytes);
 +#else
