@@ -18,6 +18,14 @@ root. If a sprite cannot fit in available RAM, TamaPoke uses a built-in sprite w
 battery-backed time are unavailable in this profile. The running clock uses the
 ESP32's software clock.
 
+## 2.8-inch controls
+
+The pet screen has labeled, 53 × 38 pixel touch targets for Feed, Play, Light
+and Clean. Stats, Dex and Clock have dedicated buttons across the top, and
+the original swipes still work. The new button labels use English. While the
+pet sleeps, Light remains visible and the backlight keeps a minimum level
+subject to the chosen brightness setting.
+
 ## Build
 
 From the repository root in PowerShell with Git and PlatformIO installed:
