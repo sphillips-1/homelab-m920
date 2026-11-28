@@ -1,5 +1,5 @@
 diff --git a/TamaPoke.ino b/TamaPoke.ino
-index 8f0a37c..6a52436 100644
+index 8f0a37c..b15a75a 100644
 --- a/TamaPoke.ino
 +++ b/TamaPoke.ino
 @@ -20,7 +20,12 @@
@@ -206,17 +206,48 @@ index 8f0a37c..6a52436 100644
        Serial.printf("BTN %d\n", i);
        sfxPlay(SFX_TAP);
        if (i == 0) {
-@@ -1707,6 +1805,9 @@ bool render() {
+@@ -1693,7 +1791,9 @@ bool render() {
+     const char *base = pet.nick[0] ? pet.nick : dexName(pet.speciesId);
+     snprintf(name, sizeof(name), T(S_NAME_FMT), pet.shiny ? "*" : "", base, pet.level());
+     drawHeader(name, gNight ? UI_INK_NIGHT : d.accent, statusMsg());
++#if !defined(BOARD_JC2432W328)
+     drawStreakBadge();
++#endif
+     drawPet();
+     drawBath();
+     drawPoops();
+@@ -1701,12 +1801,18 @@ bool render() {
+     gfx->fillRect(0, 312, LCD_WIDTH, LCD_HEIGHT - 312, gNight ? UI_BG_NIGHT : UI_BG_DAY);
+     drawBars();
+     drawButtons();
++#if defined(BOARD_JC2432W328)
++    drawStreakBadge();
++#endif
+     drawCelebration();
+     if (pet.wantEvolveButton()) drawEvolveButton();        // CTA rojo: evolucionar
+     else if (pet.canRunawayNow()) drawRunawayButton();     // CTA sombrio: escapada (abandono)
      else if (pet.wantFarewellButton()) drawFarewellButton();  // CTA dorado: despedida
    }
  
 +#if defined(BOARD_JC2432W328)
-+  if (!choiceUntil && !confirmUntil && !feedMenuUntil) drawJcNavigation();
++  if (!choiceKind && !confirmUntil && !feedMenuUntil) drawJcNavigation();
 +#endif
    if (pet.sleeping) {
      gfx->setTextColor(UI_INK_NIGHT);
      setSize(3);
-@@ -3299,14 +3400,40 @@ void drawBar(int x, int y, const char *label, uint8_t val) {
+@@ -2325,7 +2431,11 @@ void clockTap(int16_t x, int16_t y) {
+ // llama + numero de racha arriba a la izquierda
+ void drawStreakBadge() {
+   if (pet.streak < 1) return;
++#if defined(BOARD_JC2432W328)
++  int x = 26, y = 447;
++#else
+   int x = 26, y = 16;
++#endif
+   gfx->fillTriangle(x + 8, y, x + 1, y + 17, x + 15, y + 17, UI_BAR_BAD);
+   gfx->fillTriangle(x + 8, y + 7, x + 4, y + 17, x + 12, y + 17, UI_BAR_WARN);
+   char s[6];
+@@ -3299,14 +3409,40 @@ void drawBar(int x, int y, const char *label, uint8_t val) {
    if (fw > 0) gfx->fillRoundRect(bx + 2, y + 2, fw, bh - 4, 3, fill);
  }
  
